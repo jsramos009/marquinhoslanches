@@ -17,16 +17,24 @@ import { AdminShell, formatBRL } from "@/components/admin/AdminShell";
 import {
   getDashboardMetrics,
   listRecentOrders,
+  updateOrderStatus,
   type DashboardMetrics,
   type OrderStatus,
   type OrderRow,
-  type OrderPaymentMethod,
 } from "@/lib/orders.functions";
 import { ThermalReceipt } from "@/components/admin/ThermalReceipt";
-import { Printer } from "lucide-react";
+import { Printer, MessageCircle, Check } from "lucide-react";
 import { useNewOrderAlert } from "@/hooks/use-new-order-alert";
 import { useRealtimeOrders } from "@/hooks/use-realtime-orders";
 import { useQueryClient } from "@tanstack/react-query";
+import {
+  FLOW_STATUS_LABEL,
+  FLOW_STATUS_BADGE,
+  PAY_LABEL,
+  nextActionFor,
+  buildWhatsAppLink,
+  whatsappTemplateFor,
+} from "@/lib/order-flow";
 
 export const Route = createFileRoute("/_authenticated/admin/dashboard")({
   component: DashboardPage,
@@ -46,29 +54,8 @@ const RANGES: { id: "today" | "7d" | "30d" | "mtd"; label: string }[] = [
 ];
 
 const STATUS_ORDER: OrderStatus[] = ["recebido", "em_producao", "pronto", "entregue", "cancelado"];
-const STATUS_LABEL: Record<OrderStatus, string> = {
-  recebido: "Recebido",
-  em_producao: "Em produção",
-  pronto: "Pronto",
-  entregue: "Entregue",
-  cancelado: "Cancelado",
-};
-
-const STATUS_BADGE: Record<OrderStatus, string> = {
-  recebido: "bg-blue-500/15 text-blue-400 border-blue-500/30",
-  em_producao: "bg-amber-500/15 text-amber-400 border-amber-500/30",
-  pronto: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
-  entregue: "bg-muted text-muted-foreground border-border",
-  cancelado: "bg-destructive/15 text-destructive border-destructive/30",
-};
-
-const PAY_LABEL: Record<OrderPaymentMethod, string> = {
-  pix: "PIX",
-  cartao_credito: "Crédito",
-  cartao_debito: "Débito",
-  dinheiro: "Dinheiro",
-  nao_informado: "—",
-};
+const STATUS_LABEL = FLOW_STATUS_LABEL;
+const STATUS_BADGE = FLOW_STATUS_BADGE;
 
 function pct(curr: number, prev: number) {
   if (!prev) return curr > 0 ? 100 : 0;
