@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Minus, Plus, ShoppingBag, Trash2, X, MapPin, Phone, Clock } from "lucide-react";
+import { Check, Minus, Plus, ShoppingBag, Trash2, X, MapPin, Phone, Clock } from "lucide-react";
 import logoAsset from "@/assets/logo.png.asset.json";
 import { menuQueryOptions, formatBRL, type Product, type Addon } from "@/lib/menu";
 
@@ -400,25 +400,35 @@ function ProductDialog({
             <h4 className="mb-3 font-display text-lg text-foreground">
               Adicionais
             </h4>
-            <ul className="space-y-1">
+            <ul className="flex flex-wrap gap-2.5 pt-1 pb-2">
               {addons.map((a) => {
                 const on = picked.has(a.id);
                 return (
                   <li key={a.id}>
-                    <label className="flex min-h-12 cursor-pointer items-center justify-between gap-3 rounded-lg border border-border bg-card px-3 py-2 transition-colors hover:border-primary/40">
-                      <span className="flex items-center gap-3">
-                        <input
-                          type="checkbox"
-                          className="h-5 w-5 accent-[var(--brand-yellow)]"
-                          checked={on}
-                          onChange={() => toggle(a.id)}
-                        />
-                        <span className="text-sm font-medium">{a.name}</span>
+                    <button
+                      type="button"
+                      onClick={() => toggle(a.id)}
+                      aria-pressed={on}
+                      className={[
+                        "addon-chip addon-chip-hover",
+                        on ? "addon-chip-on" : "",
+                      ].join(" ")}
+                    >
+                      <span className={["addon-knob", on ? "addon-knob-on" : ""].join(" ")}>
+                        <Check className="h-3.5 w-3.5" strokeWidth={3} />
                       </span>
-                      <span className="text-sm font-semibold text-primary">
-                        + {formatBRL(a.price)}
+                      <span>{a.name}</span>
+                      <span
+                        className={[
+                          "ml-1 rounded-full px-2 py-0.5 text-xs font-bold",
+                          on
+                            ? "bg-black/15 text-primary-foreground"
+                            : "bg-primary/15 text-primary",
+                        ].join(" ")}
+                      >
+                        +{formatBRL(a.price)}
                       </span>
-                    </label>
+                    </button>
                   </li>
                 );
               })}
