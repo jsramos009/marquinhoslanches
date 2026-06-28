@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -49,13 +49,23 @@ function PedidosPlaceholder() {
               )}
             </p>
           </div>
-          <button
-            onClick={signOut}
-            disabled={signingOut}
-            className="rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground hover:bg-secondary"
-          >
-            Sair
-          </button>
+          <div className="flex items-center gap-2">
+            {roles.includes("admin") && (
+              <Link
+                to="/admin/usuarios"
+                className="rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground hover:bg-secondary"
+              >
+                Acessos
+              </Link>
+            )}
+            <button
+              onClick={signOut}
+              disabled={signingOut}
+              className="rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground hover:bg-secondary"
+            >
+              Sair
+            </button>
+          </div>
         </header>
 
         <div className="rounded-xl border border-dashed border-border bg-card p-8 text-center">
