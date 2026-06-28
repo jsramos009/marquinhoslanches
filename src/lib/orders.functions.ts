@@ -36,12 +36,14 @@ export type OrderRow = {
   delivered_at: string | null;
   items: {
     id: string;
+    product_id: string | null;
     product_name_snapshot: string;
     quantity: number;
     unit_price_snapshot: number;
     line_total: number;
     addons: {
       id: string;
+      addon_id: string | null;
       addon_name_snapshot: string;
       quantity: number;
       unit_price_snapshot: number;
@@ -268,7 +270,7 @@ export const listRecentOrders = createServerFn({ method: "GET" })
     const { data: rows, error } = await context.supabase
       .from("orders")
       .select(
-        "id, customer_name, customer_phone, channel, status, subtotal, discount, total, notes, cancel_reason, payment_method, change_for, created_at, ready_at, delivered_at, order_items(id, product_name_snapshot, quantity, unit_price_snapshot, line_total, order_item_addons(id, addon_name_snapshot, quantity, unit_price_snapshot))",
+        "id, customer_name, customer_phone, channel, status, subtotal, discount, total, notes, cancel_reason, payment_method, change_for, created_at, ready_at, delivered_at, order_items(id, product_id, product_name_snapshot, quantity, unit_price_snapshot, line_total, order_item_addons(id, addon_id, addon_name_snapshot, quantity, unit_price_snapshot))",
       )
       .gte("created_at", since)
       .order("created_at", { ascending: false });
@@ -292,12 +294,14 @@ export const listRecentOrders = createServerFn({ method: "GET" })
         delivered_at: string | null;
         order_items: {
           id: string;
+          product_id: string | null;
           product_name_snapshot: string;
           quantity: number;
           unit_price_snapshot: number;
           line_total: number;
           order_item_addons: {
             id: string;
+            addon_id: string | null;
             addon_name_snapshot: string;
             quantity: number;
             unit_price_snapshot: number;
@@ -322,12 +326,14 @@ export const listRecentOrders = createServerFn({ method: "GET" })
         delivered_at: row.delivered_at,
         items: (row.order_items ?? []).map((i) => ({
           id: i.id,
+          product_id: i.product_id ?? null,
           product_name_snapshot: i.product_name_snapshot,
           quantity: i.quantity,
           unit_price_snapshot: Number(i.unit_price_snapshot),
           line_total: Number(i.line_total),
           addons: (i.order_item_addons ?? []).map((a) => ({
             id: a.id,
+            addon_id: a.addon_id ?? null,
             addon_name_snapshot: a.addon_name_snapshot,
             quantity: a.quantity,
             unit_price_snapshot: Number(a.unit_price_snapshot),
