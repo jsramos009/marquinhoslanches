@@ -10,6 +10,8 @@ import {
   type OrderRow,
   type OrderStatus,
 } from "@/lib/orders.functions";
+import { useNewOrderAlert } from "@/hooks/use-new-order-alert";
+import { useRealtimeOrders } from "@/hooks/use-realtime-orders";
 
 export const Route = createFileRoute("/_authenticated/admin/pedidos")({
   component: PedidosPage,
@@ -57,8 +59,12 @@ function PedidosPage() {
   const q = useQuery<OrderRow[]>({
     queryKey: ["orders-recent"],
     queryFn: () => list({ data: { sinceHours: 36 } }),
-    refetchInterval: 30_000,
+    refetchInterval: 5_000,
+    refetchIntervalInBackground: true,
   });
+
+  useRealtimeOrders(() => qc.invalidateQueries({ queryKey: ["orders-recent"] }));
+  useNewOrderAlert(q.data);
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ["orders-recent"] });
 
