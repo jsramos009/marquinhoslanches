@@ -144,11 +144,13 @@ export const setUserRole = createServerFn({ method: "POST" })
     }
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    // Mark all existing roles for this user as rejected, then upsert the chosen role as approved.
+    // Remove any other role rows for this user so changing the role doesn't
+    // leave behind rejected entries cluttering the rejected list.
     const { error: e1 } = await supabaseAdmin
       .from("user_roles")
-      .update({ status: "rejected" })
-      .eq("user_id", data.userId);
+      .delete()
+      .eq("user_id", data.userId)
+      .neq("role", data.role);
     if (e1) throw new Error(e1.message);
 
     const { error: e2 } = await supabaseAdmin
