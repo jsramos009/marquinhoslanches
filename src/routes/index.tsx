@@ -196,10 +196,14 @@ function MenuPage() {
               }}
               className="mb-10 scroll-mt-24"
             >
-              <h2 className="mb-4 flex items-center gap-3 text-2xl text-primary">
-                <span className="h-1 w-6 rounded-full bg-secondary" />
-                {c.name}
-              </h2>
+              <div
+                className="mb-4 rounded-xl border border-primary/40 px-5 py-3 text-center shadow-[var(--shadow-brand)]"
+                style={{ background: "var(--gradient-red)" }}
+              >
+                <h2 className="font-display text-xl uppercase tracking-[0.18em] text-primary sm:text-2xl">
+                  {c.name}
+                </h2>
+              </div>
               <div className="space-y-3">
                 {prods.map((p) => (
                   <ProductCard
@@ -316,37 +320,37 @@ function ProductCard({
   return (
     <button
       onClick={onClick}
-      className="group grid w-full grid-cols-[1fr_auto] items-stretch gap-3 rounded-xl border border-border bg-card p-3 text-left transition-colors hover:border-primary/60 active:scale-[0.99]"
+      className="group grid w-full grid-cols-[auto_minmax(0,1fr)] items-stretch gap-3 rounded-xl border border-border bg-card p-3 text-left transition-colors hover:border-primary/60 active:scale-[0.99]"
     >
-      <div className="min-w-0">
+      <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-lg bg-muted sm:h-28 sm:w-28">
+        {product.image_url ? (
+          <img
+            src={product.image_url}
+            alt={product.name}
+            loading="lazy"
+            className="h-full w-full object-cover"
+          />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center bg-secondary/30 text-2xl">
+            🍔
+          </div>
+        )}
+      </div>
+      <div className="flex min-w-0 flex-col">
         <h3 className="font-display text-lg text-primary">{product.name}</h3>
         {product.description && (
-          <p className="mt-1 line-clamp-3 text-sm text-muted-foreground">
+          <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">
             {product.description}
           </p>
         )}
-        <p className="mt-2 font-display text-xl text-foreground">
-          {formatBRL(product.price)}
-        </p>
-      </div>
-      <div className="flex flex-col items-end justify-between gap-2">
-        <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-lg bg-muted sm:h-24 sm:w-24">
-          {product.image_url ? (
-            <img
-              src={product.image_url}
-              alt={product.name}
-              loading="lazy"
-              className="h-full w-full object-cover"
-            />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center bg-secondary/30 text-2xl">
-              🍔
-            </div>
-          )}
+        <div className="mt-auto flex items-end justify-between gap-2 pt-2">
+          <p className="font-display text-xl text-foreground">
+            {formatBRL(product.price)}
+          </p>
+          <span className="inline-flex items-center gap-1 rounded-full bg-primary px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-primary-foreground">
+            <Plus className="h-3.5 w-3.5" /> Pedir
+          </span>
         </div>
-        <span className="inline-flex h-9 min-w-9 items-center justify-center rounded-full bg-primary px-3 text-sm font-bold text-primary-foreground">
-          <Plus className="h-4 w-4" />
-        </span>
       </div>
     </button>
   );
