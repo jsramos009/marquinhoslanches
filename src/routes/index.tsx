@@ -91,7 +91,7 @@ type CartLine = {
   unitPrice: number; // product + addons sum
 };
 
-function MenuPage() {
+export function MenuPage() {
   const { data } = useSuspenseQuery(menuQueryOptions());
   const [cart, setCart] = useState<CartLine[]>([]);
   const [openProduct, setOpenProduct] = useState<Product | null>(null);
