@@ -47,7 +47,8 @@ export function nextActionFor(status: OrderStatus): {
 // ---------- Repeat order link (base64 query param) ----------
 
 type RepeatPayload = {
-  i: { p: string; q: number; a?: string[]; n?: string }[];
+  i: { p: string; q: number; a?: string[] }[];
+  n?: string;
 };
 
 function b64encode(s: string): string {
@@ -76,12 +77,13 @@ export function buildRepeatToken(order: OrderRow): string | null {
         q: it.quantity,
       };
       if (addonIds.length) entry.a = addonIds;
-      const notes = (it.notes ?? "").trim();
-      if (notes) entry.n = notes.slice(0, 240);
       return entry;
     });
   if (items.length === 0) return null;
-  return b64encode(JSON.stringify({ i: items } satisfies RepeatPayload));
+  const payload: RepeatPayload = { i: items };
+  const notes = (order.notes ?? "").trim();
+  if (notes) payload.n = notes.slice(0, 280);
+  return b64encode(JSON.stringify(payload));
 }
 
 export function decodeRepeatToken(token: string): RepeatPayload | null {
@@ -94,10 +96,9 @@ export function decodeRepeatToken(token: string): RepeatPayload | null {
       p: e.p,
       q: e.q,
       a: Array.isArray(e.a) ? e.a.filter((x) => typeof x === "string") : undefined,
-      n: typeof e.n === "string" ? e.n : undefined,
     }));
     if (items.length === 0) return null;
-    return { i: items };
+    return { i: items, n: typeof parsed.n === "string" ? parsed.n : undefined };
   } catch {
     return null;
   }
