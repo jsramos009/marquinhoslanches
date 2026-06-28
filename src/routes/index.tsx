@@ -41,6 +41,40 @@ type CartLine = {
 
 function MenuPage() {
   const { data, isLoading, error } = useQuery(menuQueryOptions());
+  const [cart, setCart] = useState<CartLine[]>([]);
+  const [openProduct, setOpenProduct] = useState<Product | null>(null);
+  const [cartOpen, setCartOpen] = useState(false);
+  const [activeCat, setActiveCat] = useState<string>("");
+
+  const productsByCat = useMemo(() => {
+    const m: Record<string, Product[]> = {};
+    if (!data) return m;
+    for (const c of data.categories) m[c.id] = [];
+    for (const p of data.products) (m[p.category_id] ??= []).push(p);
+    return m;
+  }, [data]);
+
+  const totalQty = cart.reduce((s, l) => s + l.qty, 0);
+  const totalPrice = cart.reduce((s, l) => s + l.qty * l.unitPrice, 0);
+
+  // Scroll spy for sticky categories
+  const sectionRefs = useRef<Record<string, HTMLElement | null>>({});
+  useEffect(() => {
+    if (!data) return;
+    if (!activeCat && data.categories[0]) setActiveCat(data.categories[0].slug);
+    const obs = new IntersectionObserver(
+      (entries) => {
+        const visible = entries
+          .filter((e) => e.isIntersecting)
+          .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+        if (visible) setActiveCat(visible.target.id);
+      },
+      { rootMargin: "-120px 0px -60% 0px", threshold: [0, 0.25, 0.5] },
+    );
+    Object.values(sectionRefs.current).forEach((el) => el && obs.observe(el));
+    return () => obs.disconnect();
+  }, [data, activeCat]);
+
   if (isLoading || !data) {
     return (
       <div className="grid min-h-screen place-items-center bg-background text-muted-foreground">
@@ -55,36 +89,6 @@ function MenuPage() {
       </div>
     );
   }
-  const [cart, setCart] = useState<CartLine[]>([]);
-  const [openProduct, setOpenProduct] = useState<Product | null>(null);
-  const [cartOpen, setCartOpen] = useState(false);
-  const [activeCat, setActiveCat] = useState<string>(data.categories[0]?.slug ?? "");
-
-  const productsByCat = useMemo(() => {
-    const m: Record<string, Product[]> = {};
-    for (const c of data.categories) m[c.id] = [];
-    for (const p of data.products) (m[p.category_id] ??= []).push(p);
-    return m;
-  }, [data]);
-
-  const totalQty = cart.reduce((s, l) => s + l.qty, 0);
-  const totalPrice = cart.reduce((s, l) => s + l.qty * l.unitPrice, 0);
-
-  // Scroll spy for sticky categories
-  const sectionRefs = useRef<Record<string, HTMLElement | null>>({});
-  useEffect(() => {
-    const obs = new IntersectionObserver(
-      (entries) => {
-        const visible = entries
-          .filter((e) => e.isIntersecting)
-          .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
-        if (visible) setActiveCat(visible.target.id);
-      },
-      { rootMargin: "-120px 0px -60% 0px", threshold: [0, 0.25, 0.5] },
-    );
-    Object.values(sectionRefs.current).forEach((el) => el && obs.observe(el));
-    return () => obs.disconnect();
-  }, [data.categories.length]);
 
   const scrollToCat = (slug: string) => {
     const el = sectionRefs.current[slug];
