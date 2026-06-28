@@ -1,4 +1,5 @@
 import { createFileRoute, Outlet, redirect, useNavigate } from "@tanstack/react-router";
+import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { getMyPanelAccess, type PanelAccess } from "@/lib/access.functions";
@@ -46,12 +47,15 @@ function AuthenticatedLayout() {
     accessStatus: "approved" | "pending" | "rejected" | "none";
   };
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [signingOut, setSigningOut] = useState(false);
 
   if (accessStatus === "approved") return <Outlet />;
 
   async function signOut() {
     setSigningOut(true);
+    await queryClient.cancelQueries();
+    queryClient.clear();
     await supabase.auth.signOut();
     navigate({ to: "/auth", replace: true });
   }
