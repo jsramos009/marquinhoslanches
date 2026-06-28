@@ -24,6 +24,9 @@ import {
 } from "@/lib/orders.functions";
 import { ThermalReceipt } from "@/components/admin/ThermalReceipt";
 import { Printer } from "lucide-react";
+import { useNewOrderAlert } from "@/hooks/use-new-order-alert";
+import { useRealtimeOrders } from "@/hooks/use-realtime-orders";
+import { useQueryClient } from "@tanstack/react-query";
 
 export const Route = createFileRoute("/_authenticated/admin/dashboard")({
   component: DashboardPage,
@@ -355,11 +358,15 @@ function Card({
 
 function TodayOrdersGrid() {
   const fetcher = useServerFn(listRecentOrders);
+  const qc = useQueryClient();
   const q = useQuery<OrderRow[]>({
     queryKey: ["today-orders"],
     queryFn: () => fetcher({ data: { sinceHours: 24 } }),
-    refetchInterval: 30_000,
+    refetchInterval: 5_000,
+    refetchIntervalInBackground: true,
   });
+  useRealtimeOrders(() => qc.invalidateQueries({ queryKey: ["today-orders"] }));
+  useNewOrderAlert(q.data);
   const [printing, setPrinting] = useState<OrderRow | null>(null);
 
   const todayStart = new Date();
