@@ -125,7 +125,8 @@ function UsuariosPage() {
           {approved.length === 0 && <Empty>Nenhum usuário aprovado ainda.</Empty>}
           {approved.map((u) => {
             const isSelf = u.user_id === user.id;
-            const canRevoke = u.role === "staff" && !isSelf;
+            const canRevoke = u.role !== "admin" && !isSelf;
+            const canEditRole = !isSelf;
             return (
               <Row
                 key={u.user_id + u.role}
@@ -133,23 +134,40 @@ function UsuariosPage() {
                 role={u.role}
                 createdAt={u.created_at}
                 actions={
-                  canRevoke ? (
-                    <button
-                      onClick={() => {
-                        if (confirm(`Revogar acesso de ${u.email}?`)) {
-                          revokeMut.mutate(u.user_id);
+                  <>
+                    {canEditRole ? (
+                      <select
+                        value={u.role}
+                        onChange={(e) =>
+                          setRoleMut.mutate({
+                            userId: u.user_id,
+                            role: e.target.value as AccessRole,
+                          })
                         }
-                      }}
-                      disabled={revokeMut.isPending}
-                      className="rounded-lg border border-destructive/40 bg-card px-3 py-1.5 text-sm text-destructive hover:bg-destructive/10 disabled:opacity-60"
-                    >
-                      Revogar
-                    </button>
-                  ) : (
-                    <span className="text-xs text-muted-foreground">
-                      {isSelf ? "você" : "—"}
-                    </span>
-                  )
+                        disabled={setRoleMut.isPending}
+                        className="rounded-lg border border-border bg-card px-2 py-1 text-sm text-foreground disabled:opacity-60"
+                      >
+                        <option value="admin">Admin</option>
+                        <option value="balcao">Balcão</option>
+                        <option value="staff">Staff</option>
+                      </select>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">você</span>
+                    )}
+                    {canRevoke && (
+                      <button
+                        onClick={() => {
+                          if (confirm(`Revogar acesso de ${u.email}?`)) {
+                            revokeMut.mutate(u.user_id);
+                          }
+                        }}
+                        disabled={revokeMut.isPending}
+                        className="rounded-lg border border-destructive/40 bg-card px-3 py-1.5 text-sm text-destructive hover:bg-destructive/10 disabled:opacity-60"
+                      >
+                        Revogar
+                      </button>
+                    )}
+                  </>
                 }
               />
             );
