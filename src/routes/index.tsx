@@ -780,10 +780,11 @@ function CartDialog({
       phone.trim(),
       mode,
       mode === "delivery" ? address.trim() : "",
+      mode === "delivery" ? neighborhoodId : "",
       payment ?? "",
       payment === "dinheiro" ? changeFor : "",
     ].join("§");
-  }, [cart, name, phone, mode, address, payment, changeFor]);
+  }, [cart, name, phone, mode, address, neighborhoodId, payment, changeFor]);
 
   const alreadySent = submittedFp === orderFingerprint;
 
