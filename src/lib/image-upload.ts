@@ -17,6 +17,17 @@ export async function fileToCompressedDataUrl(
     r.readAsDataURL(file);
   });
 
+  return compressDataUrl(dataUrl, { maxDim, quality, mime });
+}
+
+export async function compressDataUrl(
+  dataUrl: string,
+  opts: { maxDim?: number; quality?: number; mime?: string } = {}
+): Promise<string> {
+  const maxDim = opts.maxDim ?? 800;
+  const quality = opts.quality ?? 0.82;
+  const mime = opts.mime ?? "image/webp";
+
   const img = await new Promise<HTMLImageElement>((resolve, reject) => {
     const i = new Image();
     i.onload = () => resolve(i);

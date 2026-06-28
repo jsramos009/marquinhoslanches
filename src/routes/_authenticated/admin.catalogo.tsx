@@ -13,8 +13,9 @@ import {
   type CatalogAddon,
   type CatalogCategory,
 } from "@/lib/catalog.functions";
-import { Pencil, Plus, Trash2, X, Image as ImageIcon, Upload } from "lucide-react";
-import { fileToCompressedDataUrl } from "@/lib/image-upload";
+import { Pencil, Plus, Trash2, X, Image as ImageIcon, Upload, Sparkles } from "lucide-react";
+import { fileToCompressedDataUrl, compressDataUrl } from "@/lib/image-upload";
+import { generateProductImage } from "@/lib/ai-images.functions";
 
 function Toggle3D({
   on,
@@ -355,6 +356,8 @@ function ProductEditor({
           <PhotoPicker
             value={form.image_url ?? ""}
             onChange={(v) => setForm({ ...form, image_url: v })}
+            name={form.name}
+            description={form.description}
           />
         </Field>
         <div className="grid grid-cols-2 gap-3">
@@ -575,10 +578,22 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
-function PhotoPicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+function PhotoPicker({
+  value,
+  onChange,
+  name,
+  description,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  name?: string;
+  description?: string;
+}) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
+  const [aiBusy, setAiBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const genFn = useServerFn(generateProductImage);
 
   async function handleFile(file: File | undefined) {
     if (!file) return;
@@ -602,10 +617,31 @@ function PhotoPicker({ value, onChange }: { value: string; onChange: (v: string)
     }
   }
 
+  async function handleGenerate() {
+    setErr(null);
+    const trimmed = (name ?? "").trim();
+    if (!trimmed) {
+      setErr("Preencha o nome do produto antes de gerar.");
+      return;
+    }
+    setAiBusy(true);
+    try {
+      const { dataUrl } = await genFn({ data: { name: trimmed, description: description ?? "" } });
+      const compressed = await compressDataUrl(dataUrl, { maxDim: 800, quality: 0.82 });
+      onChange(compressed);
+    } catch (e) {
+      setErr((e as Error).message);
+    } finally {
+      setAiBusy(false);
+    }
+  }
+
   return (
     <div className="flex items-start gap-3">
       <div className="grid h-24 w-24 shrink-0 place-items-center overflow-hidden rounded-lg border border-border bg-secondary text-muted-foreground">
-        {value ? (
+        {aiBusy ? (
+          <div className="h-24 w-24 animate-pulse bg-muted" />
+        ) : value ? (
           <img
             src={value}
             alt=""
@@ -630,15 +666,25 @@ function PhotoPicker({ value, onChange }: { value: string; onChange: (v: string)
           <button
             type="button"
             onClick={() => inputRef.current?.click()}
-            disabled={busy}
+            disabled={busy || aiBusy}
             className="flex items-center gap-1 rounded-lg bg-primary px-3 py-1.5 text-sm text-primary-foreground disabled:opacity-50"
           >
             <Upload size={14} /> {busy ? "Enviando…" : value ? "Trocar foto" : "Enviar foto"}
+          </button>
+          <button
+            type="button"
+            onClick={handleGenerate}
+            disabled={busy || aiBusy}
+            className="flex items-center gap-1 rounded-lg border border-primary px-3 py-1.5 text-sm text-primary hover:bg-primary/10 disabled:opacity-50"
+            title="Gera uma foto a partir do nome e da descrição/ingredientes"
+          >
+            <Sparkles size={14} /> {aiBusy ? "Gerando…" : "Gerar com IA"}
           </button>
           {value && (
             <button
               type="button"
               onClick={() => onChange("")}
+              disabled={busy || aiBusy}
               className="rounded-lg border border-border px-3 py-1.5 text-sm hover:bg-secondary"
             >
               Remover
@@ -646,7 +692,7 @@ function PhotoPicker({ value, onChange }: { value: string; onChange: (v: string)
           )}
         </div>
         <p className="text-xs text-muted-foreground">
-          JPG, PNG ou WebP. A imagem é redimensionada automaticamente.
+          Envie uma foto ou gere uma com IA a partir do nome e dos ingredientes.
         </p>
         {err && <p className="text-xs text-destructive">{err}</p>}
       </div>
