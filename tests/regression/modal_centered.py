@@ -1,12 +1,14 @@
 """Regression: order modal must always open centered after route transitions,
-and focus must be trapped + returned to opener on close."""
-import asyncio, sys
+and focus must be trapped + returned to opener on close.
+
+Runs in CI against the built preview server. Override target with APP_URL env."""
+import asyncio, os, sys
 from pathlib import Path
 from playwright.async_api import async_playwright
 
 SHOTS = Path(__file__).parent / "screenshots"
 SHOTS.mkdir(exist_ok=True)
-URL = "http://localhost:8080"
+URL = os.environ.get("APP_URL", "http://localhost:8080").rstrip("/")
 VIEWPORT = {"width": 390, "height": 800}
 
 async def assert_modal_centered(page, label):
