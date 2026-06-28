@@ -1053,6 +1053,43 @@ function CartDialog({
                   onChange={(e) => setAddress(e.target.value)}
                   placeholder="Rua, número, bairro, ponto de referência"
                 />
+                <div className="mt-2 space-y-2">
+                  <button
+                    type="button"
+                    onClick={requestLocation}
+                    disabled={geoStatus === "loading"}
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-primary/60 bg-primary/10 px-3 py-2 text-sm font-semibold text-primary hover:bg-primary/20 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    <MapPin className="h-4 w-4" />
+                    {geoStatus === "loading"
+                      ? "Obtendo localização…"
+                      : geo
+                        ? "Atualizar minha localização"
+                        : "Usar minha localização atual"}
+                  </button>
+                  {geo && mapsLink && (
+                    <div className="rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-200">
+                      <p className="font-semibold">📍 Localização capturada</p>
+                      <p className="mt-0.5 break-all">
+                        {geo.lat.toFixed(6)}, {geo.lng.toFixed(6)}{" "}
+                        <span className="opacity-80">
+                          (±{Math.round(geo.accuracy)}m)
+                        </span>
+                      </p>
+                      <a
+                        href={mapsLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-1 inline-block underline"
+                      >
+                        Ver no mapa
+                      </a>
+                    </div>
+                  )}
+                  {geoStatus === "error" && geoError && (
+                    <p className="text-xs text-destructive">{geoError}</p>
+                  )}
+                </div>
               </Field>
             )}
             <Field label="Como vai pagar?">
