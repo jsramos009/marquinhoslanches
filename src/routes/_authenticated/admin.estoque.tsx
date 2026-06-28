@@ -98,8 +98,9 @@ function StockRow({
   const dirty = track !== p.track_stock || (track && qty !== (p.stock_quantity ?? 0)) || active !== p.is_active;
 
   return (
-    <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-card px-4 py-3">
-      <div className="flex min-w-0 flex-1 items-center gap-3">
+    <div className="rounded-xl border border-border bg-card px-3 py-3 sm:px-4">
+      {/* Linha 1: produto */}
+      <div className="flex items-center gap-3">
         <div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-secondary text-primary">
           {p.image_url ? (
             <img
@@ -115,54 +116,65 @@ function StockRow({
             <Package size={18} />
           )}
         </div>
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <p className="truncate font-semibold">{p.name}</p>
           <p className="text-xs text-muted-foreground">{formatBRL(p.price)}</p>
         </div>
       </div>
 
-      <button
-        type="button"
-        onClick={() => setActive(!active)}
-        aria-pressed={active}
-        className={`toggle-3d ${active ? "toggle-3d-on" : "toggle-3d-off"}`}
-      >
-        <span className="toggle-3d-dot" />
-        {active ? "Disponível" : "Indisponível"}
-      </button>
-      <button
-        type="button"
-        onClick={() => setTrack(!track)}
-        aria-pressed={track}
-        className={`toggle-3d ${track ? "toggle-3d-on" : "toggle-3d-off"}`}
-      >
-        <span className="toggle-3d-dot" />
-        {track ? "Estoque ativo" : "Sem controle"}
-      </button>
-      {track && (
-        <input
-          type="number"
-          min={0}
-          value={qty}
-          onChange={(e) => setQty(Math.max(0, parseInt(e.target.value || "0", 10)))}
-          className="w-24 rounded-lg border border-border bg-background px-2 py-1.5 text-sm"
-        />
-      )}
+      {/* Linha 2: toggles (empilham no mobile, lado a lado a partir de sm) */}
+      <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+        <button
+          type="button"
+          onClick={() => setActive(!active)}
+          aria-pressed={active}
+          className={`toggle-3d w-full justify-center ${active ? "toggle-3d-on" : "toggle-3d-off"}`}
+        >
+          <span className="toggle-3d-dot" />
+          {active ? "Disponível" : "Indisponível"}
+        </button>
+        <button
+          type="button"
+          onClick={() => setTrack(!track)}
+          aria-pressed={track}
+          className={`toggle-3d w-full justify-center ${track ? "toggle-3d-on" : "toggle-3d-off"}`}
+        >
+          <span className="toggle-3d-dot" />
+          {track ? "Estoque ativo" : "Sem controle"}
+        </button>
+      </div>
 
-      <button
-        onClick={() =>
-          onSave({
-            id: p.id,
-            track_stock: track,
-            stock_quantity: track ? qty : null,
-            is_active: active,
-          })
-        }
-        disabled={!dirty || pending}
-        className="rounded-lg bg-primary px-3 py-1.5 text-sm text-primary-foreground disabled:opacity-50"
-      >
-        Salvar
-      </button>
+      {/* Linha 3: quantidade + salvar */}
+      <div className="mt-3 flex items-center gap-2">
+        {track ? (
+          <label className="flex flex-1 items-center gap-2 text-xs text-muted-foreground">
+            <span className="shrink-0">Qtd.</span>
+            <input
+              type="number"
+              min={0}
+              value={qty}
+              onChange={(e) => setQty(Math.max(0, parseInt(e.target.value || "0", 10)))}
+              className="w-full rounded-lg border border-border bg-background px-2 py-1.5 text-sm text-foreground"
+            />
+          </label>
+        ) : (
+          <span className="flex-1" />
+        )}
+        <button
+          onClick={() =>
+            onSave({
+              id: p.id,
+              track_stock: track,
+              stock_quantity: track ? qty : null,
+              is_active: active,
+            })
+          }
+          disabled={!dirty || pending}
+          className="shrink-0 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50"
+        >
+          Salvar
+        </button>
+      </div>
     </div>
   );
 }
