@@ -22,7 +22,7 @@ export const Route = createFileRoute("/auth")({
 function AuthPage() {
   const search = useSearch({ from: "/auth" });
   const navigate = useNavigate();
-  const [mode, setMode] = useState<"login" | "reset">("login");
+  const [mode, setMode] = useState<"login" | "signup" | "reset">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -69,6 +69,36 @@ function AuthPage() {
       return;
     }
     setInfo("Se o e-mail existir, enviamos um link para você definir a senha.");
+  }
+
+  async function handleSignup(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setInfo(null);
+    setLoading(true);
+    try {
+      const res = await fetch("/api/public/set-admin-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+      const data = (await res.json()) as { ok: boolean; error?: string };
+      if (!res.ok || !data.ok) {
+        setError(data.error ?? "Não foi possível cadastrar.");
+        setLoading(false);
+        return;
+      }
+      const { error: loginErr } = await supabase.auth.signInWithPassword({ email, password });
+      setLoading(false);
+      if (loginErr) {
+        setError(loginErr.message);
+        return;
+      }
+      navigate({ to: (search.redirect as string) || "/admin/pedidos", replace: true });
+    } catch (err) {
+      setLoading(false);
+      setError(err instanceof Error ? err.message : "Erro inesperado.");
+    }
   }
 
   return (
@@ -128,6 +158,71 @@ function AuthPage() {
                 className="block w-full text-center text-sm text-muted-foreground underline-offset-2 hover:underline"
               >
                 Esqueci minha senha
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setMode("signup");
+                  setError(null);
+                  setInfo(null);
+                }}
+                className="block w-full text-center text-sm text-primary underline-offset-2 hover:underline"
+              >
+                Criar acesso (cadastro do administrador)
+              </button>
+            </form>
+          ) : mode === "signup" ? (
+            <form onSubmit={handleSignup} className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                Cadastro liberado para o e-mail do administrador principal. Defina uma senha e
+                entre direto no painel.
+              </p>
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  E-mail
+                </label>
+                <input
+                  type="email"
+                  required
+                  autoComplete="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-foreground outline-none focus:border-primary"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Nova senha (mín. 6 caracteres)
+                </label>
+                <input
+                  type="password"
+                  required
+                  minLength={6}
+                  autoComplete="new-password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-foreground outline-none focus:border-primary"
+                />
+              </div>
+              {error && <p className="text-sm text-destructive">{error}</p>}
+              {info && <p className="text-sm text-primary">{info}</p>}
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full rounded-lg bg-primary px-4 py-2.5 font-semibold text-primary-foreground transition hover:opacity-90 disabled:opacity-60"
+              >
+                {loading ? "Cadastrando…" : "Cadastrar e entrar"}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setMode("login");
+                  setError(null);
+                  setInfo(null);
+                }}
+                className="block w-full text-center text-sm text-muted-foreground underline-offset-2 hover:underline"
+              >
+                Voltar ao login
               </button>
             </form>
           ) : (
