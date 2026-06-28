@@ -9,6 +9,28 @@ import { buildPixPayload } from "@/lib/pix";
 import QRCode from "qrcode";
 import { submitPublicOrder } from "@/lib/orders-public.functions";
 import { useServerFn } from "@tanstack/react-start";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+
+type DeliveryFeeOption = { id: string; neighborhood: string; fee: number };
+
+const deliveryFeesQueryOptions = () => ({
+  queryKey: ["delivery-fees", "public"],
+  queryFn: async (): Promise<DeliveryFeeOption[]> => {
+    const { data, error } = await supabase
+      .from("delivery_fees")
+      .select("id, neighborhood, fee")
+      .eq("is_active", true)
+      .order("neighborhood", { ascending: true });
+    if (error) throw error;
+    return (data ?? []).map((d: any) => ({
+      id: d.id,
+      neighborhood: d.neighborhood,
+      fee: Number(d.fee),
+    }));
+  },
+  staleTime: 5 * 60_000,
+});
 
 const WHATSAPP_NUMBER = "5594991032483";
 const WHATSAPP_DISPLAY = "(94) 99103-2483";
