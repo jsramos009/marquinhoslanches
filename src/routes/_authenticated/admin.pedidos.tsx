@@ -5,7 +5,6 @@ import { useState } from "react";
 import { AdminShell, formatBRL } from "@/components/admin/AdminShell";
 import {
   listRecentOrders,
-  listArchivedOrders,
   updateOrderStatus,
   cancelOrder,
   type OrderRow,
@@ -58,7 +57,6 @@ function PedidosPage() {
     roles: string[];
   };
   const list = useServerFn(listRecentOrders);
-  const listArchived = useServerFn(listArchivedOrders);
   const updateFn = useServerFn(updateOrderStatus);
   const cancelFn = useServerFn(cancelOrder);
   const qc = useQueryClient();
@@ -96,28 +94,6 @@ function PedidosPage() {
   );
   const cancelled = orders.filter((o) => o.status === "cancelado");
   const [showCancelled, setShowCancelled] = useState(false);
-  const [showArchived, setShowArchived] = useState(false);
-
-  const archivedQ = useQuery<OrderRow[]>({
-    queryKey: ["orders-archived", 30],
-    queryFn: () => listArchived({ data: { days: 30 } }),
-    enabled: showArchived,
-    staleTime: 60_000,
-  });
-
-  const archivedByDay = (archivedQ.data ?? []).reduce<Record<string, OrderRow[]>>(
-    (acc, o) => {
-      const d = new Date(o.created_at);
-      const key = d.toLocaleDateString("pt-BR", {
-        weekday: "long",
-        day: "2-digit",
-        month: "long",
-      });
-      (acc[key] ??= []).push(o);
-      return acc;
-    },
-    {},
-  );
 
   return (
     <AdminShell
@@ -132,12 +108,12 @@ function PedidosPage() {
           >
             {showCancelled ? "Ocultar" : "Ver"} cancelados ({cancelled.length})
           </button>
-          <button
-            onClick={() => setShowArchived((v) => !v)}
+          <Link
+            to="/admin/arquivados"
             className="rounded-lg border border-border bg-card px-3 py-2 text-sm text-muted-foreground hover:text-foreground"
           >
-            {showArchived ? "Ocultar" : "Ver"} arquivados
-          </button>
+            Ver arquivados
+          </Link>
           <Link
             to="/admin/novo-pedido"
             className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90"
