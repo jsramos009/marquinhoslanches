@@ -45,6 +45,20 @@ function MenuPage() {
   const [openProduct, setOpenProduct] = useState<Product | null>(null);
   const [cartOpen, setCartOpen] = useState(false);
   const [activeCat, setActiveCat] = useState<string>("");
+  const [suggestionOpen, setSuggestionOpen] = useState(false);
+  const [suggestionDismissed, setSuggestionDismissed] = useState(false);
+
+  const beveragesCategoryId = useMemo(
+    () => data?.categories.find((c) => c.slug === "bebidas")?.id ?? null,
+    [data],
+  );
+  const suggestedBeverages = useMemo(() => {
+    if (!data) return [];
+    return data.products
+      .filter((p) => p.suggestion_order != null)
+      .sort((a, b) => (a.suggestion_order ?? 0) - (b.suggestion_order ?? 0))
+      .slice(0, 3);
+  }, [data]);
 
   const productsByCat = useMemo(() => {
     const m: Record<string, Product[]> = {};
@@ -56,6 +70,11 @@ function MenuPage() {
 
   const totalQty = cart.reduce((s, l) => s + l.qty, 0);
   const totalPrice = cart.reduce((s, l) => s + l.qty * l.unitPrice, 0);
+
+  // Reset suggestion dismissal when cart is emptied (new order)
+  useEffect(() => {
+    if (cart.length === 0 && suggestionDismissed) setSuggestionDismissed(false);
+  }, [cart.length, suggestionDismissed]);
 
   // Scroll spy for sticky categories
   const sectionRefs = useRef<Record<string, HTMLElement | null>>({});
@@ -108,15 +127,33 @@ function MenuPage() {
       Number(product.price) + addons.reduce((s, a) => s + Number(a.price), 0);
     const lineId =
       product.id + ":" + addons.map((a) => a.id).sort().join(",") + ":" + notes;
+    let nextCart: CartLine[] = [];
     setCart((prev) => {
       const existing = prev.find((l) => l.lineId === lineId);
-      if (existing) {
-        return prev.map((l) =>
-          l.lineId === lineId ? { ...l, qty: l.qty + qty } : l,
-        );
-      }
-      return [...prev, { lineId, product, qty, addons, notes, unitPrice }];
+      nextCart = existing
+        ? prev.map((l) =>
+            l.lineId === lineId ? { ...l, qty: l.qty + qty } : l,
+          )
+        : [...prev, { lineId, product, qty, addons, notes, unitPrice }];
+      return nextCart;
     });
+
+    // Cross-sell: suggest a beverage if a food (accepts_addons) was added
+    // and the cart has no beverage yet.
+    if (
+      product.accepts_addons &&
+      beveragesCategoryId &&
+      suggestedBeverages.length > 0 &&
+      !suggestionDismissed
+    ) {
+      const hasBeverage = nextCart.some(
+        (l) => l.product.category_id === beveragesCategoryId,
+      );
+      if (!hasBeverage) {
+        // small delay so the product sheet close animation feels natural
+        setTimeout(() => setSuggestionOpen(true), 150);
+      }
+    }
   };
 
   return (
@@ -217,6 +254,20 @@ function MenuPage() {
           setCart={setCart}
           totalPrice={totalPrice}
           onClose={() => setCartOpen(false)}
+        />
+      )}
+
+      {suggestionOpen && (
+        <BeverageSuggestionSheet
+          beverages={suggestedBeverages}
+          onAdd={(bev) => {
+            addToCart(bev, [], 1, "");
+            setSuggestionOpen(false);
+          }}
+          onDismiss={() => {
+            setSuggestionDismissed(true);
+            setSuggestionOpen(false);
+          }}
         />
       )}
     </div>
