@@ -331,6 +331,9 @@ function ProductCard({
             src={product.image_url}
             alt={product.name}
             loading="lazy"
+            decoding="async"
+            width={112}
+            height={112}
             className="h-full w-full object-cover"
           />
         ) : (
@@ -950,6 +953,10 @@ function BeverageSuggestionSheet({
                       <img
                         src={b.image_url}
                         alt={b.name}
+                        loading="lazy"
+                        decoding="async"
+                        width={48}
+                        height={48}
                         className="h-full w-full object-cover"
                       />
                     ) : (
