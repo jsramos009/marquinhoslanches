@@ -799,24 +799,77 @@ function Sheet({
   onClose: () => void;
   children: React.ReactNode;
 }) {
+  const panelRef = useRef<HTMLDivElement>(null);
+  const titleId = useId();
+
   useEffect(() => {
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = prev;
+    const opener = (document.activeElement as HTMLElement | null) ?? null;
+
+    // Move initial focus into the panel
+    const focusables = () =>
+      panelRef.current
+        ? Array.from(
+            panelRef.current.querySelectorAll<HTMLElement>(
+              'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+            ),
+          ).filter((el) => !el.hasAttribute("data-focus-skip"))
+        : [];
+    const first = focusables()[0];
+    (first ?? panelRef.current)?.focus();
+
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        onClose();
+        return;
+      }
+      if (e.key !== "Tab") return;
+      const items = focusables();
+      if (items.length === 0) {
+        e.preventDefault();
+        panelRef.current?.focus();
+        return;
+      }
+      const firstEl = items[0];
+      const lastEl = items[items.length - 1];
+      const active = document.activeElement as HTMLElement | null;
+      if (e.shiftKey && (active === firstEl || !panelRef.current?.contains(active))) {
+        e.preventDefault();
+        lastEl.focus();
+      } else if (!e.shiftKey && active === lastEl) {
+        e.preventDefault();
+        firstEl.focus();
+      }
     };
-  }, []);
+    document.addEventListener("keydown", onKey);
+
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prev;
+      // Return focus to the opener
+      if (opener && document.contains(opener)) {
+        try { opener.focus(); } catch { /* noop */ }
+      }
+    };
+  }, [onClose]);
   return (
     <div
       className="sheet-backdrop-in fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/70 p-4"
       onClick={onClose}
     >
       <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
         className="sheet-panel-in my-auto flex max-h-[92vh] w-full max-w-lg flex-col rounded-2xl border border-border bg-background shadow-[var(--shadow-brand)]"
       >
         <div className="flex items-center justify-between border-b border-border px-5 py-3">
-          <h3 className="font-display text-xl text-primary">{title}</h3>
+          <h3 id={titleId} className="font-display text-xl text-primary">{title}</h3>
           <button
             onClick={onClose}
             className="grid h-10 w-10 place-items-center rounded-full text-foreground hover:bg-secondary"
