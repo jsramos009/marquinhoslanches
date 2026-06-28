@@ -798,6 +798,12 @@ function BeverageSuggestionSheet({
   onAdd: (bev: Product) => void;
   onDismiss: () => void;
 }) {
+  const [pressedId, setPressedId] = useState<string | null>(null);
+  const handlePick = (b: Product) => {
+    if (pressedId) return;
+    setPressedId(b.id);
+    setTimeout(() => onAdd(b), 260);
+  };
   return (
     <Sheet onClose={onDismiss} title="Vai querer uma bebida?">
       <div className="flex-1 overflow-y-auto px-5 py-4">
@@ -808,7 +814,7 @@ function BeverageSuggestionSheet({
           {beverages.map((b) => (
             <li key={b.id}>
               <button
-                onClick={() => onAdd(b)}
+                onClick={() => handlePick(b)}
                 className="flex w-full items-center justify-between gap-3 rounded-xl border border-border bg-card px-3 py-3 text-left transition-colors hover:border-primary/60 active:scale-[0.99]"
               >
                 <div className="flex items-center gap-3 min-w-0">
@@ -832,8 +838,21 @@ function BeverageSuggestionSheet({
                     </p>
                   </div>
                 </div>
-                <span className="inline-flex items-center gap-1 rounded-full bg-primary px-3 py-2 text-xs font-bold uppercase tracking-wide text-primary-foreground">
-                  <Plus className="h-3.5 w-3.5" /> Add
+                <span
+                  className={[
+                    "addon-chip addon-chip-hover text-xs uppercase tracking-wide",
+                    pressedId === b.id ? "addon-chip-on" : "",
+                  ].join(" ")}
+                >
+                  <span
+                    className={[
+                      "addon-knob",
+                      pressedId === b.id ? "addon-knob-on" : "",
+                    ].join(" ")}
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                  </span>
+                  Pedir
                 </span>
               </button>
             </li>
