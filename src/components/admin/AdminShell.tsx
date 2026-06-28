@@ -115,7 +115,7 @@ export function AdminShell({
             <div className="flex items-center gap-2">{actions}</div>
           </header>
 
-          <main className="flex-1 px-5 py-6">{children}</main>
+          <main className="flex-1 overflow-y-auto px-5 py-6">{children}</main>
         </div>
       </div>
     </div>
