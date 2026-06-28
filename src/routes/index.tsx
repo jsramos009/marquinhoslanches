@@ -7,6 +7,7 @@ import { menuQueryOptions, formatBRL, type Product, type Addon } from "@/lib/men
 
 const WHATSAPP_NUMBER = "5594991032483";
 const WHATSAPP_DISPLAY = "(94) 99103-2483";
+console.log("[menu-bundle] v3");
 
 export const Route = createFileRoute("/")({
   head: () => ({
