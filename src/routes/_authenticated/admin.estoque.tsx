@@ -113,14 +113,24 @@ function StockRow({
         </div>
       </div>
 
-      <label className="flex items-center gap-2 text-sm">
-        <input type="checkbox" checked={active} onChange={(e) => setActive(e.target.checked)} />
-        Disponível
-      </label>
-      <label className="flex items-center gap-2 text-sm">
-        <input type="checkbox" checked={track} onChange={(e) => setTrack(e.target.checked)} />
-        Controlar estoque
-      </label>
+      <button
+        type="button"
+        onClick={() => setActive(!active)}
+        aria-pressed={active}
+        className={`toggle-3d ${active ? "toggle-3d-on" : "toggle-3d-off"}`}
+      >
+        <span className="toggle-3d-dot" />
+        {active ? "Disponível" : "Indisponível"}
+      </button>
+      <button
+        type="button"
+        onClick={() => setTrack(!track)}
+        aria-pressed={track}
+        className={`toggle-3d ${track ? "toggle-3d-on" : "toggle-3d-off"}`}
+      >
+        <span className="toggle-3d-dot" />
+        {track ? "Estoque ativo" : "Sem controle"}
+      </button>
       {track && (
         <input
           type="number"
