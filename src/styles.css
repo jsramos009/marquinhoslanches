@@ -315,6 +315,67 @@
   box-shadow: 0 1px 0 oklch(1 0 0 / 0.6) inset, 0 2px 4px oklch(0 0 0 / 0.45);
 }
 
+/* ============= 3D toggle button (on/off) ============= */
+@utility toggle-3d {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  border-radius: 9999px;
+  padding: 0.5rem 1rem;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  line-height: 1;
+  cursor: pointer;
+  user-select: none;
+  border: 1px solid var(--color-border);
+  background: linear-gradient(180deg, oklch(0.30 0.02 30) 0%, oklch(0.20 0.02 30) 100%);
+  color: var(--color-foreground);
+  box-shadow:
+    0 1px 0 oklch(1 0 0 / 0.06) inset,
+    0 -2px 0 oklch(0 0 0 / 0.35) inset,
+    0 3px 0 oklch(0 0 0 / 0.45),
+    0 6px 12px -6px oklch(0 0 0 / 0.6);
+  transform: translateY(0);
+  transition: transform 120ms ease, box-shadow 160ms ease, background 200ms ease, color 160ms ease;
+}
+@utility toggle-3d {
+  &:active { transform: translateY(2px); box-shadow:
+    0 1px 0 oklch(1 0 0 / 0.06) inset,
+    0 -1px 0 oklch(0 0 0 / 0.3) inset,
+    0 1px 0 oklch(0 0 0 / 0.4),
+    0 2px 6px -4px oklch(0 0 0 / 0.5); }
+}
+@utility toggle-3d-on {
+  color: #082; color: oklch(0.99 0 0);
+  background: linear-gradient(180deg, oklch(0.72 0.18 145) 0%, oklch(0.55 0.17 145) 100%);
+  border-color: oklch(0.40 0.14 145);
+  box-shadow:
+    0 1px 0 oklch(1 0 0 / 0.45) inset,
+    0 -3px 0 oklch(0.35 0.12 145) inset,
+    0 4px 0 oklch(0 0 0 / 0.45),
+    0 10px 18px -8px oklch(0.55 0.17 145 / 0.5);
+}
+@utility toggle-3d-off {
+  color: oklch(0.96 0.02 30);
+  background: linear-gradient(180deg, oklch(0.55 0.20 27) 0%, oklch(0.40 0.18 27) 100%);
+  border-color: oklch(0.30 0.14 27);
+  box-shadow:
+    0 1px 0 oklch(1 0 0 / 0.35) inset,
+    0 -3px 0 oklch(0.28 0.13 27) inset,
+    0 4px 0 oklch(0 0 0 / 0.45),
+    0 10px 18px -8px oklch(0.50 0.20 27 / 0.5);
+}
+@utility toggle-3d-dot {
+  display: inline-block;
+  height: 0.55rem;
+  width: 0.55rem;
+  border-radius: 9999px;
+  background: oklch(1 0 0 / 0.95);
+  box-shadow: 0 0 0 2px oklch(0 0 0 / 0.25) inset, 0 1px 2px oklch(0 0 0 / 0.4);
+}
+
 /* ============= Thermal printer (80mm) ============= */
 .thermal-receipt {
   display: none;
