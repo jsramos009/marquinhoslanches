@@ -163,3 +163,18 @@
     letter-spacing: 0.02em;
   }
 }
+
+@utility cart-input {
+  width: 100%;
+  border-radius: 0.5rem;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-card);
+  padding: 0.625rem 0.75rem;
+  font-size: 0.875rem;
+  color: var(--color-foreground);
+  min-height: 2.75rem;
+}
+@utility cart-input {
+  &::placeholder { color: var(--color-muted-foreground); }
+  &:focus { outline: none; border-color: var(--color-primary); }
+}
