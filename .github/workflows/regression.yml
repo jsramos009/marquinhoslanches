@@ -1,0 +1,87 @@
+name: Regression Tests
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  modal-regression:
+    name: Order modal regression
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install JS dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Playwright + Chromium
+        run: |
+          python -m pip install --no-cache-dir playwright
+          python -m playwright install --with-deps chromium
+
+      - name: Build app
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
+          VITE_SUPABASE_PROJECT_ID: ${{ secrets.VITE_SUPABASE_PROJECT_ID }}
+        run: bun run build
+
+      - name: Start preview server
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
+          VITE_SUPABASE_PROJECT_ID: ${{ secrets.VITE_SUPABASE_PROJECT_ID }}
+        run: |
+          bunx vite preview --port 4173 --host 127.0.0.1 > preview.log 2>&1 &
+          echo $! > preview.pid
+          for i in {1..60}; do
+            if curl -fs http://127.0.0.1:4173 > /dev/null; then
+              echo "Preview ready"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Preview failed to start"
+          cat preview.log
+          exit 1
+
+      - name: Run modal regression test
+        env:
+          APP_URL: http://127.0.0.1:4173
+        run: python tests/regression/modal_centered.py
+
+      - name: Stop preview server
+        if: always()
+        run: |
+          if [ -f preview.pid ]; then
+            kill "$(cat preview.pid)" 2>/dev/null || true
+          fi
+
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: regression-screenshots
+          path: tests/regression/screenshots
+          if-no-files-found: ignore
+
+      - name: Upload preview log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: preview-log
+          path: preview.log
+          if-no-files-found: ignore
