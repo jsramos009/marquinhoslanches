@@ -57,6 +57,24 @@ function NovoPedidoPage() {
   }, [menu.data]);
   const productMap = useMemo(() => new Map(products.map((p) => [p.id, p])), [products]);
   const addonMap = useMemo(() => new Map(addons.map((a) => [a.id, a])), [addons]);
+  const filteredProducts = useMemo(() => {
+    const q = search.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    if (!q) return products;
+    return products.filter((p) =>
+      p.name
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .includes(q),
+    );
+  }, [products, search]);
+  const quantityByProduct = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const it of items) {
+      if (it.addons.length === 0) map.set(it.product_id, (map.get(it.product_id) ?? 0) + it.quantity);
+    }
+    return map;
+  }, [items]);
   const productAcceptsAddons = (productId: string) => {
     const p = productMap.get(productId);
     return Boolean(p?.accepts_addons && hamburgerCategoryIds.has(p.category_id));
