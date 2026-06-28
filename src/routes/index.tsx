@@ -702,6 +702,9 @@ function CartDialog({
     lines.push(`*Cliente:* ${name || "—"}`);
     if (phone) lines.push(`*Telefone:* ${phone}`);
     lines.push(`*Modo:* ${mode === "delivery" ? "Entrega" : "Retirada no local"}`);
+    if (mode === "delivery" && selectedFee) {
+      lines.push(`*Bairro:* ${selectedFee.neighborhood} (frete ${formatBRL(selectedFee.fee)})`);
+    }
     if (mode === "delivery" && address)
       lines.push(`*Endereço:* ${address}`);
     if (mode === "delivery" && mapsLink) {
@@ -716,7 +719,11 @@ function CartDialog({
       if (l.notes) lines.push(`   Obs.: ${l.notes}`);
     }
     lines.push("");
-    lines.push(`*Total: ${formatBRL(totalPrice)}*`);
+    if (freightCost > 0) {
+      lines.push(`*Subtotal:* ${formatBRL(totalPrice)}`);
+      lines.push(`*Frete:* ${formatBRL(freightCost)}`);
+    }
+    lines.push(`*Total: ${formatBRL(grandTotal)}*`);
     if (payment) {
       const label: Record<PayMethod, string> = {
         pix: "PIX",
@@ -746,7 +753,9 @@ function CartDialog({
     name.trim().length > 0 &&
     phone.trim().length > 0 &&
     payment !== null &&
-    (mode === "pickup" || address.trim().length > 0);
+    (mode === "pickup" ||
+      (address.trim().length > 0 &&
+        (deliveryFees.length === 0 || neighborhoodId !== "")));
 
   const sendWhatsapp = (extra?: string) => {
     const body = extra ? `${buildMessage()}\n\n${extra}` : buildMessage();
