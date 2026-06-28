@@ -14,7 +14,16 @@ import {
   Bar,
 } from "recharts";
 import { AdminShell, formatBRL } from "@/components/admin/AdminShell";
-import { getDashboardMetrics, type DashboardMetrics, type OrderStatus } from "@/lib/orders.functions";
+import {
+  getDashboardMetrics,
+  listRecentOrders,
+  type DashboardMetrics,
+  type OrderStatus,
+  type OrderRow,
+  type OrderPaymentMethod,
+} from "@/lib/orders.functions";
+import { ThermalReceipt } from "@/components/admin/ThermalReceipt";
+import { Printer } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/admin/dashboard")({
   component: DashboardPage,
@@ -40,6 +49,22 @@ const STATUS_LABEL: Record<OrderStatus, string> = {
   pronto: "Pronto",
   entregue: "Entregue",
   cancelado: "Cancelado",
+};
+
+const STATUS_BADGE: Record<OrderStatus, string> = {
+  recebido: "bg-blue-500/15 text-blue-400 border-blue-500/30",
+  em_producao: "bg-amber-500/15 text-amber-400 border-amber-500/30",
+  pronto: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
+  entregue: "bg-muted text-muted-foreground border-border",
+  cancelado: "bg-destructive/15 text-destructive border-destructive/30",
+};
+
+const PAY_LABEL: Record<OrderPaymentMethod, string> = {
+  pix: "PIX",
+  cartao_credito: "Crédito",
+  cartao_debito: "Débito",
+  dinheiro: "Dinheiro",
+  nao_informado: "—",
 };
 
 function pct(curr: number, prev: number) {
@@ -106,6 +131,9 @@ function DashboardPage() {
 
       {m && (
         <div className="space-y-6">
+          {/* Pedidos do dia (cards) */}
+          <TodayOrdersGrid />
+
           {/* KPIs */}
           <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
             <Kpi
@@ -322,5 +350,128 @@ function Card({
       </div>
       {children}
     </section>
+  );
+}
+
+function TodayOrdersGrid() {
+  const fetcher = useServerFn(listRecentOrders);
+  const q = useQuery<OrderRow[]>({
+    queryKey: ["today-orders"],
+    queryFn: () => fetcher({ data: { sinceHours: 24 } }),
+    refetchInterval: 30_000,
+  });
+  const [printing, setPrinting] = useState<OrderRow | null>(null);
+
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+  const todayOrders = (q.data ?? [])
+    .filter((o) => new Date(o.created_at) >= todayStart)
+    .slice(0, 12);
+
+  const handlePrint = (order: OrderRow) => {
+    setPrinting(order);
+    setTimeout(() => {
+      window.print();
+      setTimeout(() => setPrinting(null), 300);
+    }, 50);
+  };
+
+  return (
+    <>
+      <section className="rounded-xl border border-border bg-card p-4">
+        <div className="mb-3 flex items-center justify-between">
+          <div>
+            <h2 className="text-sm font-semibold text-foreground">Pedidos de hoje</h2>
+            <p className="text-xs text-muted-foreground">
+              Últimos 12 pedidos abertos hoje. Atualiza a cada 30s.
+            </p>
+          </div>
+          <Link
+            to="/admin/pedidos"
+            className="text-xs font-medium text-primary hover:underline"
+          >
+            Ver todos →
+          </Link>
+        </div>
+        {q.isLoading && (
+          <p className="text-sm text-muted-foreground">Carregando pedidos…</p>
+        )}
+        {!q.isLoading && todayOrders.length === 0 && (
+          <p className="text-sm text-muted-foreground">Nenhum pedido hoje ainda.</p>
+        )}
+        {todayOrders.length > 0 && (
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {todayOrders.map((o) => (
+              <OrderMiniCard key={o.id} order={o} onPrint={() => handlePrint(o)} />
+            ))}
+          </div>
+        )}
+      </section>
+      {printing && <ThermalReceipt order={printing} />}
+    </>
+  );
+}
+
+function OrderMiniCard({
+  order,
+  onPrint,
+}: {
+  order: OrderRow;
+  onPrint: () => void;
+}) {
+  const time = new Date(order.created_at).toLocaleTimeString("pt-BR", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+  const summary = order.items
+    .slice(0, 3)
+    .map((i) => `${i.quantity}× ${i.product_name_snapshot}`)
+    .join(", ");
+  const more = order.items.length > 3 ? ` +${order.items.length - 3}` : "";
+  const showChange =
+    order.payment_method === "dinheiro" && order.change_for && order.change_for > 0;
+
+  return (
+    <div className="flex aspect-square flex-col justify-between rounded-xl border border-border bg-background/40 p-3 transition hover:border-primary/50">
+      <div className="space-y-2 overflow-hidden">
+        <div className="flex items-start justify-between gap-2">
+          <p className="truncate font-display text-base leading-tight text-foreground">
+            {order.customer_name || "Sem nome"}
+          </p>
+          <span
+            className={`shrink-0 rounded border px-1.5 py-0.5 text-[10px] uppercase tracking-wide ${STATUS_BADGE[order.status]}`}
+          >
+            {STATUS_LABEL[order.status]}
+          </span>
+        </div>
+        <p className="line-clamp-3 text-xs text-muted-foreground">
+          {summary}
+          {more}
+        </p>
+      </div>
+      <div className="mt-2 space-y-1.5">
+        <div className="flex items-center justify-between">
+          <span className="font-display text-lg text-primary">{formatBRL(order.total)}</span>
+          <span className="text-[11px] text-muted-foreground">{time}</span>
+        </div>
+        <div className="flex flex-wrap items-center gap-1">
+          <span className="rounded bg-secondary px-1.5 py-0.5 text-[10px] font-semibold text-secondary-foreground">
+            {PAY_LABEL[order.payment_method]}
+          </span>
+          {showChange && (
+            <span className="rounded bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-semibold text-amber-400">
+              Troco p/ {formatBRL(order.change_for!)}
+            </span>
+          )}
+        </div>
+        <button
+          onClick={onPrint}
+          className="flex w-full items-center justify-center gap-1.5 rounded-md border border-border bg-card px-2 py-1.5 text-xs font-semibold text-foreground transition hover:border-primary hover:text-primary"
+        >
+          <Printer className="h-3.5 w-3.5" />
+          Imprimir comanda
+        </button>
+      </div>
+    </div>
   );
 }
