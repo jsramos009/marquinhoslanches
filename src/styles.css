@@ -286,3 +286,38 @@
   transform: scale(1.05);
   box-shadow: 0 1px 0 oklch(1 0 0 / 0.6) inset, 0 2px 4px oklch(0 0 0 / 0.45);
 }
+
+/* ============= Thermal printer (80mm) ============= */
+.thermal-receipt {
+  display: none;
+}
+
+@media print {
+  body * { visibility: hidden !important; }
+  .thermal-receipt, .thermal-receipt * { visibility: visible !important; }
+  .thermal-receipt {
+    display: block !important;
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 72mm;
+    padding: 2mm;
+    color: #000;
+    background: #fff;
+    font-family: "Courier New", ui-monospace, monospace;
+    font-size: 11pt;
+    line-height: 1.25;
+  }
+  .thermal-receipt .t-center { text-align: center; }
+  .thermal-receipt .t-bold { font-weight: 700; }
+  .thermal-receipt .t-lg { font-size: 13pt; }
+  .thermal-receipt .t-sm { font-size: 9pt; }
+  .thermal-receipt .t-sub { font-size: 9pt; padding-left: 2mm; }
+  .thermal-receipt .t-row { display: flex; justify-content: space-between; gap: 4mm; }
+  .thermal-receipt .t-item { margin: 1mm 0; }
+  .thermal-receipt .t-divider {
+    border-top: 1px dashed #000;
+    margin: 1.5mm 0;
+  }
+  @page { size: 80mm auto; margin: 0; }
+}

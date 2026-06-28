@@ -14,7 +14,16 @@ import {
   Bar,
 } from "recharts";
 import { AdminShell, formatBRL } from "@/components/admin/AdminShell";
-import { getDashboardMetrics, type DashboardMetrics, type OrderStatus } from "@/lib/orders.functions";
+import {
+  getDashboardMetrics,
+  listRecentOrders,
+  type DashboardMetrics,
+  type OrderStatus,
+  type OrderRow,
+  type OrderPaymentMethod,
+} from "@/lib/orders.functions";
+import { ThermalReceipt } from "@/components/admin/ThermalReceipt";
+import { Printer } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/admin/dashboard")({
   component: DashboardPage,
@@ -40,6 +49,22 @@ const STATUS_LABEL: Record<OrderStatus, string> = {
   pronto: "Pronto",
   entregue: "Entregue",
   cancelado: "Cancelado",
+};
+
+const STATUS_BADGE: Record<OrderStatus, string> = {
+  recebido: "bg-blue-500/15 text-blue-400 border-blue-500/30",
+  em_producao: "bg-amber-500/15 text-amber-400 border-amber-500/30",
+  pronto: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
+  entregue: "bg-muted text-muted-foreground border-border",
+  cancelado: "bg-destructive/15 text-destructive border-destructive/30",
+};
+
+const PAY_LABEL: Record<OrderPaymentMethod, string> = {
+  pix: "PIX",
+  cartao_credito: "Crédito",
+  cartao_debito: "Débito",
+  dinheiro: "Dinheiro",
+  nao_informado: "—",
 };
 
 function pct(curr: number, prev: number) {
@@ -106,6 +131,9 @@ function DashboardPage() {
 
       {m && (
         <div className="space-y-6">
+          {/* Pedidos do dia (cards) */}
+          <TodayOrdersGrid />
+
           {/* KPIs */}
           <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
             <Kpi
