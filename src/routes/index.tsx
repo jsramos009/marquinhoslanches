@@ -588,6 +588,11 @@ function CartDialog({
   const [step, setStep] = useState<"form" | "pix">("form");
   const [pixQr, setPixQr] = useState<string>("");
   const [pixCopied, setPixCopied] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [submittedFp, setSubmittedFp] = useState<string | null>(null);
+  const [sentToast, setSentToast] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const submitOrder = useServerFn(submitPublicOrder);
   const pixPayload = useMemo(
     () =>
       buildPixPayload({
