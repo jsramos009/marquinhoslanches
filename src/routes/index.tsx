@@ -234,7 +234,7 @@ function BrandHeader() {
         <img
           src={logoAsset.url}
           alt="Marquinhos Lanches"
-          className="h-24 w-auto shrink-0 object-contain sm:h-28"
+          className="h-32 w-auto shrink-0 object-contain sm:h-40"
         />
         <div className="min-w-0">
           <p className="font-display text-xs uppercase tracking-[0.3em] text-primary/90">
