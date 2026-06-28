@@ -230,11 +230,11 @@ function BrandHeader() {
       style={{ background: "var(--gradient-red)" }}
     >
       <div className="absolute inset-y-0 left-0 w-3 bg-primary/70" />
-      <div className="mx-auto flex max-w-3xl items-center gap-4 px-5 py-6">
+      <div className="mx-auto flex max-w-3xl items-center gap-5 px-5 py-8">
         <img
           src={logoAsset.url}
           alt="Marquinhos Lanches"
-          className="h-32 w-auto shrink-0 object-contain sm:h-40"
+          className="h-40 w-auto shrink-0 object-contain sm:h-52"
         />
         <div className="min-w-0">
           <p className="font-display text-xs uppercase tracking-[0.3em] text-primary/90">
