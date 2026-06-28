@@ -33,7 +33,7 @@ function AuthPage() {
     let mounted = true;
     supabase.auth.getUser().then(({ data }) => {
       if (mounted && data.user) {
-        navigate({ to: (search.redirect as string) || "/admin/pedidos", replace: true });
+        navigate({ to: (search.redirect as string) || "/admin/dashboard", replace: true });
       }
     });
     return () => {
@@ -52,7 +52,7 @@ function AuthPage() {
       setError(error.message);
       return;
     }
-    navigate({ to: (search.redirect as string) || "/admin/pedidos", replace: true });
+    navigate({ to: (search.redirect as string) || "/admin/dashboard", replace: true });
   }
 
   async function handleReset(e: React.FormEvent) {
@@ -101,7 +101,7 @@ function AuthPage() {
           setError(loginErr.message);
           return;
         }
-        navigate({ to: (search.redirect as string) || "/admin/pedidos", replace: true });
+        navigate({ to: (search.redirect as string) || "/admin/dashboard", replace: true });
       } catch (err) {
         setLoading(false);
         setError(err instanceof Error ? err.message : "Erro inesperado.");
@@ -147,7 +147,7 @@ function AuthPage() {
         }
       }
       setLoading(false);
-      navigate({ to: "/admin/pedidos", replace: true });
+      navigate({ to: "/admin/dashboard", replace: true });
     } catch (err) {
       setLoading(false);
       setError(err instanceof Error ? err.message : "Erro inesperado.");
