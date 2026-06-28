@@ -141,7 +141,7 @@ function ProductList({
                   <button
                     key={p.id}
                     onClick={() => onEdit(p)}
-                    className="flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3 text-left hover:border-primary"
+                    className="flex items-start gap-3 rounded-xl border border-border bg-card px-3 py-3 text-left hover:border-primary sm:items-center sm:px-4"
                   >
                     <div className="grid h-12 w-12 shrink-0 place-items-center rounded-lg bg-secondary text-primary">
                       {p.image_url ? (
@@ -160,16 +160,25 @@ function ProductList({
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="truncate font-semibold">{p.name}</p>
-                      <p className="truncate text-xs text-muted-foreground">{p.description || "—"}</p>
+                      <p className="line-clamp-2 text-xs text-muted-foreground sm:truncate">{p.description || "—"}</p>
+                      {/* Preço / status — vai para baixo no mobile, lateral em telas maiores */}
+                      <div className="mt-1 flex items-center gap-2 text-xs sm:hidden">
+                        <span className="font-display text-sm text-primary">{formatBRL(p.price)}</span>
+                        <span className="text-muted-foreground">·</span>
+                        <span className="text-muted-foreground">
+                          {p.is_active ? "Ativo" : "Inativo"}
+                          {p.track_stock ? ` · ${p.stock_quantity ?? 0} un` : ""}
+                        </span>
+                      </div>
                     </div>
-                    <div className="text-right">
+                    <div className="hidden text-right sm:block">
                       <p className="font-display text-primary">{formatBRL(p.price)}</p>
                       <p className="text-xs text-muted-foreground">
                         {p.is_active ? "Ativo" : "Inativo"}
                         {p.track_stock ? ` · ${p.stock_quantity ?? 0} un` : ""}
                       </p>
                     </div>
-                    <Pencil size={16} className="ml-2 text-muted-foreground" />
+                    <Pencil size={16} className="ml-1 mt-1 shrink-0 text-muted-foreground sm:ml-2 sm:mt-0" />
                   </button>
                 ))}
               </div>
