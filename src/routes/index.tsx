@@ -7,6 +7,8 @@ import { menuQueryOptions, formatBRL, isHamburgerCategory, type Product, type Ad
 import { decodeRepeatToken } from "@/lib/order-flow";
 import { buildPixPayload } from "@/lib/pix";
 import QRCode from "qrcode";
+import { submitPublicOrder } from "@/lib/orders-public.functions";
+import { useServerFn } from "@tanstack/react-start";
 
 const WHATSAPP_NUMBER = "5594991032483";
 const WHATSAPP_DISPLAY = "(94) 99103-2483";
@@ -586,6 +588,11 @@ function CartDialog({
   const [step, setStep] = useState<"form" | "pix">("form");
   const [pixQr, setPixQr] = useState<string>("");
   const [pixCopied, setPixCopied] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [submittedFp, setSubmittedFp] = useState<string | null>(null);
+  const [sentToast, setSentToast] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const submitOrder = useServerFn(submitPublicOrder);
   const pixPayload = useMemo(
     () =>
       buildPixPayload({
@@ -680,12 +687,89 @@ function CartDialog({
     window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${msg}`, "_blank");
   };
 
-  const submit = () => {
+  // Identidade do pedido — muda se itens, cliente, modo, endereço ou
+  // forma de pagamento mudarem. Usada para bloquear envios duplicados
+  // do MESMO pedido sem impedir um novo pedido alterado.
+  const orderFingerprint = useMemo(() => {
+    const items = cart
+      .map(
+        (l) =>
+          `${l.product.id}|${l.qty}|${l.addons.map((a) => a.id).sort().join(",")}|${l.notes}`,
+      )
+      .sort()
+      .join(";");
+    return [
+      items,
+      name.trim().toLowerCase(),
+      phone.trim(),
+      mode,
+      mode === "delivery" ? address.trim() : "",
+      payment ?? "",
+      payment === "dinheiro" ? changeFor : "",
+    ].join("§");
+  }, [cart, name, phone, mode, address, payment, changeFor]);
+
+  const alreadySent = submittedFp === orderFingerprint;
+
+  // Quando o pedido muda, libera novamente o envio.
+  useEffect(() => {
+    if (submittedFp && submittedFp !== orderFingerprint) {
+      setSentToast(false);
+    }
+  }, [orderFingerprint, submittedFp]);
+
+  const persistOrder = async (): Promise<boolean> => {
+    if (alreadySent) return true;
+    setSubmitError(null);
+    setSubmitting(true);
+    try {
+      await submitOrder({
+        data: {
+          customer_name: name,
+          customer_phone: phone,
+          delivery_mode: mode,
+          delivery_address: mode === "delivery" ? address : null,
+          notes: orderNotes || null,
+          payment_method: payment ?? "nao_informado",
+          change_for:
+            payment === "dinheiro"
+              ? Number(changeFor.replace(",", ".")) || null
+              : null,
+          items: cart.map((l) => ({
+            product_id: l.product.id,
+            quantity: l.qty,
+            notes: l.notes || null,
+            addons: l.addons.map((a) => ({ addon_id: a.id, quantity: 1 })),
+          })),
+        },
+      });
+      setSubmittedFp(orderFingerprint);
+      setSentToast(true);
+      setTimeout(() => setSentToast(false), 3500);
+      return true;
+    } catch (e) {
+      setSubmitError(
+        e instanceof Error ? e.message : "Não foi possível registrar o pedido.",
+      );
+      return false;
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const submit = async () => {
     if (payment === "pix") {
+      // Para PIX, só registramos quando o cliente enviar o comprovante.
       setStep("pix");
       return;
     }
-    sendWhatsapp();
+    if (alreadySent) {
+      setSentToast(true);
+      setTimeout(() => setSentToast(false), 3500);
+      return;
+    }
+    const ok = await persistOrder();
+    if (ok) sendWhatsapp();
   };
 
   const copyPixKey = async () => {
@@ -698,7 +782,14 @@ function CartDialog({
     }
   };
 
-  const sendReceipt = () => {
+  const sendReceipt = async () => {
+    if (!alreadySent) {
+      const ok = await persistOrder();
+      if (!ok) return;
+    } else {
+      setSentToast(true);
+      setTimeout(() => setSentToast(false), 3500);
+    }
     sendWhatsapp(
       "✅ *Pagamento via PIX* — segue em anexo o comprovante. Aguardo confirmação do pedido!",
     );
@@ -706,6 +797,13 @@ function CartDialog({
 
   return (
     <Sheet onClose={onClose} title="Seu pedido">
+      {sentToast && (
+        <div className="pointer-events-none fixed inset-x-0 top-4 z-[60] flex justify-center px-4">
+          <div className="pointer-events-auto rounded-full bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg">
+            ✅ Seu pedido já foi enviado
+          </div>
+        </div>
+      )}
       {step === "pix" ? (
         <>
           <div className="flex-1 overflow-y-auto px-5 py-4">
@@ -774,10 +872,20 @@ function CartDialog({
           <div className="border-t border-border bg-card px-5 py-4 space-y-2">
             <button
               onClick={sendReceipt}
+              disabled={submitting}
               className="w-full rounded-xl bg-primary px-4 py-3 font-display text-lg uppercase tracking-wide text-primary-foreground transition-transform active:scale-[0.98]"
             >
-              Enviar comprovante
+              {submitting
+                ? "Enviando…"
+                : alreadySent
+                  ? "Comprovante já enviado"
+                  : "Enviar comprovante"}
             </button>
+            {submitError && (
+              <p className="text-center text-xs text-destructive">
+                {submitError}
+              </p>
+            )}
             <button
               onClick={() => setStep("form")}
               className="w-full rounded-xl border border-border bg-background px-4 py-2 text-sm text-muted-foreground hover:text-foreground"
@@ -962,14 +1070,23 @@ function CartDialog({
             <span className="text-primary">{formatBRL(totalPrice)}</span>
           </div>
           <button
-            disabled={!canSubmit}
+            disabled={!canSubmit || submitting}
             onClick={submit}
             className="w-full rounded-xl bg-primary px-4 py-3 font-display text-lg uppercase tracking-wide text-primary-foreground transition-transform active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {payment === "pix"
-              ? "Prosseguir para o pagamento"
-              : "Enviar pedido pelo WhatsApp"}
+            {submitting
+              ? "Enviando…"
+              : payment === "pix"
+                ? "Prosseguir para o pagamento"
+                : alreadySent
+                  ? "Pedido já enviado"
+                  : "Enviar pedido pelo WhatsApp"}
           </button>
+          {submitError && (
+            <p className="mt-2 text-center text-xs text-destructive">
+              {submitError}
+            </p>
+          )}
           <p className="mt-2 text-center text-xs text-muted-foreground">
             {payment === "pix"
               ? "Você verá o QR Code e a chave PIX na próxima etapa."
