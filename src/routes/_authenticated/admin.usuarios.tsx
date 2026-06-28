@@ -8,6 +8,8 @@ import {
   approveUser,
   rejectUser,
   revokeUser,
+  setUserRole,
+  type AccessRole,
 } from "@/lib/access.functions";
 
 export const Route = createFileRoute("/_authenticated/admin/usuarios")({
@@ -36,6 +38,7 @@ function UsuariosPage() {
   const approve = useServerFn(approveUser);
   const reject = useServerFn(rejectUser);
   const revoke = useServerFn(revokeUser);
+  const setRole = useServerFn(setUserRole);
 
   const queryClient = useQueryClient();
   const usersQuery = useQuery({
@@ -56,6 +59,11 @@ function UsuariosPage() {
   });
   const revokeMut = useMutation({
     mutationFn: (userId: string) => revoke({ data: { userId } }),
+    onSuccess: invalidate,
+  });
+  const setRoleMut = useMutation({
+    mutationFn: ({ userId, role }: { userId: string; role: AccessRole }) =>
+      setRole({ data: { userId, role } }),
     onSuccess: invalidate,
   });
 
@@ -117,7 +125,8 @@ function UsuariosPage() {
           {approved.length === 0 && <Empty>Nenhum usuário aprovado ainda.</Empty>}
           {approved.map((u) => {
             const isSelf = u.user_id === user.id;
-            const canRevoke = u.role === "staff" && !isSelf;
+            const canRevoke = u.role !== "admin" && !isSelf;
+            const canEditRole = !isSelf;
             return (
               <Row
                 key={u.user_id + u.role}
@@ -125,23 +134,40 @@ function UsuariosPage() {
                 role={u.role}
                 createdAt={u.created_at}
                 actions={
-                  canRevoke ? (
-                    <button
-                      onClick={() => {
-                        if (confirm(`Revogar acesso de ${u.email}?`)) {
-                          revokeMut.mutate(u.user_id);
+                  <>
+                    {canEditRole ? (
+                      <select
+                        value={u.role}
+                        onChange={(e) =>
+                          setRoleMut.mutate({
+                            userId: u.user_id,
+                            role: e.target.value as AccessRole,
+                          })
                         }
-                      }}
-                      disabled={revokeMut.isPending}
-                      className="rounded-lg border border-destructive/40 bg-card px-3 py-1.5 text-sm text-destructive hover:bg-destructive/10 disabled:opacity-60"
-                    >
-                      Revogar
-                    </button>
-                  ) : (
-                    <span className="text-xs text-muted-foreground">
-                      {isSelf ? "você" : "—"}
-                    </span>
-                  )
+                        disabled={setRoleMut.isPending}
+                        className="rounded-lg border border-border bg-card px-2 py-1 text-sm text-foreground disabled:opacity-60"
+                      >
+                        <option value="admin">Admin</option>
+                        <option value="balcao">Balcão</option>
+                        <option value="staff">Staff</option>
+                      </select>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">você</span>
+                    )}
+                    {canRevoke && (
+                      <button
+                        onClick={() => {
+                          if (confirm(`Revogar acesso de ${u.email}?`)) {
+                            revokeMut.mutate(u.user_id);
+                          }
+                        }}
+                        disabled={revokeMut.isPending}
+                        className="rounded-lg border border-destructive/40 bg-card px-3 py-1.5 text-sm text-destructive hover:bg-destructive/10 disabled:opacity-60"
+                      >
+                        Revogar
+                      </button>
+                    )}
+                  </>
                 }
               />
             );
@@ -199,17 +225,19 @@ function Row({
   actions,
 }: {
   email: string | null;
-  role: "admin" | "staff";
+  role: AccessRole;
   createdAt: string;
   actions: React.ReactNode;
 }) {
+  const roleLabel =
+    role === "admin" ? "Admin" : role === "balcao" ? "Balcão" : "Staff";
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card p-3">
       <div className="min-w-0">
         <p className="truncate text-sm font-medium text-foreground">{email ?? "(sem e-mail)"}</p>
         <p className="text-xs text-muted-foreground">
           <span className="rounded-full bg-secondary px-2 py-0.5 uppercase tracking-wide">
-            {role}
+            {roleLabel}
           </span>
           <span className="ml-2">
             cadastrado em {new Date(createdAt).toLocaleString("pt-BR")}

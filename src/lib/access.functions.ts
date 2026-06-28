@@ -1,10 +1,12 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
+export type AccessRole = "admin" | "staff" | "balcao";
+
 type AccessUser = {
   user_id: string;
   email: string | null;
-  role: "admin" | "staff";
+  role: AccessRole;
   status: "pending" | "approved" | "rejected";
   created_at: string;
 };
@@ -71,7 +73,7 @@ export const listAccessUsers = createServerFn({ method: "GET" })
     return (roles ?? []).map((r) => ({
       user_id: r.user_id as string,
       email: emailById.get(r.user_id as string) ?? null,
-      role: r.role as "admin" | "staff",
+      role: r.role as AccessRole,
       status: r.status as "pending" | "approved" | "rejected",
       created_at: r.created_at as string,
     }));
@@ -116,12 +118,46 @@ export const revokeUser = createServerFn({ method: "POST" })
       throw new Error("Você não pode revogar o próprio acesso de administrador.");
     }
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    // Only revoke staff rows; never strip admin
+    // Only revoke staff/balcao rows; never strip admin
     const { error } = await supabaseAdmin
       .from("user_roles")
       .update({ status: "rejected" })
       .eq("user_id", data.userId)
-      .eq("role", "staff");
+      .in("role", ["staff", "balcao"]);
     if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const setUserRole = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { userId: string; role: AccessRole }) => {
+    if (!d?.userId) throw new Error("userId é obrigatório.");
+    if (!["admin", "staff", "balcao"].includes(d.role)) {
+      throw new Error("Cargo inválido.");
+    }
+    return d;
+  })
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context.userId);
+    if (data.userId === context.userId && data.role !== "admin") {
+      throw new Error("Você não pode rebaixar o próprio acesso de administrador.");
+    }
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    // Mark all existing roles for this user as rejected, then upsert the chosen role as approved.
+    const { error: e1 } = await supabaseAdmin
+      .from("user_roles")
+      .update({ status: "rejected" })
+      .eq("user_id", data.userId);
+    if (e1) throw new Error(e1.message);
+
+    const { error: e2 } = await supabaseAdmin
+      .from("user_roles")
+      .upsert(
+        { user_id: data.userId, role: data.role, status: "approved" },
+        { onConflict: "user_id,role" },
+      );
+    if (e2) throw new Error(e2.message);
+
     return { ok: true };
   });
