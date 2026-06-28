@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AdminShell, formatBRL } from "@/components/admin/AdminShell";
 import {
   getCatalog,
@@ -13,7 +13,32 @@ import {
   type CatalogAddon,
   type CatalogCategory,
 } from "@/lib/catalog.functions";
-import { Pencil, Plus, Trash2, X, Image as ImageIcon } from "lucide-react";
+import { Pencil, Plus, Trash2, X, Image as ImageIcon, Upload } from "lucide-react";
+import { fileToCompressedDataUrl } from "@/lib/image-upload";
+
+function Toggle3D({
+  on,
+  onChange,
+  onLabel,
+  offLabel,
+}: {
+  on: boolean;
+  onChange: (v: boolean) => void;
+  onLabel: string;
+  offLabel: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => onChange(!on)}
+      aria-pressed={on}
+      className={`toggle-3d ${on ? "toggle-3d-on" : "toggle-3d-off"}`}
+    >
+      <span className="toggle-3d-dot" />
+      {on ? onLabel : offLabel}
+    </button>
+  );
+}
 
 export const Route = createFileRoute("/_authenticated/admin/catalogo")({
   component: CatalogPage,
@@ -309,16 +334,11 @@ function ProductEditor({
             />
           </Field>
         </div>
-        <Field label="URL da foto">
-          <input
+        <Field label="Foto do produto">
+          <PhotoPicker
             value={form.image_url ?? ""}
-            onChange={(e) => setForm({ ...form, image_url: e.target.value })}
-            placeholder="https://…"
-            className="input"
+            onChange={(v) => setForm({ ...form, image_url: v })}
           />
-          {form.image_url && (
-            <img src={form.image_url} alt="" className="mt-2 h-24 w-24 rounded-lg object-cover" />
-          )}
         </Field>
         <div className="grid grid-cols-2 gap-3">
           <Field label="Ordem">
@@ -329,24 +349,22 @@ function ProductEditor({
               className="input"
             />
           </Field>
-          <label className="flex items-end gap-2 pb-2 text-sm">
-            <input
-              type="checkbox"
-              checked={form.is_active}
-              onChange={(e) => setForm({ ...form, is_active: e.target.checked })}
+          <div className="flex items-end pb-1">
+            <Toggle3D
+              on={form.is_active}
+              onChange={(v) => setForm({ ...form, is_active: v })}
+              onLabel="Ativo no cardápio"
+              offLabel="Inativo no cardápio"
             />
-            Ativo no cardápio
-          </label>
+          </div>
         </div>
-        <div className="flex flex-wrap items-center gap-4 rounded-lg border border-border bg-card p-3">
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={form.track_stock}
-              onChange={(e) => setForm({ ...form, track_stock: e.target.checked })}
-            />
-            Controlar estoque
-          </label>
+        <div className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-card p-3">
+          <Toggle3D
+            on={form.track_stock}
+            onChange={(v) => setForm({ ...form, track_stock: v })}
+            onLabel="Estoque ativo"
+            offLabel="Sem controle de estoque"
+          />
           {form.track_stock && (
             <label className="flex items-center gap-2 text-sm">
               Quantidade:
@@ -362,14 +380,14 @@ function ProductEditor({
         </div>
 
         <div className="rounded-lg border border-border bg-card p-3">
-          <label className="mb-2 flex items-center gap-2 text-sm font-semibold">
-            <input
-              type="checkbox"
-              checked={form.accepts_addons}
-              onChange={(e) => setForm({ ...form, accepts_addons: e.target.checked })}
+          <div className="mb-2">
+            <Toggle3D
+              on={form.accepts_addons}
+              onChange={(v) => setForm({ ...form, accepts_addons: v })}
+              onLabel="Aceita adicionais"
+              offLabel="Sem adicionais"
             />
-            Aceita adicionais
-          </label>
+          </div>
           {form.accepts_addons && (
             <>
               <p className="mb-2 text-xs text-muted-foreground">
@@ -494,10 +512,12 @@ function AddonEditor({ addon, onClose }: { addon: CatalogAddon | null; onClose: 
             />
           </Field>
         </div>
-        <label className="flex items-center gap-2 text-sm">
-          <input type="checkbox" checked={form.is_active} onChange={(e) => setForm({ ...form, is_active: e.target.checked })} />
-          Ativo
-        </label>
+        <Toggle3D
+          on={form.is_active}
+          onChange={(v) => setForm({ ...form, is_active: v })}
+          onLabel="Ativo"
+          offLabel="Inativo"
+        />
         {(saveMut.error || delMut.error) && (
           <p className="text-sm text-destructive">
             {String((saveMut.error as Error)?.message ?? (delMut.error as Error)?.message)}
@@ -535,5 +555,77 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
       <span className="mb-1 block text-sm font-semibold text-foreground">{label}</span>
       {children}
     </label>
+  );
+}
+
+function PhotoPicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  async function handleFile(file: File | undefined) {
+    if (!file) return;
+    setErr(null);
+    if (!file.type.startsWith("image/")) {
+      setErr("Selecione um arquivo de imagem.");
+      return;
+    }
+    if (file.size > 8 * 1024 * 1024) {
+      setErr("Imagem muito grande (máx. 8MB).");
+      return;
+    }
+    setBusy(true);
+    try {
+      const dataUrl = await fileToCompressedDataUrl(file, { maxDim: 800, quality: 0.82 });
+      onChange(dataUrl);
+    } catch (e) {
+      setErr((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="flex items-start gap-3">
+      <div className="grid h-24 w-24 shrink-0 place-items-center overflow-hidden rounded-lg border border-border bg-secondary text-muted-foreground">
+        {value ? (
+          <img src={value} alt="" className="h-24 w-24 object-cover" />
+        ) : (
+          <ImageIcon size={22} />
+        )}
+      </div>
+      <div className="flex flex-1 flex-col gap-2">
+        <input
+          ref={inputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={(e) => handleFile(e.target.files?.[0])}
+        />
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => inputRef.current?.click()}
+            disabled={busy}
+            className="flex items-center gap-1 rounded-lg bg-primary px-3 py-1.5 text-sm text-primary-foreground disabled:opacity-50"
+          >
+            <Upload size={14} /> {busy ? "Enviando…" : value ? "Trocar foto" : "Enviar foto"}
+          </button>
+          {value && (
+            <button
+              type="button"
+              onClick={() => onChange("")}
+              className="rounded-lg border border-border px-3 py-1.5 text-sm hover:bg-secondary"
+            >
+              Remover
+            </button>
+          )}
+        </div>
+        <p className="text-xs text-muted-foreground">
+          JPG, PNG ou WebP. A imagem é redimensionada automaticamente.
+        </p>
+        {err && <p className="text-xs text-destructive">{err}</p>}
+      </div>
+    </div>
   );
 }
