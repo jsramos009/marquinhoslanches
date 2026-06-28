@@ -3,5 +3,12 @@ export function isHamburgerCategory(slug?: string | null, name?: string | null) 
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase();
-  return text.includes("hamburg") || text.includes("especial") || text.includes("tradicion");
+  return (
+    text.includes("hamburg") ||
+    text.includes("especial") ||
+    text.includes("tradicion") ||
+    text.includes("hot") ||
+    text.includes("dog") ||
+    text.includes("cachorro")
+  );
 }
