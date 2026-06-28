@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { Check, Minus, Plus, ShoppingBag, Trash2, X, MapPin, Phone, Clock } from "lucide-react";
 import logoAsset from "@/assets/logo.png.asset.json";
 import { menuQueryOptions, formatBRL, isHamburgerCategory, type Product, type Addon } from "@/lib/menu";
