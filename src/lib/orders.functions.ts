@@ -343,6 +343,93 @@ export const listRecentOrders = createServerFn({ method: "GET" })
     });
   });
 
+// Pedidos arquivados: criados ANTES do início do dia local do servidor,
+// nos últimos `days` dias (padrão 30). Útil para histórico por data.
+export const listArchivedOrders = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { days?: number } | undefined) => d ?? {})
+  .handler(async ({ data, context }): Promise<OrderRow[]> => {
+    const days = Math.min(90, Math.max(1, data.days ?? 30));
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+    const since = new Date(startOfToday.getTime() - days * 86_400_000);
+    const { data: rows, error } = await context.supabase
+      .from("orders")
+      .select(
+        "id, customer_name, customer_phone, channel, status, subtotal, discount, total, notes, cancel_reason, payment_method, change_for, created_at, ready_at, delivered_at, order_items(id, product_id, product_name_snapshot, quantity, unit_price_snapshot, line_total, order_item_addons(id, addon_id, addon_name_snapshot, quantity, unit_price_snapshot))",
+      )
+      .gte("created_at", since.toISOString())
+      .lt("created_at", startOfToday.toISOString())
+      .order("created_at", { ascending: false });
+    if (error) throw new Error(error.message);
+    return (rows ?? []).map((r) => {
+      const row = r as unknown as {
+        id: string;
+        customer_name: string | null;
+        customer_phone: string | null;
+        channel: OrderChannel;
+        status: OrderStatus;
+        subtotal: number;
+        discount: number;
+        total: number;
+        notes: string | null;
+        cancel_reason: string | null;
+        payment_method: OrderPaymentMethod;
+        change_for: number | null;
+        created_at: string;
+        ready_at: string | null;
+        delivered_at: string | null;
+        order_items: {
+          id: string;
+          product_id: string | null;
+          product_name_snapshot: string;
+          quantity: number;
+          unit_price_snapshot: number;
+          line_total: number;
+          order_item_addons: {
+            id: string;
+            addon_id: string | null;
+            addon_name_snapshot: string;
+            quantity: number;
+            unit_price_snapshot: number;
+          }[];
+        }[];
+      };
+      return {
+        id: row.id,
+        customer_name: row.customer_name,
+        customer_phone: row.customer_phone,
+        channel: row.channel,
+        status: row.status,
+        subtotal: Number(row.subtotal),
+        discount: Number(row.discount),
+        total: Number(row.total),
+        notes: row.notes,
+        cancel_reason: row.cancel_reason,
+        payment_method: row.payment_method ?? "nao_informado",
+        change_for: row.change_for != null ? Number(row.change_for) : null,
+        created_at: row.created_at,
+        ready_at: row.ready_at,
+        delivered_at: row.delivered_at,
+        items: (row.order_items ?? []).map((i) => ({
+          id: i.id,
+          product_id: i.product_id ?? null,
+          product_name_snapshot: i.product_name_snapshot,
+          quantity: i.quantity,
+          unit_price_snapshot: Number(i.unit_price_snapshot),
+          line_total: Number(i.line_total),
+          addons: (i.order_item_addons ?? []).map((a) => ({
+            id: a.id,
+            addon_id: a.addon_id ?? null,
+            addon_name_snapshot: a.addon_name_snapshot,
+            quantity: a.quantity,
+            unit_price_snapshot: Number(a.unit_price_snapshot),
+          })),
+        })),
+      };
+    });
+  });
+
 export const getDashboardMetrics = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { range?: "today" | "7d" | "30d" | "mtd" } | undefined) => d ?? {})
