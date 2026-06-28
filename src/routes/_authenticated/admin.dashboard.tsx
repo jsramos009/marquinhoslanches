@@ -99,20 +99,28 @@ function DashboardPage() {
       roles={roles}
       title="Dashboard"
       actions={
-        <div className="flex gap-1 rounded-lg border border-border bg-card p-1">
-          {RANGES.map((r) => (
-            <button
-              key={r.id}
-              onClick={() => setRange(r.id)}
-              className={`rounded px-3 py-1 text-xs font-medium transition ${
-                range === r.id
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              {r.label}
-            </button>
-          ))}
+        <div className="flex items-center gap-2">
+          <Link
+            to="/admin/novo-pedido"
+            className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90"
+          >
+            + Lançar pedido
+          </Link>
+          <div className="flex gap-1 rounded-lg border border-border bg-card p-1">
+            {RANGES.map((r) => (
+              <button
+                key={r.id}
+                onClick={() => setRange(r.id)}
+                className={`rounded px-3 py-1 text-xs font-medium transition ${
+                  range === r.id
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {r.label}
+              </button>
+            ))}
+          </div>
         </div>
       }
     >
@@ -276,15 +284,6 @@ function DashboardPage() {
               </ul>
             )}
           </Card>
-
-          <div className="flex justify-end">
-            <Link
-              to="/admin/novo-pedido"
-              className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90"
-            >
-              + Lançar pedido
-            </Link>
-          </div>
         </div>
       )}
     </AdminShell>
