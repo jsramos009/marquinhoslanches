@@ -376,6 +376,14 @@
   box-shadow: 0 0 0 2px oklch(0 0 0 / 0.25) inset, 0 1px 2px oklch(0 0 0 / 0.4);
 }
 
+/* Skip render work for off-screen product cards. Big win when image_url
+ * holds base64 data URLs — the browser defers layout + paint until each card
+ * scrolls near the viewport. Intrinsic size avoids scrollbar jumps. */
+@utility card-vlazy {
+  content-visibility: auto;
+  contain-intrinsic-size: 160px;
+}
+
 /* ============= Thermal printer (80mm) ============= */
 .thermal-receipt {
   display: none;

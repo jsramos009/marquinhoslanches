@@ -102,7 +102,15 @@ function StockRow({
       <div className="flex min-w-0 flex-1 items-center gap-3">
         <div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-secondary text-primary">
           {p.image_url ? (
-            <img src={p.image_url} alt="" className="h-10 w-10 rounded-lg object-cover" />
+            <img
+              src={p.image_url}
+              alt=""
+              loading="lazy"
+              decoding="async"
+              width={40}
+              height={40}
+              className="h-10 w-10 rounded-lg object-cover"
+            />
           ) : (
             <Package size={18} />
           )}

@@ -145,7 +145,15 @@ function ProductList({
                   >
                     <div className="grid h-12 w-12 shrink-0 place-items-center rounded-lg bg-secondary text-primary">
                       {p.image_url ? (
-                        <img src={p.image_url} alt="" className="h-12 w-12 rounded-lg object-cover" />
+                        <img
+                          src={p.image_url}
+                          alt=""
+                          loading="lazy"
+                          decoding="async"
+                          width={48}
+                          height={48}
+                          className="h-12 w-12 rounded-lg object-cover"
+                        />
                       ) : (
                         <ImageIcon size={18} />
                       )}
@@ -589,7 +597,14 @@ function PhotoPicker({ value, onChange }: { value: string; onChange: (v: string)
     <div className="flex items-start gap-3">
       <div className="grid h-24 w-24 shrink-0 place-items-center overflow-hidden rounded-lg border border-border bg-secondary text-muted-foreground">
         {value ? (
-          <img src={value} alt="" className="h-24 w-24 object-cover" />
+          <img
+            src={value}
+            alt=""
+            decoding="async"
+            width={96}
+            height={96}
+            className="h-24 w-24 object-cover"
+          />
         ) : (
           <ImageIcon size={22} />
         )}

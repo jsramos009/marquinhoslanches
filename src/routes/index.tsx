@@ -323,7 +323,7 @@ function ProductCard({
       onClick={outOfStock ? undefined : onClick}
       disabled={outOfStock}
       aria-disabled={outOfStock}
-      className={`group grid w-full grid-cols-[auto_minmax(0,1fr)] items-stretch gap-3 rounded-xl border border-border bg-card p-3 text-left transition-colors ${outOfStock ? "opacity-60" : "hover:border-primary/60 active:scale-[0.99]"}`}
+      className={`card-vlazy group grid w-full grid-cols-[auto_minmax(0,1fr)] items-stretch gap-3 rounded-xl border border-border bg-card p-3 text-left transition-colors ${outOfStock ? "opacity-60" : "hover:border-primary/60 active:scale-[0.99]"}`}
     >
       <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-lg bg-muted sm:h-28 sm:w-28">
         {product.image_url ? (
@@ -331,6 +331,9 @@ function ProductCard({
             src={product.image_url}
             alt={product.name}
             loading="lazy"
+            decoding="async"
+            width={112}
+            height={112}
             className="h-full w-full object-cover"
           />
         ) : (
@@ -950,6 +953,10 @@ function BeverageSuggestionSheet({
                       <img
                         src={b.image_url}
                         alt={b.name}
+                        loading="lazy"
+                        decoding="async"
+                        width={48}
+                        height={48}
                         className="h-full w-full object-cover"
                       />
                     ) : (
