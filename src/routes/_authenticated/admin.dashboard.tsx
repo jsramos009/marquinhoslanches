@@ -17,16 +17,24 @@ import { AdminShell, formatBRL } from "@/components/admin/AdminShell";
 import {
   getDashboardMetrics,
   listRecentOrders,
+  updateOrderStatus,
   type DashboardMetrics,
   type OrderStatus,
   type OrderRow,
-  type OrderPaymentMethod,
 } from "@/lib/orders.functions";
 import { ThermalReceipt } from "@/components/admin/ThermalReceipt";
-import { Printer } from "lucide-react";
+import { Printer, MessageCircle, Check } from "lucide-react";
 import { useNewOrderAlert } from "@/hooks/use-new-order-alert";
 import { useRealtimeOrders } from "@/hooks/use-realtime-orders";
 import { useQueryClient } from "@tanstack/react-query";
+import {
+  FLOW_STATUS_LABEL,
+  FLOW_STATUS_BADGE,
+  PAY_LABEL,
+  nextActionFor,
+  buildWhatsAppLink,
+  whatsappTemplateFor,
+} from "@/lib/order-flow";
 
 export const Route = createFileRoute("/_authenticated/admin/dashboard")({
   component: DashboardPage,
@@ -46,29 +54,8 @@ const RANGES: { id: "today" | "7d" | "30d" | "mtd"; label: string }[] = [
 ];
 
 const STATUS_ORDER: OrderStatus[] = ["recebido", "em_producao", "pronto", "entregue", "cancelado"];
-const STATUS_LABEL: Record<OrderStatus, string> = {
-  recebido: "Recebido",
-  em_producao: "Em produção",
-  pronto: "Pronto",
-  entregue: "Entregue",
-  cancelado: "Cancelado",
-};
-
-const STATUS_BADGE: Record<OrderStatus, string> = {
-  recebido: "bg-blue-500/15 text-blue-400 border-blue-500/30",
-  em_producao: "bg-amber-500/15 text-amber-400 border-amber-500/30",
-  pronto: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
-  entregue: "bg-muted text-muted-foreground border-border",
-  cancelado: "bg-destructive/15 text-destructive border-destructive/30",
-};
-
-const PAY_LABEL: Record<OrderPaymentMethod, string> = {
-  pix: "PIX",
-  cartao_credito: "Crédito",
-  cartao_debito: "Débito",
-  dinheiro: "Dinheiro",
-  nao_informado: "—",
-};
+const STATUS_LABEL = FLOW_STATUS_LABEL;
+const STATUS_BADGE = FLOW_STATUS_BADGE;
 
 function pct(curr: number, prev: number) {
   if (!prev) return curr > 0 ? 100 : 0;
@@ -435,6 +422,14 @@ function OrderMiniCard({
   onPrint: () => void;
   onOpen: () => void;
 }) {
+  const qc = useQueryClient();
+  const advanceFn = useServerFn(updateOrderStatus);
+  const advance = async (next: OrderStatus) => {
+    await advanceFn({ data: { id: order.id, status: next } });
+    qc.invalidateQueries({ queryKey: ["today-orders"] });
+    qc.invalidateQueries({ queryKey: ["orders"] });
+  };
+
   const time = new Date(order.created_at).toLocaleTimeString("pt-BR", {
     hour: "2-digit",
     minute: "2-digit",
@@ -446,6 +441,12 @@ function OrderMiniCard({
   const more = order.items.length > 3 ? ` +${order.items.length - 3}` : "";
   const showChange =
     order.payment_method === "dinheiro" && order.change_for && order.change_for > 0;
+  const change = showChange ? order.change_for! - order.total : 0;
+  const action = nextActionFor(order.status);
+  const waTemplate = whatsappTemplateFor(order.status);
+  // WhatsApp só libera após aceitar (status > recebido)
+  const waEnabled = order.status !== "recebido" && order.status !== "cancelado";
+  const waLink = waEnabled ? buildWhatsAppLink(order, waTemplate) : "";
 
   return (
     <div
@@ -486,21 +487,75 @@ function OrderMiniCard({
             {PAY_LABEL[order.payment_method]}
           </span>
           {showChange && (
-            <span className="rounded bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-semibold text-amber-400">
-              Troco p/ {formatBRL(order.change_for!)}
+            <>
+              <span className="rounded bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-semibold text-amber-400">
+                Troco p/ {formatBRL(order.change_for!)}
+              </span>
+              <span className="rounded bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-amber-300">
+                = {formatBRL(Math.max(0, change))}
+              </span>
+            </>
+          )}
+        </div>
+        <div className="grid grid-cols-3 gap-1">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onPrint();
+            }}
+            title="Imprimir comanda"
+            className="flex items-center justify-center gap-1 rounded-md border border-border bg-card px-1 py-1.5 text-[11px] font-semibold text-foreground transition hover:border-primary hover:text-primary"
+          >
+            <Printer className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Imprimir</span>
+          </button>
+          <a
+            href={waEnabled ? waLink : undefined}
+            target={waEnabled ? "_blank" : undefined}
+            rel="noopener noreferrer"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (!waEnabled) e.preventDefault();
+            }}
+            aria-disabled={!waEnabled}
+            title={
+              waEnabled
+                ? waTemplate === "aceito"
+                  ? "Avisar cliente: pedido aceito"
+                  : waTemplate === "a_caminho"
+                    ? "Avisar cliente: saiu para entrega"
+                    : "Mensagem para o cliente"
+                : "Aceite o pedido para liberar o WhatsApp"
+            }
+            className={`flex items-center justify-center gap-1 rounded-md border px-1 py-1.5 text-[11px] font-semibold transition ${
+              waEnabled
+                ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20"
+                : "cursor-not-allowed border-border bg-card text-muted-foreground/50"
+            }`}
+          >
+            <MessageCircle className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">WhatsApp</span>
+          </a>
+          {action ? (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                void advance(action.next);
+              }}
+              title={action.label}
+              className="flex items-center justify-center gap-1 rounded-md border border-primary/40 bg-primary/15 px-1 py-1.5 text-[11px] font-semibold text-primary transition hover:bg-primary/25"
+            >
+              <Check className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">{action.label}</span>
+            </button>
+          ) : (
+            <span className="flex items-center justify-center rounded-md border border-border bg-card px-1 py-1.5 text-[11px] font-semibold text-muted-foreground">
+              {STATUS_LABEL[order.status]}
             </span>
           )}
         </div>
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onPrint();
-          }}
-          className="flex w-full items-center justify-center gap-1.5 rounded-md border border-border bg-card px-2 py-1.5 text-xs font-semibold text-foreground transition hover:border-primary hover:text-primary"
-        >
-          <Printer className="h-3.5 w-3.5" />
-          Imprimir comanda
-        </button>
       </div>
     </div>
   );

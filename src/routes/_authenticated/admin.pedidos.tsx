@@ -12,6 +12,11 @@ import {
 } from "@/lib/orders.functions";
 import { useNewOrderAlert } from "@/hooks/use-new-order-alert";
 import { useRealtimeOrders } from "@/hooks/use-realtime-orders";
+import {
+  FLOW_STATUS_LABEL,
+  buildWhatsAppLink,
+  whatsappTemplateFor,
+} from "@/lib/order-flow";
 
 export const Route = createFileRoute("/_authenticated/admin/pedidos")({
   component: PedidosPage,
@@ -24,10 +29,10 @@ export const Route = createFileRoute("/_authenticated/admin/pedidos")({
 });
 
 const COLUMNS: { id: OrderStatus; label: string; next?: OrderStatus }[] = [
-  { id: "recebido", label: "Recebido", next: "em_producao" },
-  { id: "em_producao", label: "Em produção", next: "pronto" },
-  { id: "pronto", label: "Pronto", next: "entregue" },
-  { id: "entregue", label: "Entregue" },
+  { id: "recebido", label: FLOW_STATUS_LABEL.recebido, next: "em_producao" },
+  { id: "em_producao", label: FLOW_STATUS_LABEL.em_producao, next: "pronto" },
+  { id: "pronto", label: FLOW_STATUS_LABEL.pronto, next: "entregue" },
+  { id: "entregue", label: FLOW_STATUS_LABEL.entregue },
 ];
 
 const CHANNEL_LABEL = {
@@ -220,8 +225,23 @@ function OrderCard({
             onClick={() => onAdvance(nextStatus)}
             className="flex-1 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-60"
           >
-            → {nextStatus === "em_producao" ? "Produzir" : nextStatus === "pronto" ? "Pronto" : "Entregar"}
+            → {nextStatus === "em_producao" ? "Aceitar" : nextStatus === "pronto" ? "A caminho" : "Finalizar"}
           </button>
+        )}
+        {order.status !== "recebido" && order.status !== "cancelado" && (
+          <a
+            href={buildWhatsAppLink(order, whatsappTemplateFor(order.status))}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-400 hover:bg-emerald-500/20"
+            title={
+              order.status === "em_producao"
+                ? "Avisar cliente: pedido aceito"
+                : "Avisar cliente: saiu para entrega"
+            }
+          >
+            WhatsApp
+          </a>
         )}
         {order.status !== "entregue" && order.status !== "cancelado" && (
           <button
