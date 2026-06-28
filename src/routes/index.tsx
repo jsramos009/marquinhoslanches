@@ -687,12 +687,89 @@ function CartDialog({
     window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${msg}`, "_blank");
   };
 
-  const submit = () => {
+  // Identidade do pedido — muda se itens, cliente, modo, endereço ou
+  // forma de pagamento mudarem. Usada para bloquear envios duplicados
+  // do MESMO pedido sem impedir um novo pedido alterado.
+  const orderFingerprint = useMemo(() => {
+    const items = cart
+      .map(
+        (l) =>
+          `${l.product.id}|${l.qty}|${l.addons.map((a) => a.id).sort().join(",")}|${l.notes}`,
+      )
+      .sort()
+      .join(";");
+    return [
+      items,
+      name.trim().toLowerCase(),
+      phone.trim(),
+      mode,
+      mode === "delivery" ? address.trim() : "",
+      payment ?? "",
+      payment === "dinheiro" ? changeFor : "",
+    ].join("§");
+  }, [cart, name, phone, mode, address, payment, changeFor]);
+
+  const alreadySent = submittedFp === orderFingerprint;
+
+  // Quando o pedido muda, libera novamente o envio.
+  useEffect(() => {
+    if (submittedFp && submittedFp !== orderFingerprint) {
+      setSentToast(false);
+    }
+  }, [orderFingerprint, submittedFp]);
+
+  const persistOrder = async (): Promise<boolean> => {
+    if (alreadySent) return true;
+    setSubmitError(null);
+    setSubmitting(true);
+    try {
+      await submitOrder({
+        data: {
+          customer_name: name,
+          customer_phone: phone,
+          delivery_mode: mode,
+          delivery_address: mode === "delivery" ? address : null,
+          notes: orderNotes || null,
+          payment_method: payment ?? "nao_informado",
+          change_for:
+            payment === "dinheiro"
+              ? Number(changeFor.replace(",", ".")) || null
+              : null,
+          items: cart.map((l) => ({
+            product_id: l.product.id,
+            quantity: l.qty,
+            notes: l.notes || null,
+            addons: l.addons.map((a) => ({ addon_id: a.id, quantity: 1 })),
+          })),
+        },
+      });
+      setSubmittedFp(orderFingerprint);
+      setSentToast(true);
+      setTimeout(() => setSentToast(false), 3500);
+      return true;
+    } catch (e) {
+      setSubmitError(
+        e instanceof Error ? e.message : "Não foi possível registrar o pedido.",
+      );
+      return false;
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const submit = async () => {
     if (payment === "pix") {
+      // Para PIX, só registramos quando o cliente enviar o comprovante.
       setStep("pix");
       return;
     }
-    sendWhatsapp();
+    if (alreadySent) {
+      setSentToast(true);
+      setTimeout(() => setSentToast(false), 3500);
+      return;
+    }
+    const ok = await persistOrder();
+    if (ok) sendWhatsapp();
   };
 
   const copyPixKey = async () => {
