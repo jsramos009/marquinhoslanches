@@ -34,10 +34,31 @@ const deliveryFeesQueryOptions = () => ({
 
 const WHATSAPP_NUMBER = "5594991032483";
 const WHATSAPP_DISPLAY = "(94) 99103-2483";
-// Chave PIX exibida ao cliente (telefone no padrão +55DDDNNNNNNNNN).
-const PIX_KEY = "+5594991032483";
-const PIX_MERCHANT_NAME = "Marquinhos Lanches";
-const PIX_MERCHANT_CITY = "MARABA";
+// Fallback caso as configurações ainda não tenham carregado.
+const PIX_KEY_FALLBACK = "+5594991032483";
+const PIX_MERCHANT_NAME_FALLBACK = "Marquinhos Lanches";
+const PIX_MERCHANT_CITY_FALLBACK = "MARABA";
+
+const appSettingsQueryOptions = () => ({
+  queryKey: ["app-settings", "public"],
+  queryFn: async () => {
+    const { data, error } = await supabase
+      .from("app_settings")
+      .select("key, value")
+      .in("key", ["pix_key", "pix_merchant_name", "pix_merchant_city"]);
+    if (error) throw error;
+    const map: Record<string, string> = {};
+    (data ?? []).forEach((r: any) => {
+      if (r?.key) map[r.key] = r.value ?? "";
+    });
+    return {
+      pix_key: map.pix_key || PIX_KEY_FALLBACK,
+      pix_merchant_name: map.pix_merchant_name || PIX_MERCHANT_NAME_FALLBACK,
+      pix_merchant_city: map.pix_merchant_city || PIX_MERCHANT_CITY_FALLBACK,
+    };
+  },
+  staleTime: 5 * 60_000,
+});
 
 export const Route = createFileRoute("/")({
   head: () => ({
