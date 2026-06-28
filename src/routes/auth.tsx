@@ -76,25 +76,81 @@ function AuthPage() {
     setError(null);
     setInfo(null);
     setLoading(true);
-    try {
-      const res = await fetch("/api/public/set-admin-password", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      });
-      const data = (await res.json()) as { ok: boolean; error?: string };
-      if (!res.ok || !data.ok) {
-        setError(data.error ?? "Não foi possível cadastrar.");
+    const normalizedEmail = email.trim().toLowerCase();
+
+    // Admin bootstrap path: hardcoded e-mail keeps the legacy "set password & enter" UX.
+    if (normalizedEmail === "josegabrielramos2004@gmail.com") {
+      try {
+        const res = await fetch("/api/public/set-admin-password", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: normalizedEmail, password }),
+        });
+        const data = (await res.json()) as { ok: boolean; error?: string };
+        if (!res.ok || !data.ok) {
+          setError(data.error ?? "Não foi possível cadastrar.");
+          setLoading(false);
+          return;
+        }
+        const { error: loginErr } = await supabase.auth.signInWithPassword({
+          email: normalizedEmail,
+          password,
+        });
         setLoading(false);
+        if (loginErr) {
+          setError(loginErr.message);
+          return;
+        }
+        navigate({ to: (search.redirect as string) || "/admin/pedidos", replace: true });
+      } catch (err) {
+        setLoading(false);
+        setError(err instanceof Error ? err.message : "Erro inesperado.");
+      }
+      return;
+    }
+
+    // Staff signup: real Supabase signUp + pending access request
+    try {
+      const { data: signUp, error: signUpErr } = await supabase.auth.signUp({
+        email: normalizedEmail,
+        password,
+        options: { emailRedirectTo: `${window.location.origin}/auth` },
+      });
+      if (signUpErr) {
+        setLoading(false);
+        setError(signUpErr.message);
         return;
       }
-      const { error: loginErr } = await supabase.auth.signInWithPassword({ email, password });
+      // Ensure we have a session for the RLS-protected insert
+      let userId = signUp.user?.id;
+      if (!signUp.session) {
+        const { data: login, error: loginErr } = await supabase.auth.signInWithPassword({
+          email: normalizedEmail,
+          password,
+        });
+        if (loginErr || !login.user) {
+          setLoading(false);
+          setError(loginErr?.message ?? "Cadastro criado, mas não foi possível autenticar.");
+          return;
+        }
+        userId = login.user.id;
+      }
+      if (userId) {
+        const { error: roleErr } = await supabase
+          .from("user_roles")
+          .insert({ user_id: userId, role: "staff", status: "pending" });
+        // Ignore duplicate-request errors (user already requested before)
+        if (roleErr && !/duplicate|unique/i.test(roleErr.message)) {
+          setLoading(false);
+          setError(roleErr.message);
+          return;
+        }
+      }
       setLoading(false);
-      if (loginErr) {
-        setError(loginErr.message);
-        return;
-      }
-      navigate({ to: (search.redirect as string) || "/admin/pedidos", replace: true });
+      setInfo(
+        "Cadastro enviado! Aguarde o administrador aprovar seu acesso. Você pode tentar entrar depois.",
+      );
+      setMode("login");
     } catch (err) {
       setLoading(false);
       setError(err instanceof Error ? err.message : "Erro inesperado.");
@@ -168,14 +224,14 @@ function AuthPage() {
                 }}
                 className="block w-full text-center text-sm text-primary underline-offset-2 hover:underline"
               >
-                Criar acesso (cadastro do administrador)
+                Criar conta (novo funcionário)
               </button>
             </form>
           ) : mode === "signup" ? (
             <form onSubmit={handleSignup} className="space-y-3">
               <p className="text-sm text-muted-foreground">
-                Cadastro liberado para o e-mail do administrador principal. Defina uma senha e
-                entre direto no painel.
+                Crie sua conta com e-mail e senha. O acesso ao painel só é liberado depois que o
+                administrador aprovar seu cadastro.
               </p>
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
