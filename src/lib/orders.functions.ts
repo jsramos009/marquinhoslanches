@@ -147,9 +147,10 @@ export const createOrder = createServerFn({ method: "POST" })
       if (!p) throw new Error(`Produto inválido: ${it.product_id}`);
       const qty = Math.max(1, Math.floor(Number(it.quantity) || 1));
       const unit = Number(p.price);
-      const category = Array.isArray((p as { categories?: unknown }).categories)
-        ? ((p as { categories?: { slug?: string | null; name?: string | null }[] }).categories?.[0] ?? null)
-        : ((p as { categories?: { slug?: string | null; name?: string | null } }).categories ?? null);
+      const rawCategory = (p as unknown as { categories?: unknown }).categories;
+      const category = Array.isArray(rawCategory)
+        ? ((rawCategory[0] as { slug?: string | null; name?: string | null } | undefined) ?? null)
+        : ((rawCategory as { slug?: string | null; name?: string | null } | null | undefined) ?? null);
       const acceptsAddons = Boolean(p.accepts_addons) && isHamburgerCategory(category?.slug, category?.name);
       const addons = (acceptsAddons ? (it.addons ?? []) : [])
         .map((a) => {
