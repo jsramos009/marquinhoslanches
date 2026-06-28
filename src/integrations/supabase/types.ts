@@ -81,6 +81,7 @@ export type Database = {
           name: string
           price: number
           sort_order: number
+          suggestion_order: number | null
         }
         Insert: {
           accepts_addons?: boolean
@@ -94,6 +95,7 @@ export type Database = {
           name: string
           price: number
           sort_order?: number
+          suggestion_order?: number | null
         }
         Update: {
           accepts_addons?: boolean
@@ -107,6 +109,7 @@ export type Database = {
           name?: string
           price?: number
           sort_order?: number
+          suggestion_order?: number | null
         }
         Relationships: [
           {
