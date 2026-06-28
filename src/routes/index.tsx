@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Minus, Plus, ShoppingBag, Trash2, X, MapPin, Phone, Clock } from "lucide-react";
 import logo from "@/assets/logo.png";
@@ -40,7 +40,21 @@ type CartLine = {
 };
 
 function MenuPage() {
-  const { data } = useSuspenseQuery(menuQueryOptions());
+  const { data, isLoading, error } = useQuery(menuQueryOptions());
+  if (isLoading || !data) {
+    return (
+      <div className="grid min-h-screen place-items-center bg-background text-muted-foreground">
+        Carregando cardápio…
+      </div>
+    );
+  }
+  if (error) {
+    return (
+      <div className="grid min-h-screen place-items-center bg-background px-6 text-center text-destructive">
+        Não foi possível carregar o cardápio. Tente novamente em instantes.
+      </div>
+    );
+  }
   const [cart, setCart] = useState<CartLine[]>([]);
   const [openProduct, setOpenProduct] = useState<Product | null>(null);
   const [cartOpen, setCartOpen] = useState(false);
