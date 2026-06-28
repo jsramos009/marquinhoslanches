@@ -17,8 +17,8 @@ import { Route as ApiPublicSetAdminPasswordRouteImport } from './routes/api/publ
 import { Route as ApiPublicBootstrapAdminRouteImport } from './routes/api/public/bootstrap-admin'
 import { Route as AuthenticatedAdminUsuariosRouteImport } from './routes/_authenticated/admin.usuarios'
 import { Route as AuthenticatedAdminPedidosRouteImport } from './routes/_authenticated/admin.pedidos'
+import { Route as AuthenticatedAdminNovoPedidoRouteImport } from './routes/_authenticated/admin.novo-pedido'
 import { Route as AuthenticatedAdminDashboardRouteImport } from './routes/_authenticated/admin.dashboard'
-import { Route as AuthenticatedAdminPedidosNovoRouteImport } from './routes/_authenticated/admin.pedidos.novo'
 
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
   id: '/reset-password',
@@ -62,17 +62,17 @@ const AuthenticatedAdminPedidosRoute =
     path: '/admin/pedidos',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedAdminNovoPedidoRoute =
+  AuthenticatedAdminNovoPedidoRouteImport.update({
+    id: '/admin/novo-pedido',
+    path: '/admin/novo-pedido',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedAdminDashboardRoute =
   AuthenticatedAdminDashboardRouteImport.update({
     id: '/admin/dashboard',
     path: '/admin/dashboard',
     getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
-const AuthenticatedAdminPedidosNovoRoute =
-  AuthenticatedAdminPedidosNovoRouteImport.update({
-    id: '/novo',
-    path: '/novo',
-    getParentRoute: () => AuthenticatedAdminPedidosRoute,
   } as any)
 
 export interface FileRoutesByFullPath {
@@ -80,22 +80,22 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
   '/admin/dashboard': typeof AuthenticatedAdminDashboardRoute
-  '/admin/pedidos': typeof AuthenticatedAdminPedidosRouteWithChildren
+  '/admin/novo-pedido': typeof AuthenticatedAdminNovoPedidoRoute
+  '/admin/pedidos': typeof AuthenticatedAdminPedidosRoute
   '/admin/usuarios': typeof AuthenticatedAdminUsuariosRoute
   '/api/public/bootstrap-admin': typeof ApiPublicBootstrapAdminRoute
   '/api/public/set-admin-password': typeof ApiPublicSetAdminPasswordRoute
-  '/admin/pedidos/novo': typeof AuthenticatedAdminPedidosNovoRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
   '/admin/dashboard': typeof AuthenticatedAdminDashboardRoute
-  '/admin/pedidos': typeof AuthenticatedAdminPedidosRouteWithChildren
+  '/admin/novo-pedido': typeof AuthenticatedAdminNovoPedidoRoute
+  '/admin/pedidos': typeof AuthenticatedAdminPedidosRoute
   '/admin/usuarios': typeof AuthenticatedAdminUsuariosRoute
   '/api/public/bootstrap-admin': typeof ApiPublicBootstrapAdminRoute
   '/api/public/set-admin-password': typeof ApiPublicSetAdminPasswordRoute
-  '/admin/pedidos/novo': typeof AuthenticatedAdminPedidosNovoRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -104,11 +104,11 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
   '/_authenticated/admin/dashboard': typeof AuthenticatedAdminDashboardRoute
-  '/_authenticated/admin/pedidos': typeof AuthenticatedAdminPedidosRouteWithChildren
+  '/_authenticated/admin/novo-pedido': typeof AuthenticatedAdminNovoPedidoRoute
+  '/_authenticated/admin/pedidos': typeof AuthenticatedAdminPedidosRoute
   '/_authenticated/admin/usuarios': typeof AuthenticatedAdminUsuariosRoute
   '/api/public/bootstrap-admin': typeof ApiPublicBootstrapAdminRoute
   '/api/public/set-admin-password': typeof ApiPublicSetAdminPasswordRoute
-  '/_authenticated/admin/pedidos/novo': typeof AuthenticatedAdminPedidosNovoRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -117,22 +117,22 @@ export interface FileRouteTypes {
     | '/auth'
     | '/reset-password'
     | '/admin/dashboard'
+    | '/admin/novo-pedido'
     | '/admin/pedidos'
     | '/admin/usuarios'
     | '/api/public/bootstrap-admin'
     | '/api/public/set-admin-password'
-    | '/admin/pedidos/novo'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/auth'
     | '/reset-password'
     | '/admin/dashboard'
+    | '/admin/novo-pedido'
     | '/admin/pedidos'
     | '/admin/usuarios'
     | '/api/public/bootstrap-admin'
     | '/api/public/set-admin-password'
-    | '/admin/pedidos/novo'
   id:
     | '__root__'
     | '/'
@@ -140,11 +140,11 @@ export interface FileRouteTypes {
     | '/auth'
     | '/reset-password'
     | '/_authenticated/admin/dashboard'
+    | '/_authenticated/admin/novo-pedido'
     | '/_authenticated/admin/pedidos'
     | '/_authenticated/admin/usuarios'
     | '/api/public/bootstrap-admin'
     | '/api/public/set-admin-password'
-    | '/_authenticated/admin/pedidos/novo'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -214,6 +214,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminPedidosRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/admin/novo-pedido': {
+      id: '/_authenticated/admin/novo-pedido'
+      path: '/admin/novo-pedido'
+      fullPath: '/admin/novo-pedido'
+      preLoaderRoute: typeof AuthenticatedAdminNovoPedidoRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/admin/dashboard': {
       id: '/_authenticated/admin/dashboard'
       path: '/admin/dashboard'
@@ -221,39 +228,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminDashboardRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/admin/pedidos/novo': {
-      id: '/_authenticated/admin/pedidos/novo'
-      path: '/novo'
-      fullPath: '/admin/pedidos/novo'
-      preLoaderRoute: typeof AuthenticatedAdminPedidosNovoRouteImport
-      parentRoute: typeof AuthenticatedAdminPedidosRoute
-    }
   }
 }
-
-interface AuthenticatedAdminPedidosRouteChildren {
-  AuthenticatedAdminPedidosNovoRoute: typeof AuthenticatedAdminPedidosNovoRoute
-}
-
-const AuthenticatedAdminPedidosRouteChildren: AuthenticatedAdminPedidosRouteChildren =
-  {
-    AuthenticatedAdminPedidosNovoRoute: AuthenticatedAdminPedidosNovoRoute,
-  }
-
-const AuthenticatedAdminPedidosRouteWithChildren =
-  AuthenticatedAdminPedidosRoute._addFileChildren(
-    AuthenticatedAdminPedidosRouteChildren,
-  )
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminDashboardRoute: typeof AuthenticatedAdminDashboardRoute
-  AuthenticatedAdminPedidosRoute: typeof AuthenticatedAdminPedidosRouteWithChildren
+  AuthenticatedAdminNovoPedidoRoute: typeof AuthenticatedAdminNovoPedidoRoute
+  AuthenticatedAdminPedidosRoute: typeof AuthenticatedAdminPedidosRoute
   AuthenticatedAdminUsuariosRoute: typeof AuthenticatedAdminUsuariosRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminDashboardRoute: AuthenticatedAdminDashboardRoute,
-  AuthenticatedAdminPedidosRoute: AuthenticatedAdminPedidosRouteWithChildren,
+  AuthenticatedAdminNovoPedidoRoute: AuthenticatedAdminNovoPedidoRoute,
+  AuthenticatedAdminPedidosRoute: AuthenticatedAdminPedidosRoute,
   AuthenticatedAdminUsuariosRoute: AuthenticatedAdminUsuariosRoute,
 }
 
