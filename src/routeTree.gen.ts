@@ -13,6 +13,7 @@ import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiPublicSetAdminPasswordRouteImport } from './routes/api/public/set-admin-password'
 import { Route as ApiPublicBootstrapAdminRouteImport } from './routes/api/public/bootstrap-admin'
 import { Route as AuthenticatedAdminPedidosRouteImport } from './routes/_authenticated/admin.pedidos'
 
@@ -35,6 +36,12 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicSetAdminPasswordRoute =
+  ApiPublicSetAdminPasswordRouteImport.update({
+    id: '/api/public/set-admin-password',
+    path: '/api/public/set-admin-password',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicBootstrapAdminRoute = ApiPublicBootstrapAdminRouteImport.update({
   id: '/api/public/bootstrap-admin',
   path: '/api/public/bootstrap-admin',
@@ -53,6 +60,7 @@ export interface FileRoutesByFullPath {
   '/reset-password': typeof ResetPasswordRoute
   '/admin/pedidos': typeof AuthenticatedAdminPedidosRoute
   '/api/public/bootstrap-admin': typeof ApiPublicBootstrapAdminRoute
+  '/api/public/set-admin-password': typeof ApiPublicSetAdminPasswordRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -60,6 +68,7 @@ export interface FileRoutesByTo {
   '/reset-password': typeof ResetPasswordRoute
   '/admin/pedidos': typeof AuthenticatedAdminPedidosRoute
   '/api/public/bootstrap-admin': typeof ApiPublicBootstrapAdminRoute
+  '/api/public/set-admin-password': typeof ApiPublicSetAdminPasswordRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -69,6 +78,7 @@ export interface FileRoutesById {
   '/reset-password': typeof ResetPasswordRoute
   '/_authenticated/admin/pedidos': typeof AuthenticatedAdminPedidosRoute
   '/api/public/bootstrap-admin': typeof ApiPublicBootstrapAdminRoute
+  '/api/public/set-admin-password': typeof ApiPublicSetAdminPasswordRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -78,6 +88,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/admin/pedidos'
     | '/api/public/bootstrap-admin'
+    | '/api/public/set-admin-password'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -85,6 +96,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/admin/pedidos'
     | '/api/public/bootstrap-admin'
+    | '/api/public/set-admin-password'
   id:
     | '__root__'
     | '/'
@@ -93,6 +105,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/_authenticated/admin/pedidos'
     | '/api/public/bootstrap-admin'
+    | '/api/public/set-admin-password'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -101,6 +114,7 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   ApiPublicBootstrapAdminRoute: typeof ApiPublicBootstrapAdminRoute
+  ApiPublicSetAdminPasswordRoute: typeof ApiPublicSetAdminPasswordRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -131,6 +145,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/set-admin-password': {
+      id: '/api/public/set-admin-password'
+      path: '/api/public/set-admin-password'
+      fullPath: '/api/public/set-admin-password'
+      preLoaderRoute: typeof ApiPublicSetAdminPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/bootstrap-admin': {
@@ -167,6 +188,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   ApiPublicBootstrapAdminRoute: ApiPublicBootstrapAdminRoute,
+  ApiPublicSetAdminPasswordRoute: ApiPublicSetAdminPasswordRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
