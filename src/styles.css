@@ -176,3 +176,72 @@
   &::placeholder { color: var(--color-muted-foreground); }
   &:focus { outline: none; border-color: var(--color-primary); }
 }
+
+@keyframes addon-pop {
+  0%   { transform: translateY(0) scale(1); }
+  35%  { transform: translateY(-3px) scale(1.08); }
+  70%  { transform: translateY(-1px) scale(0.97); }
+  100% { transform: translateY(-1px) scale(1); }
+}
+
+@utility addon-chip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  border-radius: 9999px;
+  padding: 0.55rem 1rem 0.55rem 0.55rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-foreground);
+  background: linear-gradient(180deg, oklch(0.30 0.02 30) 0%, oklch(0.20 0.02 30) 100%);
+  border: 1px solid var(--color-border);
+  box-shadow:
+    0 1px 0 oklch(1 0 0 / 0.06) inset,
+    0 -2px 0 oklch(0 0 0 / 0.35) inset,
+    0 3px 0 oklch(0 0 0 / 0.45),
+    0 6px 12px -6px oklch(0 0 0 / 0.6);
+  transform: translateY(0);
+  transition: transform 120ms ease, box-shadow 160ms ease, background 200ms ease, color 160ms ease;
+  cursor: pointer;
+  user-select: none;
+}
+@utility addon-chip-hover {
+  &:hover { border-color: color-mix(in oklab, var(--color-primary) 40%, var(--color-border)); }
+  &:active { transform: translateY(2px); box-shadow:
+    0 1px 0 oklch(1 0 0 / 0.06) inset,
+    0 -1px 0 oklch(0 0 0 / 0.3) inset,
+    0 1px 0 oklch(0 0 0 / 0.4),
+    0 2px 6px -4px oklch(0 0 0 / 0.5); }
+}
+@utility addon-chip-on {
+  color: var(--color-primary-foreground);
+  background: linear-gradient(180deg,
+    color-mix(in oklab, var(--color-primary) 100%, white 6%) 0%,
+    color-mix(in oklab, var(--color-primary) 88%, black 8%) 100%);
+  border-color: color-mix(in oklab, var(--color-primary) 70%, black);
+  box-shadow:
+    0 1px 0 oklch(1 0 0 / 0.45) inset,
+    0 -3px 0 color-mix(in oklab, var(--color-primary) 60%, black 30%) inset,
+    0 4px 0 oklch(0 0 0 / 0.45),
+    0 10px 18px -8px color-mix(in oklab, var(--color-primary) 50%, transparent);
+  animation: addon-pop 280ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@utility addon-knob {
+  display: inline-grid;
+  place-items: center;
+  height: 1.5rem;
+  width: 1.5rem;
+  border-radius: 9999px;
+  background: linear-gradient(180deg, oklch(0.22 0.02 30), oklch(0.14 0.01 30));
+  border: 1px solid oklch(0 0 0 / 0.4);
+  box-shadow: 0 1px 0 oklch(1 0 0 / 0.08) inset, 0 1px 2px oklch(0 0 0 / 0.4);
+  color: transparent;
+  transition: background 160ms ease, color 160ms ease, transform 160ms ease;
+}
+@utility addon-knob-on {
+  background: linear-gradient(180deg, oklch(1 0 0 / 0.95), oklch(0.92 0.02 90));
+  color: var(--color-primary-foreground);
+  transform: scale(1.05);
+  box-shadow: 0 1px 0 oklch(1 0 0 / 0.6) inset, 0 2px 4px oklch(0 0 0 / 0.45);
+}
