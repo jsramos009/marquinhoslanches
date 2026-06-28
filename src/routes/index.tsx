@@ -128,31 +128,28 @@ function MenuPage() {
       Number(product.price) + addons.reduce((s, a) => s + Number(a.price), 0);
     const lineId =
       product.id + ":" + addons.map((a) => a.id).sort().join(",") + ":" + notes;
-    let nextCart: CartLine[] = [];
     setCart((prev) => {
       const existing = prev.find((l) => l.lineId === lineId);
-      nextCart = existing
+      return existing
         ? prev.map((l) =>
             l.lineId === lineId ? { ...l, qty: l.qty + qty } : l,
           )
         : [...prev, { lineId, product, qty, addons, notes, unitPrice }];
-      return nextCart;
     });
 
     // Cross-sell: suggest a beverage if a food (accepts_addons) was added
-    // and the cart has no beverage yet.
+    // and the cart has no beverage yet. `cart` here is the closure value
+    // (pre-add), which is exactly what we need to check.
     if (
       product.accepts_addons &&
       beveragesCategoryId &&
       suggestedBeverages.length > 0 &&
       !suggestionDismissed
     ) {
-      const hasBeverage = nextCart.some(
+      const alreadyHasBeverage = cart.some(
         (l) => l.product.category_id === beveragesCategoryId,
       );
-      console.log("[suggest-check] " + JSON.stringify({ hasBeverage, beveragesCategoryId, lines: nextCart.map(l => ({name: l.product.name, cat: l.product.category_id})) }));
-      if (!hasBeverage) {
-        // small delay so the product sheet close animation feels natural
+      if (!alreadyHasBeverage) {
         setTimeout(() => setSuggestionOpen(true), 150);
       }
     }
