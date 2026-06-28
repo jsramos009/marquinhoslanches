@@ -37,6 +37,7 @@ function NovoPedidoPage() {
   });
 
   const [customer, setCustomer] = useState("");
+  const [phone, setPhone] = useState("");
   const [channel, setChannel] = useState<OrderChannel>("whatsapp");
   const [notes, setNotes] = useState("");
   const [discount, setDiscount] = useState(0);
@@ -107,6 +108,7 @@ function NovoPedidoPage() {
     mut.mutate({
       data: {
         customer_name: customer.trim() || null,
+        customer_phone: phone.trim() || null,
         channel,
         notes: notes.trim() || null,
         discount,
@@ -132,6 +134,17 @@ function NovoPedidoPage() {
                 className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
               />
             </Field>
+            <Field label="Telefone / WhatsApp">
+              <input
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="(00) 00000-0000"
+                inputMode="tel"
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+              />
+            </Field>
+          </div>
+          <div className="grid gap-3 md:grid-cols-2">
             <Field label="Canal">
               <select
                 value={channel}
