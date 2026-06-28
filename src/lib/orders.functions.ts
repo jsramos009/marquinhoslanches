@@ -186,6 +186,7 @@ export const createOrder = createServerFn({ method: "POST" })
       .from("orders")
       .insert({
         customer_name: data.customer_name?.trim() || null,
+        customer_phone: data.customer_phone?.trim() || null,
         channel: data.channel ?? "whatsapp",
         notes: data.notes?.trim() || null,
         subtotal,
@@ -267,7 +268,7 @@ export const listRecentOrders = createServerFn({ method: "GET" })
     const { data: rows, error } = await context.supabase
       .from("orders")
       .select(
-        "id, customer_name, channel, status, subtotal, discount, total, notes, cancel_reason, payment_method, change_for, created_at, ready_at, delivered_at, order_items(id, product_name_snapshot, quantity, unit_price_snapshot, line_total, order_item_addons(id, addon_name_snapshot, quantity, unit_price_snapshot))",
+        "id, customer_name, customer_phone, channel, status, subtotal, discount, total, notes, cancel_reason, payment_method, change_for, created_at, ready_at, delivered_at, order_items(id, product_name_snapshot, quantity, unit_price_snapshot, line_total, order_item_addons(id, addon_name_snapshot, quantity, unit_price_snapshot))",
       )
       .gte("created_at", since)
       .order("created_at", { ascending: false });
@@ -276,6 +277,7 @@ export const listRecentOrders = createServerFn({ method: "GET" })
       const row = r as unknown as {
         id: string;
         customer_name: string | null;
+        customer_phone: string | null;
         channel: OrderChannel;
         status: OrderStatus;
         subtotal: number;
@@ -305,6 +307,7 @@ export const listRecentOrders = createServerFn({ method: "GET" })
       return {
         id: row.id,
         customer_name: row.customer_name,
+        customer_phone: row.customer_phone,
         channel: row.channel,
         status: row.status,
         subtotal: Number(row.subtotal),
