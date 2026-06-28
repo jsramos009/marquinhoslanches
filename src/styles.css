@@ -173,8 +173,6 @@
   font-size: 0.875rem;
   color: var(--color-foreground);
   min-height: 2.75rem;
-}
-@utility cart-input {
   &::placeholder { color: var(--color-muted-foreground); }
   &:focus { outline: none; border-color: var(--color-primary); }
 }
