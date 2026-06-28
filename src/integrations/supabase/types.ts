@@ -224,6 +224,42 @@ export type Database = {
         }
         Relationships: []
       }
+      product_addons: {
+        Row: {
+          addon_id: string
+          created_at: string
+          product_id: string
+          sort_order: number
+        }
+        Insert: {
+          addon_id: string
+          created_at?: string
+          product_id: string
+          sort_order?: number
+        }
+        Update: {
+          addon_id?: string
+          created_at?: string
+          product_id?: string
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_addons_addon_id_fkey"
+            columns: ["addon_id"]
+            isOneToOne: false
+            referencedRelation: "addons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_addons_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       products: {
         Row: {
           accepts_addons: boolean
@@ -237,7 +273,9 @@ export type Database = {
           name: string
           price: number
           sort_order: number
+          stock_quantity: number | null
           suggestion_order: number | null
+          track_stock: boolean
         }
         Insert: {
           accepts_addons?: boolean
@@ -251,7 +289,9 @@ export type Database = {
           name: string
           price: number
           sort_order?: number
+          stock_quantity?: number | null
           suggestion_order?: number | null
+          track_stock?: boolean
         }
         Update: {
           accepts_addons?: boolean
@@ -265,7 +305,9 @@ export type Database = {
           name?: string
           price?: number
           sort_order?: number
+          stock_quantity?: number | null
           suggestion_order?: number | null
+          track_stock?: boolean
         }
         Relationships: [
           {

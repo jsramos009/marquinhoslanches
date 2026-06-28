@@ -236,7 +236,11 @@ function MenuPage() {
       {openProduct && (
         <ProductDialog
           product={openProduct}
-          addons={data.addons}
+          addons={
+            openProduct.addon_ids.length
+              ? data.addons.filter((a) => openProduct.addon_ids.includes(a.id))
+              : data.addons
+          }
           canUseAddons={productAcceptsAddons(openProduct)}
           onClose={() => setOpenProduct(null)}
           onConfirm={(addons, qty, notes) => {
@@ -313,10 +317,13 @@ function ProductCard({
   product: Product;
   onClick: () => void;
 }) {
+  const outOfStock = product.track_stock && (product.stock_quantity ?? 0) <= 0;
   return (
     <button
-      onClick={onClick}
-      className="group grid w-full grid-cols-[auto_minmax(0,1fr)] items-stretch gap-3 rounded-xl border border-border bg-card p-3 text-left transition-colors hover:border-primary/60 active:scale-[0.99]"
+      onClick={outOfStock ? undefined : onClick}
+      disabled={outOfStock}
+      aria-disabled={outOfStock}
+      className={`group grid w-full grid-cols-[auto_minmax(0,1fr)] items-stretch gap-3 rounded-xl border border-border bg-card p-3 text-left transition-colors ${outOfStock ? "opacity-60" : "hover:border-primary/60 active:scale-[0.99]"}`}
     >
       <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-lg bg-muted sm:h-28 sm:w-28">
         {product.image_url ? (
@@ -343,9 +350,15 @@ function ProductCard({
           <p className="font-display text-xl text-foreground">
             {formatBRL(product.price)}
           </p>
-          <span className="inline-flex items-center gap-1 rounded-full bg-primary px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-primary-foreground">
-            <Plus className="h-3.5 w-3.5" /> Pedir
-          </span>
+          {outOfStock ? (
+            <span className="inline-flex items-center gap-1 rounded-full bg-muted px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-muted-foreground">
+              Esgotado
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1 rounded-full bg-primary px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-primary-foreground">
+              <Plus className="h-3.5 w-3.5" /> Pedir
+            </span>
+          )}
         </div>
       </div>
     </button>
