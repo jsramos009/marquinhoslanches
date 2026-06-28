@@ -634,6 +634,39 @@ function CartDialog({
   const remove = (lineId: string) =>
     setCart((prev) => prev.filter((l) => l.lineId !== lineId));
 
+  const mapsLink = geo
+    ? `https://www.google.com/maps?q=${geo.lat.toFixed(6)},${geo.lng.toFixed(6)}`
+    : null;
+
+  const requestLocation = () => {
+    if (typeof navigator === "undefined" || !navigator.geolocation) {
+      setGeoStatus("error");
+      setGeoError("Seu navegador não suporta geolocalização.");
+      return;
+    }
+    setGeoStatus("loading");
+    setGeoError("");
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setGeo({
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude,
+          accuracy: pos.coords.accuracy,
+        });
+        setGeoStatus("idle");
+      },
+      (err) => {
+        setGeoStatus("error");
+        setGeoError(
+          err.code === err.PERMISSION_DENIED
+            ? "Permissão negada. Habilite a localização nas configurações do navegador."
+            : "Não conseguimos obter sua localização. Tente novamente.",
+        );
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 },
+    );
+  };
+
   const buildMessage = () => {
     const lines: string[] = [];
     lines.push("*Novo pedido — Marquinhos Lanches*");
@@ -643,6 +676,9 @@ function CartDialog({
     lines.push(`*Modo:* ${mode === "delivery" ? "Entrega" : "Retirada no local"}`);
     if (mode === "delivery" && address)
       lines.push(`*Endereço:* ${address}`);
+    if (mode === "delivery" && mapsLink) {
+      lines.push(`*Localização (GPS):* ${mapsLink}`);
+    }
     lines.push("");
     lines.push("*Itens:*");
     for (const l of cart) {
