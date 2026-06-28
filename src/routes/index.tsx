@@ -811,6 +811,9 @@ function CartDialog({
               mode === "delivery" && mapsLink
                 ? `Localização GPS: ${mapsLink}`
                 : null,
+              mode === "delivery" && selectedFee
+                ? `Bairro: ${selectedFee.neighborhood} — frete ${formatBRL(selectedFee.fee)} (total c/ frete ${formatBRL(grandTotal)})`
+                : null,
               orderNotes || null,
             ]
               .filter(Boolean)
