@@ -75,10 +75,20 @@ function NovoPedidoPage() {
 
   function addProduct(productId: string) {
     if (!productId) return;
-    setItems((prev) => [
-      ...prev,
-      { key: crypto.randomUUID(), product_id: productId, quantity: 1, addons: [] },
-    ]);
+    setItems((prev) => {
+      const simpleIndex = prev.findIndex(
+        (it) => it.product_id === productId && it.addons.length === 0,
+      );
+      if (simpleIndex >= 0) {
+        const next = [...prev];
+        next[simpleIndex] = { ...next[simpleIndex], quantity: next[simpleIndex].quantity + 1 };
+        return next;
+      }
+      return [
+        ...prev,
+        { key: crypto.randomUUID(), product_id: productId, quantity: 1, addons: [] },
+      ];
+    });
   }
 
   function updateItem(key: string, patch: Partial<DraftItem>) {
