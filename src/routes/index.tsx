@@ -797,6 +797,13 @@ function CartDialog({
 
   return (
     <Sheet onClose={onClose} title="Seu pedido">
+      {sentToast && (
+        <div className="pointer-events-none absolute inset-x-0 top-2 z-10 flex justify-center px-4">
+          <div className="pointer-events-auto rounded-full bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-lg">
+            ✅ Seu pedido já foi enviado
+          </div>
+        </div>
+      )}
       {step === "pix" ? (
         <>
           <div className="flex-1 overflow-y-auto px-5 py-4">
