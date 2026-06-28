@@ -21,6 +21,7 @@ export type OrderPaymentMethod =
 export type OrderRow = {
   id: string;
   customer_name: string | null;
+  customer_phone: string | null;
   channel: OrderChannel;
   status: OrderStatus;
   subtotal: number;
@@ -67,6 +68,7 @@ export type DashboardMetrics = {
 
 type CreateOrderInput = {
   customer_name?: string | null;
+  customer_phone?: string | null;
   channel?: OrderChannel;
   notes?: string | null;
   discount?: number;
