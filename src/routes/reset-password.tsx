@@ -17,20 +17,78 @@ export const Route = createFileRoute("/reset-password")({
 function ResetPasswordPage() {
   const navigate = useNavigate();
   const [ready, setReady] = useState(false);
+  const [invalidLink, setInvalidLink] = useState(false);
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Supabase recovery sets the session automatically from the URL hash.
+    let cancelled = false;
+
+    async function validateRecoveryLink() {
+      const url = new URL(window.location.href);
+      const hash = new URLSearchParams(url.hash.replace(/^#/, ""));
+      const search = url.searchParams;
+      const linkError = search.get("error_description") || hash.get("error_description");
+      const code = search.get("code");
+      const accessToken = hash.get("access_token");
+      const refreshToken = hash.get("refresh_token");
+
+      if (linkError) {
+        if (!cancelled) {
+          setInvalidLink(true);
+          setError("Este link de redefinição expirou ou já foi usado. Peça um novo link no login.");
+        }
+        return;
+      }
+
+      if (code) {
+        const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+        if (cancelled) return;
+        if (exchangeError) {
+          setInvalidLink(true);
+          setError("Não foi possível validar este link. Peça um novo link no login.");
+          return;
+        }
+        window.history.replaceState({}, document.title, "/reset-password");
+        setReady(true);
+        return;
+      }
+
+      if (accessToken && refreshToken) {
+        const { error: sessionError } = await supabase.auth.setSession({
+          access_token: accessToken,
+          refresh_token: refreshToken,
+        });
+        if (cancelled) return;
+        if (sessionError) {
+          setInvalidLink(true);
+          setError("Não foi possível validar este link. Peça um novo link no login.");
+          return;
+        }
+        window.history.replaceState({}, document.title, "/reset-password");
+        setReady(true);
+        return;
+      }
+
+      const { data } = await supabase.auth.getSession();
+      if (!cancelled && data.session) setReady(true);
+    }
+
     const { data: sub } = supabase.auth.onAuthStateChange((event) => {
-      if (event === "PASSWORD_RECOVERY" || event === "SIGNED_IN") setReady(true);
+      if (event === "PASSWORD_RECOVERY" || event === "SIGNED_IN") {
+        setInvalidLink(false);
+        setReady(true);
+      }
     });
-    supabase.auth.getSession().then(({ data }) => {
-      if (data.session) setReady(true);
-    });
-    return () => sub.subscription.unsubscribe();
+
+    validateRecoveryLink();
+
+    return () => {
+      cancelled = true;
+      sub.subscription.unsubscribe();
+    };
   }, []);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -64,10 +122,19 @@ function ResetPasswordPage() {
 
         <div className="rounded-2xl border border-border bg-card p-5 shadow-lg">
           {!ready ? (
-            <p className="text-sm text-muted-foreground">
-              Validando link… Se nada acontecer em alguns segundos, peça um novo link na tela de
-              login.
-            </p>
+            <div className="space-y-3">
+              <p className={invalidLink ? "text-sm text-destructive" : "text-sm text-muted-foreground"}>
+                {error || "Validando link… Se nada acontecer em alguns segundos, peça um novo link na tela de login."}
+              </p>
+              {invalidLink && (
+                <Link
+                  to="/auth"
+                  className="inline-flex w-full items-center justify-center rounded-lg bg-primary px-4 py-2.5 font-semibold text-primary-foreground transition hover:opacity-90"
+                >
+                  Pedir novo link
+                </Link>
+              )}
+            </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-3">
               <div>
