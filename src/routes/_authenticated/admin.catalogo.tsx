@@ -13,8 +13,9 @@ import {
   type CatalogAddon,
   type CatalogCategory,
 } from "@/lib/catalog.functions";
-import { Pencil, Plus, Trash2, X, Image as ImageIcon, Upload } from "lucide-react";
-import { fileToCompressedDataUrl } from "@/lib/image-upload";
+import { Pencil, Plus, Trash2, X, Image as ImageIcon, Upload, Sparkles } from "lucide-react";
+import { fileToCompressedDataUrl, compressDataUrl } from "@/lib/image-upload";
+import { generateProductImage } from "@/lib/ai-images.functions";
 
 function Toggle3D({
   on,
