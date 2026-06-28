@@ -236,7 +236,11 @@ function MenuPage() {
       {openProduct && (
         <ProductDialog
           product={openProduct}
-          addons={data.addons}
+          addons={
+            openProduct.addon_ids.length
+              ? data.addons.filter((a) => openProduct.addon_ids.includes(a.id))
+              : data.addons
+          }
           canUseAddons={productAcceptsAddons(openProduct)}
           onClose={() => setOpenProduct(null)}
           onConfirm={(addons, qty, notes) => {
