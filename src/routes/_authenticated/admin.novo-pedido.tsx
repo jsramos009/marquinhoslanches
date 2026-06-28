@@ -43,6 +43,7 @@ function NovoPedidoPage() {
   const [notes, setNotes] = useState("");
   const [discount, setDiscount] = useState(0);
   const [items, setItems] = useState<DraftItem[]>([]);
+  const [search, setSearch] = useState("");
 
   const products = menu.data?.products ?? [];
   const addons = menu.data?.addons ?? [];
