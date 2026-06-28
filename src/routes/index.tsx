@@ -706,6 +706,88 @@ function CartDialog({
 
   return (
     <Sheet onClose={onClose} title="Seu pedido">
+      {step === "pix" ? (
+        <>
+          <div className="flex-1 overflow-y-auto px-5 py-4">
+            <div className="space-y-4 text-center">
+              <div>
+                <p className="text-sm text-muted-foreground">Valor a pagar</p>
+                <p className="font-display text-3xl text-primary">
+                  {formatBRL(totalPrice)}
+                </p>
+              </div>
+              <div className="mx-auto w-fit rounded-2xl border border-border bg-white p-3">
+                {pixQr ? (
+                  <img
+                    src={pixQr}
+                    alt="QR Code PIX"
+                    width={260}
+                    height={260}
+                    className="h-[260px] w-[260px]"
+                  />
+                ) : (
+                  <div className="grid h-[260px] w-[260px] place-items-center text-sm text-muted-foreground">
+                    Gerando QR...
+                  </div>
+                )}
+              </div>
+              <div className="space-y-2 text-left">
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                  Chave PIX (telefone)
+                </p>
+                <div className="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2">
+                  <span className="flex-1 truncate font-mono text-sm text-foreground">
+                    {PIX_KEY}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={copyPixKey}
+                    className="rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-semibold hover:border-primary"
+                  >
+                    {pixCopied ? "Copiado!" : "Copiar"}
+                  </button>
+                </div>
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                  PIX copia e cola
+                </p>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      await navigator.clipboard.writeText(pixPayload);
+                      setPixCopied(true);
+                      setTimeout(() => setPixCopied(false), 1800);
+                    } catch {}
+                  }}
+                  className="block w-full break-all rounded-xl border border-dashed border-border bg-background px-3 py-2 text-left font-mono text-[11px] text-muted-foreground hover:border-primary"
+                  title="Toque para copiar o código PIX"
+                >
+                  {pixPayload}
+                </button>
+              </div>
+              <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-left text-sm text-amber-200">
+                ⚠️ <strong>Seu pedido só será validado quando você enviar o
+                comprovante</strong> pelo WhatsApp.
+              </div>
+            </div>
+          </div>
+          <div className="border-t border-border bg-card px-5 py-4 space-y-2">
+            <button
+              onClick={sendReceipt}
+              className="w-full rounded-xl bg-primary px-4 py-3 font-display text-lg uppercase tracking-wide text-primary-foreground transition-transform active:scale-[0.98]"
+            >
+              Enviar comprovante
+            </button>
+            <button
+              onClick={() => setStep("form")}
+              className="w-full rounded-xl border border-border bg-background px-4 py-2 text-sm text-muted-foreground hover:text-foreground"
+            >
+              Voltar
+            </button>
+          </div>
+        </>
+      ) : (
+      <>
       <div className="flex-1 overflow-y-auto px-5 py-4">
         {cart.length === 0 ? (
           <p className="py-10 text-center text-muted-foreground">
@@ -884,12 +966,18 @@ function CartDialog({
             onClick={submit}
             className="w-full rounded-xl bg-primary px-4 py-3 font-display text-lg uppercase tracking-wide text-primary-foreground transition-transform active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
           >
-            Enviar pedido pelo WhatsApp
+            {payment === "pix"
+              ? "Prosseguir para o pagamento"
+              : "Enviar pedido pelo WhatsApp"}
           </button>
           <p className="mt-2 text-center text-xs text-muted-foreground">
-            Você será redirecionado para o WhatsApp para confirmar com a loja.
+            {payment === "pix"
+              ? "Você verá o QR Code e a chave PIX na próxima etapa."
+              : "Você será redirecionado para o WhatsApp para confirmar com a loja."}
           </p>
         </div>
+      )}
+      </>
       )}
     </Sheet>
   );
