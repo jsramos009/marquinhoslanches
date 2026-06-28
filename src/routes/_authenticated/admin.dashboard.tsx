@@ -368,6 +368,7 @@ function TodayOrdersGrid() {
   useRealtimeOrders(() => qc.invalidateQueries({ queryKey: ["today-orders"] }));
   useNewOrderAlert(q.data);
   const [printing, setPrinting] = useState<OrderRow | null>(null);
+  const [details, setDetails] = useState<OrderRow | null>(null);
 
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
@@ -409,12 +410,18 @@ function TodayOrdersGrid() {
         {todayOrders.length > 0 && (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {todayOrders.map((o) => (
-              <OrderMiniCard key={o.id} order={o} onPrint={() => handlePrint(o)} />
+              <OrderMiniCard
+                key={o.id}
+                order={o}
+                onPrint={() => handlePrint(o)}
+                onOpen={() => setDetails(o)}
+              />
             ))}
           </div>
         )}
       </section>
       {printing && <ThermalReceipt order={printing} />}
+      {details && <OrderDetailsModal order={details} onClose={() => setDetails(null)} />}
     </>
   );
 }
@@ -422,9 +429,11 @@ function TodayOrdersGrid() {
 function OrderMiniCard({
   order,
   onPrint,
+  onOpen,
 }: {
   order: OrderRow;
   onPrint: () => void;
+  onOpen: () => void;
 }) {
   const time = new Date(order.created_at).toLocaleTimeString("pt-BR", {
     hour: "2-digit",
@@ -439,7 +448,18 @@ function OrderMiniCard({
     order.payment_method === "dinheiro" && order.change_for && order.change_for > 0;
 
   return (
-    <div className="flex aspect-square flex-col justify-between rounded-xl border border-border bg-background/40 p-3 transition hover:border-primary/50">
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={onOpen}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onOpen();
+        }
+      }}
+      className="flex aspect-square cursor-pointer flex-col justify-between rounded-xl border border-border bg-background/40 p-3 text-left transition hover:border-primary/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+    >
       <div className="space-y-2 overflow-hidden">
         <div className="flex items-start justify-between gap-2">
           <p className="truncate font-display text-base leading-tight text-foreground">
@@ -472,13 +492,151 @@ function OrderMiniCard({
           )}
         </div>
         <button
-          onClick={onPrint}
+          onClick={(e) => {
+            e.stopPropagation();
+            onPrint();
+          }}
           className="flex w-full items-center justify-center gap-1.5 rounded-md border border-border bg-card px-2 py-1.5 text-xs font-semibold text-foreground transition hover:border-primary hover:text-primary"
         >
           <Printer className="h-3.5 w-3.5" />
           Imprimir comanda
         </button>
       </div>
+    </div>
+  );
+}
+
+function OrderDetailsModal({
+  order,
+  onClose,
+}: {
+  order: OrderRow;
+  onClose: () => void;
+}) {
+  const time = new Date(order.created_at).toLocaleString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Detalhes do pedido"
+    >
+      <div
+        className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-border bg-card shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-start justify-between gap-3 border-b border-border p-4">
+          <div className="min-w-0">
+            <p className="font-display text-lg text-foreground">
+              {order.customer_name || "Sem nome"}
+            </p>
+            <p className="text-xs text-muted-foreground">{time} · {order.channel}</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <span
+              className={`shrink-0 rounded border px-2 py-0.5 text-[10px] uppercase tracking-wide ${STATUS_BADGE[order.status]}`}
+            >
+              {STATUS_LABEL[order.status]}
+            </span>
+            <button
+              onClick={onClose}
+              aria-label="Fechar"
+              className="rounded-md border border-border px-2 py-1 text-sm text-muted-foreground hover:text-foreground"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+        <div className="space-y-3 p-4">
+          <ul className="space-y-2">
+            {order.items.map((it) => (
+              <li key={it.id} className="rounded-lg border border-border bg-background/40 p-3">
+                <div className="flex items-start justify-between gap-2">
+                  <p className="text-sm font-semibold text-foreground">
+                    {it.quantity}× {it.product_name_snapshot}
+                  </p>
+                  <span className="font-mono text-sm text-foreground">
+                    {formatBRL(it.line_total)}
+                  </span>
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  {formatBRL(it.unit_price_snapshot)} un
+                </p>
+                {it.addons.length > 0 && (
+                  <ul className="mt-2 space-y-1 border-t border-border pt-2">
+                    {it.addons.map((a) => (
+                      <li
+                        key={a.id}
+                        className="flex items-center justify-between text-xs text-muted-foreground"
+                      >
+                        <span>+ {a.quantity}× {a.addon_name_snapshot}</span>
+                        <span className="font-mono">
+                          {formatBRL(a.unit_price_snapshot * a.quantity)}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </li>
+            ))}
+          </ul>
+          {order.notes && (
+            <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-300">
+              <p className="mb-1 font-semibold uppercase tracking-wide">Observações</p>
+              <p className="whitespace-pre-wrap">{order.notes}</p>
+            </div>
+          )}
+          <div className="space-y-1 border-t border-border pt-3 text-sm">
+            <Row label="Subtotal" value={formatBRL(order.subtotal)} />
+            {order.discount > 0 && (
+              <Row label="Desconto" value={`- ${formatBRL(order.discount)}`} />
+            )}
+            <div className="flex items-center justify-between pt-1">
+              <span className="text-muted-foreground">Total</span>
+              <span className="font-display text-xl text-primary">
+                {formatBRL(order.total)}
+              </span>
+            </div>
+            <div className="flex items-center justify-between pt-2 text-xs">
+              <span className="text-muted-foreground">Pagamento</span>
+              <span className="rounded bg-secondary px-1.5 py-0.5 font-semibold text-secondary-foreground">
+                {PAY_LABEL[order.payment_method]}
+              </span>
+            </div>
+            {order.payment_method === "dinheiro" &&
+              order.change_for != null &&
+              order.change_for > 0 && (
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-muted-foreground">Troco para</span>
+                  <span className="font-mono text-amber-400">
+                    {formatBRL(order.change_for)}
+                  </span>
+                </div>
+              )}
+            {order.cancel_reason && (
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-muted-foreground">Cancelado</span>
+                <span className="text-destructive">{order.cancel_reason}</span>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Row({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between text-sm">
+      <span className="text-muted-foreground">{label}</span>
+      <span className="font-mono">{value}</span>
     </div>
   );
 }
