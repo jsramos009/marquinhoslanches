@@ -64,7 +64,10 @@ export const Route = createFileRoute("/api/public/set-admin-password")({
         // Ensure admin role
         const { error: roleErr } = await supabaseAdmin
           .from("user_roles")
-          .upsert({ user_id: userId, role: "admin" }, { onConflict: "user_id,role" });
+          .upsert(
+            { user_id: userId, role: "admin", status: "approved" },
+            { onConflict: "user_id,role" },
+          );
         if (roleErr) {
           return Response.json({ ok: false, error: roleErr.message }, { status: 500 });
         }
