@@ -500,6 +500,9 @@ function CartDialog({
   const [mode, setMode] = useState<"delivery" | "pickup">("delivery");
   const [address, setAddress] = useState("");
   const [orderNotes, setOrderNotes] = useState("");
+  type PayMethod = "pix" | "cartao_credito" | "cartao_debito" | "dinheiro";
+  const [payment, setPayment] = useState<PayMethod | null>(null);
+  const [changeFor, setChangeFor] = useState<string>("");
 
   const updateQty = (lineId: string, delta: number) => {
     setCart((prev) =>
@@ -532,6 +535,23 @@ function CartDialog({
     }
     lines.push("");
     lines.push(`*Total: ${formatBRL(totalPrice)}*`);
+    if (payment) {
+      const label: Record<PayMethod, string> = {
+        pix: "PIX",
+        cartao_credito: "Cartão de Crédito",
+        cartao_debito: "Cartão de Débito",
+        dinheiro: "Dinheiro",
+      };
+      lines.push(`*Pagamento:* ${label[payment]}`);
+      if (payment === "dinheiro") {
+        const v = Number(changeFor.replace(",", "."));
+        if (v > 0 && v >= totalPrice) {
+          lines.push(`*Troco para:* ${formatBRL(v)} (troco ${formatBRL(v - totalPrice)})`);
+        } else {
+          lines.push(`*Troco:* Não precisa`);
+        }
+      }
+    }
     if (orderNotes) {
       lines.push("");
       lines.push(`*Observações gerais:* ${orderNotes}`);
@@ -543,6 +563,7 @@ function CartDialog({
     cart.length > 0 &&
     name.trim().length > 0 &&
     phone.trim().length > 0 &&
+    payment !== null &&
     (mode === "pickup" || address.trim().length > 0);
 
   const submit = () => {
@@ -664,6 +685,48 @@ function CartDialog({
                 />
               </Field>
             )}
+            <Field label="Como vai pagar?">
+              <div className="grid grid-cols-2 gap-2">
+                {(
+                  [
+                    { id: "pix", label: "PIX" },
+                    { id: "cartao_credito", label: "Crédito" },
+                    { id: "cartao_debito", label: "Débito" },
+                    { id: "dinheiro", label: "Dinheiro" },
+                  ] as const
+                ).map((opt) => {
+                  const on = payment === opt.id;
+                  return (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() => setPayment(opt.id)}
+                      aria-pressed={on}
+                      className={[
+                        "addon-chip addon-chip-hover justify-center text-sm",
+                        on ? "addon-chip-on" : "",
+                      ].join(" ")}
+                    >
+                      <span className={["addon-knob", on ? "addon-knob-on" : ""].join(" ")}>
+                        <Check className="h-3.5 w-3.5" strokeWidth={3} />
+                      </span>
+                      <span>{opt.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+              {payment === "dinheiro" && (
+                <div className="mt-3">
+                  <input
+                    className="cart-input"
+                    value={changeFor}
+                    onChange={(e) => setChangeFor(e.target.value)}
+                    placeholder="Precisa de troco pra quanto? (deixe vazio se não precisar)"
+                    inputMode="decimal"
+                  />
+                </div>
+              )}
+            </Field>
             <Field label="Observações do pedido">
               <textarea
                 className="cart-input"
