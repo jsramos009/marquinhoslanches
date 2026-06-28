@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { AdminShell, formatBRL } from "@/components/admin/AdminShell";
 import { isHamburgerCategory, menuQueryOptions } from "@/lib/menu";
 import { createOrder, type OrderChannel } from "@/lib/orders.functions";
+import { ImageIcon, Search, X } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/admin/novo-pedido")({
   component: NovoPedidoPage,
@@ -42,6 +43,7 @@ function NovoPedidoPage() {
   const [notes, setNotes] = useState("");
   const [discount, setDiscount] = useState(0);
   const [items, setItems] = useState<DraftItem[]>([]);
+  const [search, setSearch] = useState("");
 
   const products = menu.data?.products ?? [];
   const addons = menu.data?.addons ?? [];
@@ -55,6 +57,24 @@ function NovoPedidoPage() {
   }, [menu.data]);
   const productMap = useMemo(() => new Map(products.map((p) => [p.id, p])), [products]);
   const addonMap = useMemo(() => new Map(addons.map((a) => [a.id, a])), [addons]);
+  const filteredProducts = useMemo(() => {
+    const q = search.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    if (!q) return products;
+    return products.filter((p) =>
+      p.name
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .includes(q),
+    );
+  }, [products, search]);
+  const quantityByProduct = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const it of items) {
+      if (it.addons.length === 0) map.set(it.product_id, (map.get(it.product_id) ?? 0) + it.quantity);
+    }
+    return map;
+  }, [items]);
   const productAcceptsAddons = (productId: string) => {
     const p = productMap.get(productId);
     return Boolean(p?.accepts_addons && hamburgerCategoryIds.has(p.category_id));
@@ -73,10 +93,20 @@ function NovoPedidoPage() {
 
   function addProduct(productId: string) {
     if (!productId) return;
-    setItems((prev) => [
-      ...prev,
-      { key: crypto.randomUUID(), product_id: productId, quantity: 1, addons: [] },
-    ]);
+    setItems((prev) => {
+      const simpleIndex = prev.findIndex(
+        (it) => it.product_id === productId && it.addons.length === 0,
+      );
+      if (simpleIndex >= 0) {
+        const next = [...prev];
+        next[simpleIndex] = { ...next[simpleIndex], quantity: next[simpleIndex].quantity + 1 };
+        return next;
+      }
+      return [
+        ...prev,
+        { key: crypto.randomUUID(), product_id: productId, quantity: 1, addons: [] },
+      ];
+    });
   }
 
   function updateItem(key: string, patch: Partial<DraftItem>) {
@@ -159,24 +189,78 @@ function NovoPedidoPage() {
             </Field>
           </div>
 
-          <Field label="Adicionar produto">
-            <select
-              value=""
-              onChange={(e) => {
-                addProduct(e.target.value);
-                e.currentTarget.value = "";
-              }}
-              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
-              disabled={!menu.data}
-            >
-              <option value="">— escolha um produto —</option>
-              {products.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name} · {formatBRL(p.price)}
-                </option>
-              ))}
-            </select>
+          <Field label="Buscar e adicionar produto">
+            <div className="relative">
+              <Search
+                size={16}
+                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+              />
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Digite o nome do produto…"
+                className="w-full rounded-lg border border-border bg-background py-2 pl-9 pr-8 text-sm"
+              />
+              {search && (
+                <button
+                  type="button"
+                  onClick={() => setSearch("")}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-0.5 text-muted-foreground hover:text-foreground"
+                >
+                  <X size={14} />
+                </button>
+              )}
+            </div>
           </Field>
+
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+            {filteredProducts.map((p) => {
+              const qty = quantityByProduct.get(p.id) ?? 0;
+              return (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => addProduct(p.id)}
+                  className="group relative flex flex-col items-center rounded-xl border border-border bg-card p-3 text-center transition hover:border-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                >
+                  <div className="mb-2 grid h-16 w-16 place-items-center rounded-lg bg-secondary text-primary">
+                    {p.image_url ? (
+                      <img
+                        src={p.image_url}
+                        alt={p.name}
+                        loading="lazy"
+                        decoding="async"
+                        width={64}
+                        height={64}
+                        className="h-16 w-16 rounded-lg object-cover"
+                      />
+                    ) : (
+                      <ImageIcon size={24} />
+                    )}
+                  </div>
+                  <p className="line-clamp-2 text-xs font-semibold leading-tight text-foreground">
+                    {p.name}
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">{formatBRL(p.price)}</p>
+                  {qty > 0 && (
+                    <span className="absolute right-2 top-2 flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-[10px] font-semibold text-primary-foreground">
+                      {qty}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+          {search && filteredProducts.length === 0 && (
+            <p className="text-center text-sm text-muted-foreground">
+              Nenhum produto encontrado para “{search}”.
+            </p>
+          )}
+          {!search && filteredProducts.length === 0 && (
+            <p className="text-center text-sm text-muted-foreground">
+              Nenhum produto ativo no cardápio.
+            </p>
+          )}
 
           <div className="space-y-2">
             {items.length === 0 && (
