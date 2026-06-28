@@ -148,6 +148,7 @@ function MenuPage() {
       const alreadyHasBeverage = cart.some(
         (l) => l.product.category_id === beveragesCategoryId,
       );
+      console.log("[suggest-check2] " + JSON.stringify({ alreadyHasBeverage, cartCats: cart.map(l => l.product.category_id), bevId: beveragesCategoryId }));
       if (!alreadyHasBeverage) {
         setTimeout(() => setSuggestionOpen(true), 150);
       }
