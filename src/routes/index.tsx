@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Check, Minus, Plus, ShoppingBag, Trash2, X, MapPin, Phone, Clock } from "lucide-react";
 import logoAsset from "@/assets/logo.png.asset.json";
-import { menuQueryOptions, formatBRL, type Product, type Addon } from "@/lib/menu";
+import { menuQueryOptions, formatBRL, isHamburgerCategory, type Product, type Addon } from "@/lib/menu";
 
 const WHATSAPP_NUMBER = "5594991032483";
 const WHATSAPP_DISPLAY = "(94) 99103-2483";
@@ -24,9 +24,7 @@ export const Route = createFileRoute("/")({
       },
     ],
   }),
-  loader: ({ context }) => {
-    context.queryClient.ensureQueryData(menuQueryOptions());
-  },
+  loader: ({ context }) => context.queryClient.ensureQueryData(menuQueryOptions()),
   component: MenuPage,
 });
 
@@ -59,6 +57,14 @@ function MenuPage() {
       .sort((a, b) => (a.suggestion_order ?? 0) - (b.suggestion_order ?? 0))
       .slice(0, 3);
   }, [data]);
+  const hamburgerCategoryIds = useMemo(() => {
+    if (!data) return new Set<string>();
+    return new Set(
+      data.categories
+        .filter((c) => isHamburgerCategory(c.slug, c.name))
+        .map((c) => c.id),
+    );
+  }, [data]);
 
   const productsByCat = useMemo(() => {
     const m: Record<string, Product[]> = {};
@@ -70,6 +76,8 @@ function MenuPage() {
 
   const totalQty = cart.reduce((s, l) => s + l.qty, 0);
   const totalPrice = cart.reduce((s, l) => s + l.qty * l.unitPrice, 0);
+  const productAcceptsAddons = (product: Product) =>
+    product.accepts_addons && hamburgerCategoryIds.has(product.category_id);
 
   // Reset suggestion dismissal when cart is emptied (new order)
   useEffect(() => {
@@ -140,7 +148,7 @@ function MenuPage() {
     // and the cart has no beverage yet. `cart` here is the closure value
     // (pre-add), which is exactly what we need to check.
     if (
-      product.accepts_addons &&
+      productAcceptsAddons(product) &&
       beveragesCategoryId &&
       suggestedBeverages.length > 0 &&
       !suggestionDismissed
@@ -242,6 +250,7 @@ function MenuPage() {
         <ProductDialog
           product={openProduct}
           addons={data.addons}
+          canUseAddons={productAcceptsAddons(openProduct)}
           onClose={() => setOpenProduct(null)}
           onConfirm={(addons, qty, notes) => {
             addToCart(openProduct, addons, qty, notes);
@@ -359,11 +368,13 @@ function ProductCard({
 function ProductDialog({
   product,
   addons,
+  canUseAddons,
   onClose,
   onConfirm,
 }: {
   product: Product;
   addons: Addon[];
+  canUseAddons: boolean;
   onClose: () => void;
   onConfirm: (addons: Addon[], qty: number, notes: string) => void;
 }) {
@@ -371,7 +382,7 @@ function ProductDialog({
   const [qty, setQty] = useState(1);
   const [notes, setNotes] = useState("");
 
-  const pickedAddons = addons.filter((a) => picked.has(a.id));
+  const pickedAddons = canUseAddons ? addons.filter((a) => picked.has(a.id)) : [];
   const unit =
     Number(product.price) +
     pickedAddons.reduce((s, a) => s + Number(a.price), 0);
@@ -395,7 +406,7 @@ function ProductDialog({
           {formatBRL(product.price)}
         </p>
 
-        {product.accepts_addons && addons.length > 0 && (
+        {canUseAddons && addons.length > 0 && (
           <div className="mt-6">
             <h4 className="mb-3 font-display text-lg text-foreground">
               Adicionais
@@ -470,7 +481,7 @@ function ProductDialog({
             </button>
           </div>
           <button
-            onClick={() => onConfirm(pickedAddons, qty, notes.trim())}
+            onClick={() => onConfirm(canUseAddons ? pickedAddons : [], qty, notes.trim())}
             className="flex flex-1 items-center justify-between gap-3 rounded-xl bg-primary px-4 py-3 text-primary-foreground transition-transform active:scale-[0.98]"
           >
             <span className="font-display text-base uppercase tracking-wide">

@@ -9,6 +9,11 @@ type AccessUser = {
   created_at: string;
 };
 
+export type PanelAccess = {
+  roles: string[];
+  accessStatus: "approved" | "pending" | "rejected" | "none";
+};
+
 async function assertAdmin(userId: string) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { data, error } = await supabaseAdmin
@@ -21,6 +26,28 @@ async function assertAdmin(userId: string) {
   if (error) throw new Error(error.message);
   if (!data) throw new Error("Forbidden");
 }
+
+export const getMyPanelAccess = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<PanelAccess> => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: rows, error } = await supabaseAdmin
+      .from("user_roles")
+      .select("role, status")
+      .eq("user_id", context.userId);
+
+    if (error) throw new Error(error.message);
+
+    const all = rows ?? [];
+    const approved = all.filter((r) => r.status === "approved");
+    const roles = approved.map((r) => r.role as string);
+    let accessStatus: PanelAccess["accessStatus"] = "none";
+    if (approved.length > 0) accessStatus = "approved";
+    else if (all.some((r) => r.status === "pending")) accessStatus = "pending";
+    else if (all.some((r) => r.status === "rejected")) accessStatus = "rejected";
+
+    return { roles, accessStatus };
+  });
 
 export const listAccessUsers = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])

@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { queryOptions } from "@tanstack/react-query";
+export { isHamburgerCategory } from "@/lib/menu-utils";
 
 export type Category = {
   id: string;
@@ -38,9 +39,23 @@ export const menuQueryOptions = () =>
     queryKey: ["menu"],
     queryFn: async (): Promise<MenuData> => {
       const [cats, prods, addons] = await Promise.all([
-        supabase.from("categories").select("*").eq("is_active", true).order("sort_order"),
-        supabase.from("products").select("*").eq("is_active", true).order("sort_order"),
-        supabase.from("addons").select("*").eq("is_active", true).order("sort_order"),
+        supabase
+          .from("categories")
+          .select("id, slug, name, sort_order")
+          .eq("is_active", true)
+          .order("sort_order"),
+        supabase
+          .from("products")
+          .select(
+            "id, category_id, name, description, price, image_url, accepts_addons, sort_order, suggestion_order",
+          )
+          .eq("is_active", true)
+          .order("sort_order"),
+        supabase
+          .from("addons")
+          .select("id, name, price, sort_order")
+          .eq("is_active", true)
+          .order("sort_order"),
       ]);
       if (cats.error) throw cats.error;
       if (prods.error) throw prods.error;
@@ -57,7 +72,9 @@ export const menuQueryOptions = () =>
         })),
       };
     },
-    staleTime: 60_000,
+    staleTime: 5 * 60_000,
+    gcTime: 15 * 60_000,
+    retry: 1,
   });
 
 export const formatBRL = (v: number) =>
