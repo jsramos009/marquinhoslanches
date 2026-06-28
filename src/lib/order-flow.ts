@@ -47,7 +47,7 @@ export function nextActionFor(status: OrderStatus): {
 // ---------- Repeat order link (base64 query param) ----------
 
 type RepeatPayload = {
-  i: { p: string; q: number; a?: string[] }[];
+  i: { p: string; q: number; a?: string[]; n?: string }[];
 };
 
 function b64encode(s: string): string {
@@ -76,6 +76,8 @@ export function buildRepeatToken(order: OrderRow): string | null {
         q: it.quantity,
       };
       if (addonIds.length) entry.a = addonIds;
+      const notes = (it.notes ?? "").trim();
+      if (notes) entry.n = notes.slice(0, 240);
       return entry;
     });
   if (items.length === 0) return null;
@@ -88,7 +90,12 @@ export function decodeRepeatToken(token: string): RepeatPayload | null {
     if (!parsed || !Array.isArray(parsed.i)) return null;
     const items = parsed.i.filter(
       (e) => typeof e?.p === "string" && Number.isFinite(e?.q) && e.q > 0,
-    );
+    ).map((e) => ({
+      p: e.p,
+      q: e.q,
+      a: Array.isArray(e.a) ? e.a.filter((x) => typeof x === "string") : undefined,
+      n: typeof e.n === "string" ? e.n : undefined,
+    }));
     if (items.length === 0) return null;
     return { i: items };
   } catch {
