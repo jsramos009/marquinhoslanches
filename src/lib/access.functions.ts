@@ -73,7 +73,7 @@ export const listAccessUsers = createServerFn({ method: "GET" })
     return (roles ?? []).map((r) => ({
       user_id: r.user_id as string,
       email: emailById.get(r.user_id as string) ?? null,
-      role: r.role as "admin" | "staff",
+      role: r.role as AccessRole,
       status: r.status as "pending" | "approved" | "rejected",
       created_at: r.created_at as string,
     }));
