@@ -603,6 +603,7 @@ function CartDialog({
   const [phone, setPhone] = useState("");
   const [mode, setMode] = useState<"delivery" | "pickup">("delivery");
   const [address, setAddress] = useState("");
+  const [neighborhoodId, setNeighborhoodId] = useState<string>("");
   const [orderNotes, setOrderNotes] = useState("");
   type PayMethod = "pix" | "cartao_credito" | "cartao_debito" | "dinheiro";
   const [payment, setPayment] = useState<PayMethod | null>(null);
@@ -618,15 +619,20 @@ function CartDialog({
   const [sentToast, setSentToast] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const submitOrder = useServerFn(submitPublicOrder);
+  const deliveryFeesQuery = useQuery(deliveryFeesQueryOptions());
+  const deliveryFees = deliveryFeesQuery.data ?? [];
+  const selectedFee = deliveryFees.find((f) => f.id === neighborhoodId) ?? null;
+  const freightCost = mode === "delivery" && selectedFee ? selectedFee.fee : 0;
+  const grandTotal = totalPrice + freightCost;
   const pixPayload = useMemo(
     () =>
       buildPixPayload({
         key: PIX_KEY,
-        amount: totalPrice,
+        amount: grandTotal,
         merchantName: PIX_MERCHANT_NAME,
         merchantCity: PIX_MERCHANT_CITY,
       }),
-    [totalPrice],
+    [grandTotal],
   );
 
   useEffect(() => {
