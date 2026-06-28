@@ -585,6 +585,9 @@ function CartDialog({
   type PayMethod = "pix" | "cartao_credito" | "cartao_debito" | "dinheiro";
   const [payment, setPayment] = useState<PayMethod | null>(null);
   const [changeFor, setChangeFor] = useState<string>("");
+  const [geo, setGeo] = useState<{ lat: number; lng: number; accuracy: number } | null>(null);
+  const [geoStatus, setGeoStatus] = useState<"idle" | "loading" | "error">("idle");
+  const [geoError, setGeoError] = useState<string>("");
   const [step, setStep] = useState<"form" | "pix">("form");
   const [pixQr, setPixQr] = useState<string>("");
   const [pixCopied, setPixCopied] = useState(false);
