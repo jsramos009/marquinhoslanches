@@ -356,6 +356,8 @@ function ProductEditor({
           <PhotoPicker
             value={form.image_url ?? ""}
             onChange={(v) => setForm({ ...form, image_url: v })}
+            name={form.name}
+            description={form.description}
           />
         </Field>
         <div className="grid grid-cols-2 gap-3">
