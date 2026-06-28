@@ -645,15 +645,21 @@ function CartDialog({
   const selectedFee = deliveryFees.find((f) => f.id === neighborhoodId) ?? null;
   const freightCost = mode === "delivery" && selectedFee ? selectedFee.fee : 0;
   const grandTotal = totalPrice + freightCost;
+  const appSettingsQuery = useQuery(appSettingsQueryOptions());
+  const pixSettings = appSettingsQuery.data ?? {
+    pix_key: PIX_KEY_FALLBACK,
+    pix_merchant_name: PIX_MERCHANT_NAME_FALLBACK,
+    pix_merchant_city: PIX_MERCHANT_CITY_FALLBACK,
+  };
   const pixPayload = useMemo(
     () =>
       buildPixPayload({
-        key: PIX_KEY,
+        key: pixSettings.pix_key,
         amount: grandTotal,
-        merchantName: PIX_MERCHANT_NAME,
-        merchantCity: PIX_MERCHANT_CITY,
+        merchantName: pixSettings.pix_merchant_name,
+        merchantCity: pixSettings.pix_merchant_city,
       }),
-    [grandTotal],
+    [grandTotal, pixSettings.pix_key, pixSettings.pix_merchant_name, pixSettings.pix_merchant_city],
   );
 
   useEffect(() => {
@@ -883,7 +889,7 @@ function CartDialog({
 
   const copyPixKey = async () => {
     try {
-      await navigator.clipboard.writeText(PIX_KEY);
+      await navigator.clipboard.writeText(pixSettings.pix_key);
       setPixCopied(true);
       setTimeout(() => setPixCopied(false), 1800);
     } catch {
@@ -944,7 +950,7 @@ function CartDialog({
                 </p>
                 <div className="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2">
                   <span className="flex-1 truncate font-mono text-sm text-foreground">
-                    {PIX_KEY}
+                    {pixSettings.pix_key}
                   </span>
                   <button
                     type="button"
