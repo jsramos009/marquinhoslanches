@@ -795,12 +795,12 @@ function Sheet({
   }, []);
   return (
     <div
-      className="sheet-backdrop-in fixed inset-0 z-50 flex items-end justify-center bg-black/70 sm:items-center"
+      className="sheet-backdrop-in fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/70 p-4"
       onClick={onClose}
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="sheet-panel-in flex max-h-[92vh] w-full max-w-lg flex-col rounded-t-2xl border border-border bg-background shadow-[var(--shadow-brand)] sm:rounded-2xl"
+        className="sheet-panel-in my-auto flex max-h-[92vh] w-full max-w-lg flex-col rounded-2xl border border-border bg-background shadow-[var(--shadow-brand)]"
       >
         <div className="flex items-center justify-between border-b border-border px-5 py-3">
           <h3 className="font-display text-xl text-primary">{title}</h3>
