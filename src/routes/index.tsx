@@ -120,7 +120,9 @@ function MenuPage() {
     const productMap = new Map(data.products.map((p) => [p.id, p]));
     const addonMap = new Map(data.addons.map((a) => [a.id, a]));
     const lines: CartLine[] = [];
-    for (const entry of payload.i) {
+    const orderNotes = (payload.n ?? "").trim();
+    for (let idx = 0; idx < payload.i.length; idx++) {
+      const entry = payload.i[idx];
       const product = productMap.get(entry.p);
       if (!product) continue;
       const addons = (entry.a ?? [])
@@ -133,17 +135,22 @@ function MenuPage() {
       const unitPrice =
         Number(product.price) +
         usableAddons.reduce((s, a) => s + Number(a.price), 0);
+      // Aplica a observação do pedido na primeira linha (ordens guardam
+      // uma única observação por pedido), mantendo o mesmo formato de
+      // lineId usado pelo carrinho para preservar merges futuros.
+      const notes = idx === 0 ? orderNotes : "";
       const lineId =
         product.id +
         ":" +
         usableAddons.map((a) => a.id).sort().join(",") +
-        ":repeat";
+        ":" +
+        notes;
       lines.push({
         lineId,
         product,
         qty: Math.max(1, Math.floor(entry.q)),
         addons: usableAddons,
-        notes: "",
+        notes,
         unitPrice,
       });
     }
