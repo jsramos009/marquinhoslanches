@@ -89,7 +89,7 @@ function PedidosPage() {
             {showCancelled ? "Ocultar" : "Ver"} cancelados ({cancelled.length})
           </button>
           <Link
-            to="/admin/pedidos/novo"
+            to="/admin/novo-pedido"
             className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90"
           >
             + Novo pedido

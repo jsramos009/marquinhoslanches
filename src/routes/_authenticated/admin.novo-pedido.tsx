@@ -6,7 +6,7 @@ import { AdminShell, formatBRL } from "@/components/admin/AdminShell";
 import { menuQueryOptions } from "@/lib/menu";
 import { createOrder, type OrderChannel } from "@/lib/orders.functions";
 
-export const Route = createFileRoute("/_authenticated/admin/pedidos/novo")({
+export const Route = createFileRoute("/_authenticated/admin/novo-pedido")({
   component: NovoPedidoPage,
   head: () => ({
     meta: [
