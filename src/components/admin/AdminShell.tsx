@@ -42,8 +42,8 @@ export function AdminShell({
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <div className="mx-auto flex w-full max-w-7xl">
+    <div className="h-screen w-screen bg-background text-foreground overflow-hidden">
+      <div className="flex h-full w-full">
         <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-border bg-card/40 p-4 md:flex">
           <div className="mb-6 px-2">
             <p className="font-display text-lg text-primary">Marquinhos</p>
@@ -115,7 +115,7 @@ export function AdminShell({
             <div className="flex items-center gap-2">{actions}</div>
           </header>
 
-          <main className="flex-1 px-5 py-6">{children}</main>
+          <main className="flex-1 overflow-y-auto px-5 py-6">{children}</main>
         </div>
       </div>
     </div>
