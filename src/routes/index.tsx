@@ -4,6 +4,7 @@ import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { Check, Minus, Plus, ShoppingBag, Trash2, X, MapPin, Phone, Clock } from "lucide-react";
 import logoAsset from "@/assets/logo.png.asset.json";
 import { menuQueryOptions, formatBRL, isHamburgerCategory, type Product, type Addon } from "@/lib/menu";
+import { decodeRepeatToken } from "@/lib/order-flow";
 
 const WHATSAPP_NUMBER = "5594991032483";
 const WHATSAPP_DISPLAY = "(94) 99103-2483";
@@ -103,6 +104,58 @@ function MenuPage() {
     Object.values(sectionRefs.current).forEach((el) => el && obs.observe(el));
     return () => obs.disconnect();
   }, [data, activeCat]);
+
+  // Repetir pedido via link (?r=<base64>)
+  const repeatApplied = useRef(false);
+  useEffect(() => {
+    if (repeatApplied.current || !data || typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get("r");
+    if (!token) return;
+    const payload = decodeRepeatToken(token);
+    if (!payload) {
+      repeatApplied.current = true;
+      return;
+    }
+    const productMap = new Map(data.products.map((p) => [p.id, p]));
+    const addonMap = new Map(data.addons.map((a) => [a.id, a]));
+    const lines: CartLine[] = [];
+    for (const entry of payload.i) {
+      const product = productMap.get(entry.p);
+      if (!product) continue;
+      const addons = (entry.a ?? [])
+        .map((id) => addonMap.get(id))
+        .filter((a): a is Addon => Boolean(a));
+      const usableAddons =
+        product.accepts_addons && hamburgerCategoryIds.has(product.category_id)
+          ? addons
+          : [];
+      const unitPrice =
+        Number(product.price) +
+        usableAddons.reduce((s, a) => s + Number(a.price), 0);
+      const lineId =
+        product.id +
+        ":" +
+        usableAddons.map((a) => a.id).sort().join(",") +
+        ":repeat";
+      lines.push({
+        lineId,
+        product,
+        qty: Math.max(1, Math.floor(entry.q)),
+        addons: usableAddons,
+        notes: "",
+        unitPrice,
+      });
+    }
+    repeatApplied.current = true;
+    if (lines.length === 0) return;
+    setCart(lines);
+    setCartOpen(true);
+    // Limpa a query string para não repetir em refresh
+    const url = new URL(window.location.href);
+    url.searchParams.delete("r");
+    window.history.replaceState({}, "", url.pathname + url.search + url.hash);
+  }, [data, hamburgerCategoryIds]);
 
   const scrollToCat = (slug: string) => {
     const el = sectionRefs.current[slug];
