@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Minus, Plus, ShoppingBag, Trash2, X, MapPin, Phone, Clock } from "lucide-react";
-import logo from "@/assets/logo.png";
+import logoAsset from "@/assets/logo.png.asset.json";
 import { menuQueryOptions, formatBRL, type Product, type Addon } from "@/lib/menu";
 
 const WHATSAPP_NUMBER = "5594991032483";
@@ -232,11 +232,11 @@ function BrandHeader() {
       <div className="absolute inset-y-0 left-0 w-3 bg-primary/70" />
       <div className="mx-auto flex max-w-3xl items-center gap-4 px-5 py-6">
         <img
-          src={logo}
+          src={logoAsset.url}
           alt="Marquinhos Lanches"
           width={96}
           height={96}
-          className="h-20 w-20 shrink-0 rounded-full bg-background/10 shadow-[var(--shadow-brand)] sm:h-24 sm:w-24"
+          className="h-20 w-20 shrink-0 sm:h-24 sm:w-24"
         />
         <div className="min-w-0">
           <p className="font-display text-xs uppercase tracking-[0.3em] text-primary/90">
