@@ -9,14 +9,15 @@ type AccessUser = {
   created_at: string;
 };
 
-async function assertAdmin(context: {
-  supabase: ReturnType<typeof import("@supabase/supabase-js").createClient>;
-  userId: string;
-}) {
-  const { data, error } = await context.supabase.rpc("has_role", {
-    _user_id: context.userId,
-    _role: "admin",
-  });
+async function assertAdmin(userId: string) {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data, error } = await supabaseAdmin
+    .from("user_roles")
+    .select("user_id")
+    .eq("user_id", userId)
+    .eq("role", "admin")
+    .eq("status", "approved")
+    .maybeSingle();
   if (error) throw new Error(error.message);
   if (!data) throw new Error("Forbidden");
 }
@@ -24,7 +25,7 @@ async function assertAdmin(context: {
 export const listAccessUsers = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<AccessUser[]> => {
-    await assertAdmin(context);
+    await assertAdmin(context.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     const { data: roles, error: rolesErr } = await supabaseAdmin
@@ -53,7 +54,7 @@ export const approveUser = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { userId: string }) => d)
   .handler(async ({ data, context }) => {
-    await assertAdmin(context);
+    await assertAdmin(context.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await supabaseAdmin
       .from("user_roles")
@@ -68,7 +69,7 @@ export const rejectUser = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { userId: string }) => d)
   .handler(async ({ data, context }) => {
-    await assertAdmin(context);
+    await assertAdmin(context.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await supabaseAdmin
       .from("user_roles")
@@ -83,7 +84,7 @@ export const revokeUser = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { userId: string }) => d)
   .handler(async ({ data, context }) => {
-    await assertAdmin(context);
+    await assertAdmin(context.userId);
     if (data.userId === context.userId) {
       throw new Error("Você não pode revogar o próprio acesso de administrador.");
     }
