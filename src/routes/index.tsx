@@ -583,6 +583,34 @@ function CartDialog({
   type PayMethod = "pix" | "cartao_credito" | "cartao_debito" | "dinheiro";
   const [payment, setPayment] = useState<PayMethod | null>(null);
   const [changeFor, setChangeFor] = useState<string>("");
+  const [step, setStep] = useState<"form" | "pix">("form");
+  const [pixQr, setPixQr] = useState<string>("");
+  const [pixCopied, setPixCopied] = useState(false);
+  const pixPayload = useMemo(
+    () =>
+      buildPixPayload({
+        key: PIX_KEY,
+        amount: totalPrice,
+        merchantName: PIX_MERCHANT_NAME,
+        merchantCity: PIX_MERCHANT_CITY,
+      }),
+    [totalPrice],
+  );
+
+  useEffect(() => {
+    if (step !== "pix") return;
+    let active = true;
+    QRCode.toDataURL(pixPayload, { margin: 1, width: 320 })
+      .then((url) => {
+        if (active) setPixQr(url);
+      })
+      .catch(() => {
+        if (active) setPixQr("");
+      });
+    return () => {
+      active = false;
+    };
+  }, [step, pixPayload]);
 
   const updateQty = (lineId: string, delta: number) => {
     setCart((prev) =>
@@ -646,9 +674,34 @@ function CartDialog({
     payment !== null &&
     (mode === "pickup" || address.trim().length > 0);
 
-  const submit = () => {
-    const msg = encodeURIComponent(buildMessage());
+  const sendWhatsapp = (extra?: string) => {
+    const body = extra ? `${buildMessage()}\n\n${extra}` : buildMessage();
+    const msg = encodeURIComponent(body);
     window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${msg}`, "_blank");
+  };
+
+  const submit = () => {
+    if (payment === "pix") {
+      setStep("pix");
+      return;
+    }
+    sendWhatsapp();
+  };
+
+  const copyPixKey = async () => {
+    try {
+      await navigator.clipboard.writeText(PIX_KEY);
+      setPixCopied(true);
+      setTimeout(() => setPixCopied(false), 1800);
+    } catch {
+      // ignore
+    }
+  };
+
+  const sendReceipt = () => {
+    sendWhatsapp(
+      "✅ *Pagamento via PIX* — segue em anexo o comprovante. Aguardo confirmação do pedido!",
+    );
   };
 
   return (
