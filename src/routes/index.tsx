@@ -585,6 +585,9 @@ function CartDialog({
   type PayMethod = "pix" | "cartao_credito" | "cartao_debito" | "dinheiro";
   const [payment, setPayment] = useState<PayMethod | null>(null);
   const [changeFor, setChangeFor] = useState<string>("");
+  const [geo, setGeo] = useState<{ lat: number; lng: number; accuracy: number } | null>(null);
+  const [geoStatus, setGeoStatus] = useState<"idle" | "loading" | "error">("idle");
+  const [geoError, setGeoError] = useState<string>("");
   const [step, setStep] = useState<"form" | "pix">("form");
   const [pixQr, setPixQr] = useState<string>("");
   const [pixCopied, setPixCopied] = useState(false);
@@ -631,6 +634,39 @@ function CartDialog({
   const remove = (lineId: string) =>
     setCart((prev) => prev.filter((l) => l.lineId !== lineId));
 
+  const mapsLink = geo
+    ? `https://www.google.com/maps?q=${geo.lat.toFixed(6)},${geo.lng.toFixed(6)}`
+    : null;
+
+  const requestLocation = () => {
+    if (typeof navigator === "undefined" || !navigator.geolocation) {
+      setGeoStatus("error");
+      setGeoError("Seu navegador não suporta geolocalização.");
+      return;
+    }
+    setGeoStatus("loading");
+    setGeoError("");
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setGeo({
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude,
+          accuracy: pos.coords.accuracy,
+        });
+        setGeoStatus("idle");
+      },
+      (err) => {
+        setGeoStatus("error");
+        setGeoError(
+          err.code === err.PERMISSION_DENIED
+            ? "Permissão negada. Habilite a localização nas configurações do navegador."
+            : "Não conseguimos obter sua localização. Tente novamente.",
+        );
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 },
+    );
+  };
+
   const buildMessage = () => {
     const lines: string[] = [];
     lines.push("*Novo pedido — Marquinhos Lanches*");
@@ -640,6 +676,9 @@ function CartDialog({
     lines.push(`*Modo:* ${mode === "delivery" ? "Entrega" : "Retirada no local"}`);
     if (mode === "delivery" && address)
       lines.push(`*Endereço:* ${address}`);
+    if (mode === "delivery" && mapsLink) {
+      lines.push(`*Localização (GPS):* ${mapsLink}`);
+    }
     lines.push("");
     lines.push("*Itens:*");
     for (const l of cart) {
@@ -729,7 +768,15 @@ function CartDialog({
           customer_phone: phone,
           delivery_mode: mode,
           delivery_address: mode === "delivery" ? address : null,
-          notes: orderNotes || null,
+          notes:
+            [
+              mode === "delivery" && mapsLink
+                ? `Localização GPS: ${mapsLink}`
+                : null,
+              orderNotes || null,
+            ]
+              .filter(Boolean)
+              .join("\n") || null,
           payment_method: payment ?? "nao_informado",
           change_for:
             payment === "dinheiro"
@@ -1006,6 +1053,43 @@ function CartDialog({
                   onChange={(e) => setAddress(e.target.value)}
                   placeholder="Rua, número, bairro, ponto de referência"
                 />
+                <div className="mt-2 space-y-2">
+                  <button
+                    type="button"
+                    onClick={requestLocation}
+                    disabled={geoStatus === "loading"}
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-primary/60 bg-primary/10 px-3 py-2 text-sm font-semibold text-primary hover:bg-primary/20 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    <MapPin className="h-4 w-4" />
+                    {geoStatus === "loading"
+                      ? "Obtendo localização…"
+                      : geo
+                        ? "Atualizar minha localização"
+                        : "Usar minha localização atual"}
+                  </button>
+                  {geo && mapsLink && (
+                    <div className="rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-200">
+                      <p className="font-semibold">📍 Localização capturada</p>
+                      <p className="mt-0.5 break-all">
+                        {geo.lat.toFixed(6)}, {geo.lng.toFixed(6)}{" "}
+                        <span className="opacity-80">
+                          (±{Math.round(geo.accuracy)}m)
+                        </span>
+                      </p>
+                      <a
+                        href={mapsLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-1 inline-block underline"
+                      >
+                        Ver no mapa
+                      </a>
+                    </div>
+                  )}
+                  {geoStatus === "error" && geoError && (
+                    <p className="text-xs text-destructive">{geoError}</p>
+                  )}
+                </div>
               </Field>
             )}
             <Field label="Como vai pagar?">
