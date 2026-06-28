@@ -38,9 +38,23 @@ export const menuQueryOptions = () =>
     queryKey: ["menu"],
     queryFn: async (): Promise<MenuData> => {
       const [cats, prods, addons] = await Promise.all([
-        supabase.from("categories").select("*").eq("is_active", true).order("sort_order"),
-        supabase.from("products").select("*").eq("is_active", true).order("sort_order"),
-        supabase.from("addons").select("*").eq("is_active", true).order("sort_order"),
+        supabase
+          .from("categories")
+          .select("id, slug, name, sort_order")
+          .eq("is_active", true)
+          .order("sort_order"),
+        supabase
+          .from("products")
+          .select(
+            "id, category_id, name, description, price, image_url, accepts_addons, sort_order, suggestion_order",
+          )
+          .eq("is_active", true)
+          .order("sort_order"),
+        supabase
+          .from("addons")
+          .select("id, name, price, sort_order")
+          .eq("is_active", true)
+          .order("sort_order"),
       ]);
       if (cats.error) throw cats.error;
       if (prods.error) throw prods.error;
@@ -57,8 +71,18 @@ export const menuQueryOptions = () =>
         })),
       };
     },
-    staleTime: 60_000,
+    staleTime: 5 * 60_000,
+    gcTime: 15 * 60_000,
+    retry: 1,
   });
+
+export function isHamburgerCategory(slug?: string | null, name?: string | null) {
+  const text = `${slug ?? ""} ${name ?? ""}`
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+  return text.includes("hamburg") || text.includes("especial") || text.includes("tradicion");
+}
 
 export const formatBRL = (v: number) =>
   v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });

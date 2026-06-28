@@ -1,6 +1,7 @@
 import { createFileRoute, Outlet, redirect, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { getMyPanelAccess, type PanelAccess } from "@/lib/access.functions";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
@@ -12,21 +13,28 @@ export const Route = createFileRoute("/_authenticated")({
         search: { redirect: location.href },
       });
     }
-    const { data: rows } = await supabase
-      .from("user_roles")
-      .select("role, status")
-      .eq("user_id", data.user.id);
-    const all = rows ?? [];
-    const approved = all.filter((r) => r.status === "approved");
-    const roles = approved.map((r) => r.role as string);
-    let accessStatus: "approved" | "pending" | "rejected" | "none" = "none";
-    if (approved.length > 0) accessStatus = "approved";
-    else if (all.some((r) => r.status === "pending")) accessStatus = "pending";
-    else if (all.some((r) => r.status === "rejected")) accessStatus = "rejected";
+    let access: PanelAccess;
+    try {
+      access = await getMyPanelAccess();
+    } catch {
+      const { data: rows, error: rolesError } = await supabase
+        .from("user_roles")
+        .select("role, status")
+        .eq("user_id", data.user.id);
+      if (rolesError) throw rolesError;
+      const all = rows ?? [];
+      const approved = all.filter((r) => r.status === "approved");
+      const roles = approved.map((r) => r.role as string);
+      let accessStatus: PanelAccess["accessStatus"] = "none";
+      if (approved.length > 0) accessStatus = "approved";
+      else if (all.some((r) => r.status === "pending")) accessStatus = "pending";
+      else if (all.some((r) => r.status === "rejected")) accessStatus = "rejected";
+      access = { roles, accessStatus };
+    }
     return {
       user: data.user,
-      roles,
-      accessStatus,
+      roles: access.roles,
+      accessStatus: access.accessStatus,
     };
   },
   component: AuthenticatedLayout,

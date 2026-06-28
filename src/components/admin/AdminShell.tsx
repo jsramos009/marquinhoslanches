@@ -1,4 +1,5 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
+import { useQueryClient } from "@tanstack/react-query";
 import { useState, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { LayoutDashboard, ClipboardList, Users, LogOut } from "lucide-react";
@@ -25,12 +26,15 @@ export function AdminShell({
   children: ReactNode;
 }) {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const [signingOut, setSigningOut] = useState(false);
   const isAdmin = roles.includes("admin");
 
   async function signOut() {
     setSigningOut(true);
+    await queryClient.cancelQueries();
+    queryClient.clear();
     await supabase.auth.signOut();
     navigate({ to: "/auth", replace: true });
   }
@@ -50,6 +54,7 @@ export function AdminShell({
                 <Link
                   key={i.to}
                   to={i.to}
+                  preload="intent"
                   className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition ${
                     active
                       ? "bg-secondary text-foreground"
@@ -85,6 +90,7 @@ export function AdminShell({
                 <Link
                   key={i.to}
                   to={i.to}
+                  preload="intent"
                   className={`flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs ${
                     active ? "bg-primary text-primary-foreground" : "bg-secondary text-foreground"
                   }`}

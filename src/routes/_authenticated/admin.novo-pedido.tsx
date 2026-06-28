@@ -3,7 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { AdminShell, formatBRL } from "@/components/admin/AdminShell";
-import { menuQueryOptions } from "@/lib/menu";
+import { isHamburgerCategory, menuQueryOptions } from "@/lib/menu";
 import { createOrder, type OrderChannel } from "@/lib/orders.functions";
 
 export const Route = createFileRoute("/_authenticated/admin/novo-pedido")({
@@ -44,16 +44,28 @@ function NovoPedidoPage() {
 
   const products = menu.data?.products ?? [];
   const addons = menu.data?.addons ?? [];
+  const hamburgerCategoryIds = useMemo(() => {
+    if (!menu.data) return new Set<string>();
+    return new Set(
+      menu.data.categories
+        .filter((c) => isHamburgerCategory(c.slug, c.name))
+        .map((c) => c.id),
+    );
+  }, [menu.data]);
   const productMap = useMemo(() => new Map(products.map((p) => [p.id, p])), [products]);
   const addonMap = useMemo(() => new Map(addons.map((a) => [a.id, a])), [addons]);
+  const productAcceptsAddons = (productId: string) => {
+    const p = productMap.get(productId);
+    return Boolean(p?.accepts_addons && hamburgerCategoryIds.has(p.category_id));
+  };
 
   const subtotal = items.reduce((sum, it) => {
     const p = productMap.get(it.product_id);
     if (!p) return sum;
-    const addonsTotal = it.addons.reduce((s, a) => {
+    const addonsTotal = productAcceptsAddons(it.product_id) ? it.addons.reduce((s, a) => {
       const ad = addonMap.get(a.addon_id);
       return s + (ad ? ad.price * a.quantity : 0);
-    }, 0);
+    }, 0) : 0;
     return sum + (p.price + addonsTotal) * it.quantity;
   }, 0);
   const total = Math.max(0, subtotal - discount);
@@ -101,7 +113,7 @@ function NovoPedidoPage() {
         items: items.map((it) => ({
           product_id: it.product_id,
           quantity: it.quantity,
-          addons: it.addons,
+          addons: productAcceptsAddons(it.product_id) ? it.addons : [],
         })),
       },
     });
@@ -190,7 +202,7 @@ function NovoPedidoPage() {
                       </button>
                     </div>
                   </div>
-                  {p.accepts_addons && addons.length > 0 && (
+                  {productAcceptsAddons(p.id) && addons.length > 0 && (
                     <div className="mt-2 flex flex-wrap gap-1">
                       {addons.map((a) => {
                         const active = it.addons.some((x) => x.addon_id === a.id);

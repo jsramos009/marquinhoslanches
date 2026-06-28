@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { isHamburgerCategory } from "@/lib/menu";
 
 export type OrderStatus =
   | "recebido"
@@ -78,6 +79,23 @@ type CreateOrderInput = {
   }[];
 };
 
+async function assertStaffAccess(userId: string) {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data, error } = await supabaseAdmin
+    .from("user_roles")
+    .select("user_id")
+    .eq("user_id", userId)
+    .eq("status", "approved")
+    .in("role", ["admin", "staff"])
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!data) throw new Error("Forbidden");
+}
+
+function toISODateKey(date: Date) {
+  return date.toISOString().slice(0, 10);
+}
+
 export const createOrder = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: CreateOrderInput) => {
@@ -95,7 +113,10 @@ export const createOrder = createServerFn({ method: "POST" })
     ];
 
     const [{ data: prods, error: pErr }, addonsRes] = await Promise.all([
-      supabase.from("products").select("id, name, price, accepts_addons").in("id", productIds),
+      supabase
+        .from("products")
+        .select("id, name, price, accepts_addons, category_id, categories(slug, name)")
+        .in("id", productIds),
       addonIds.length
         ? supabase.from("addons").select("id, name, price").in("id", addonIds)
         : Promise.resolve({ data: [] as { id: string; name: string; price: number }[], error: null }),
@@ -126,7 +147,11 @@ export const createOrder = createServerFn({ method: "POST" })
       if (!p) throw new Error(`Produto inválido: ${it.product_id}`);
       const qty = Math.max(1, Math.floor(Number(it.quantity) || 1));
       const unit = Number(p.price);
-      const addons = (it.addons ?? [])
+      const category = Array.isArray((p as { categories?: unknown }).categories)
+        ? ((p as { categories?: { slug?: string | null; name?: string | null }[] }).categories?.[0] ?? null)
+        : ((p as { categories?: { slug?: string | null; name?: string | null } }).categories ?? null);
+      const acceptsAddons = Boolean(p.accepts_addons) && isHamburgerCategory(category?.slug, category?.name);
+      const addons = (acceptsAddons ? (it.addons ?? []) : [])
         .map((a) => {
           const ad = addonMap.get(a.addon_id);
           if (!ad) throw new Error(`Adicional inválido: ${a.addon_id}`);
@@ -310,8 +335,132 @@ export const getDashboardMetrics = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { range?: "today" | "7d" | "30d" | "mtd" } | undefined) => d ?? {})
   .handler(async ({ data, context }): Promise<DashboardMetrics> => {
+    await assertStaffAccess(context.userId);
     const range = data.range ?? "7d";
-    const { data: result, error } = await context.supabase.rpc("dashboard_metrics", { _range: range });
-    if (error) throw new Error(error.message);
-    return result as unknown as DashboardMetrics;
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const now = new Date();
+    const end = now;
+    const start = new Date(now);
+    if (range === "today") {
+      start.setHours(0, 0, 0, 0);
+    } else if (range === "30d") {
+      start.setDate(start.getDate() - 30);
+    } else if (range === "mtd") {
+      start.setDate(1);
+      start.setHours(0, 0, 0, 0);
+    } else {
+      start.setDate(start.getDate() - 7);
+    }
+    const span = end.getTime() - start.getTime();
+    const prevEnd = start;
+    const prevStart = new Date(start.getTime() - span);
+
+    const [{ data: current, error: currentErr }, { data: previous, error: previousErr }] =
+      await Promise.all([
+        supabaseAdmin
+          .from("orders")
+          .select("id, status, total, created_at, ready_at, delivered_at")
+          .gte("created_at", start.toISOString())
+          .lt("created_at", end.toISOString()),
+        supabaseAdmin
+          .from("orders")
+          .select("status, total")
+          .gte("created_at", prevStart.toISOString())
+          .lt("created_at", prevEnd.toISOString()),
+      ]);
+    if (currentErr) throw new Error(currentErr.message);
+    if (previousErr) throw new Error(previousErr.message);
+
+    const orders = current ?? [];
+    const prevOrders = previous ?? [];
+    const validOrders = orders.filter((o) => o.status !== "cancelado");
+    const validPrev = prevOrders.filter((o) => o.status !== "cancelado");
+    const revenue = validOrders.reduce((sum, o) => sum + Number(o.total || 0), 0);
+    const prevRevenue = validPrev.reduce((sum, o) => sum + Number(o.total || 0), 0);
+
+    const seriesMap = new Map<string, { day: string; revenue: number; orders: number }>();
+    for (const o of validOrders) {
+      const day = toISODateKey(new Date(o.created_at));
+      const item = seriesMap.get(day) ?? { day, revenue: 0, orders: 0 };
+      item.revenue += Number(o.total || 0);
+      item.orders += 1;
+      seriesMap.set(day, item);
+    }
+
+    const statusCounts = new Map<OrderStatus, number>();
+    for (const o of orders) {
+      const status = o.status as OrderStatus;
+      statusCounts.set(status, (statusCounts.get(status) ?? 0) + 1);
+    }
+
+    const activeOrderIds = validOrders.map((o) => o.id);
+    const { data: items, error: itemsErr } = activeOrderIds.length
+      ? await supabaseAdmin
+          .from("order_items")
+          .select("product_id, product_name_snapshot, line_total, quantity")
+          .in("order_id", activeOrderIds)
+      : { data: [], error: null };
+    if (itemsErr) throw new Error(itemsErr.message);
+
+    const topMap = new Map<string, { product_id: string | null; name: string; revenue: number; qty: number }>();
+    for (const item of items ?? []) {
+      const key = item.product_id ?? item.product_name_snapshot;
+      const row = topMap.get(key) ?? {
+        product_id: item.product_id,
+        name: item.product_name_snapshot,
+        revenue: 0,
+        qty: 0,
+      };
+      row.revenue += Number(item.line_total || 0);
+      row.qty += Number(item.quantity || 0);
+      topMap.set(key, row);
+    }
+    const topProducts = [...topMap.values()].sort((a, b) => b.revenue - a.revenue).slice(0, 10);
+
+    const soldIds = new Set((items ?? []).map((i) => i.product_id).filter(Boolean));
+    const { data: products, error: productsErr } = await supabaseAdmin
+      .from("products")
+      .select("id, name, price")
+      .eq("is_active", true)
+      .order("name");
+    if (productsErr) throw new Error(productsErr.message);
+
+    const prepSamples = orders.filter((o) => o.ready_at);
+    const avgPrep = prepSamples.length
+      ? Math.round(
+          prepSamples.reduce(
+            (sum, o) => sum + (new Date(o.ready_at!).getTime() - new Date(o.created_at).getTime()) / 1000,
+            0,
+          ) / prepSamples.length,
+        )
+      : null;
+    const deliverSamples = orders.filter((o) => o.ready_at && o.delivered_at);
+    const avgDeliver = deliverSamples.length
+      ? Math.round(
+          deliverSamples.reduce(
+            (sum, o) => sum + (new Date(o.delivered_at!).getTime() - new Date(o.ready_at!).getTime()) / 1000,
+            0,
+          ) / deliverSamples.length,
+        )
+      : null;
+
+    return {
+      range,
+      start: start.toISOString(),
+      end: end.toISOString(),
+      revenue,
+      orders: validOrders.length,
+      avg_ticket: validOrders.length ? revenue / validOrders.length : 0,
+      prev_revenue: prevRevenue,
+      prev_orders: validPrev.length,
+      series: [...seriesMap.values()].sort((a, b) => a.day.localeCompare(b.day)),
+      status_counts: [...statusCounts.entries()].map(([status, n]) => ({ status, n })),
+      top_products: topProducts,
+      idle_products: (products ?? [])
+        .filter((p) => !soldIds.has(p.id))
+        .slice(0, 20)
+        .map((p) => ({ id: p.id, name: p.name, price: Number(p.price) })),
+      avg_prep_seconds: avgPrep,
+      avg_deliver_seconds: avgDeliver,
+    };
   });
