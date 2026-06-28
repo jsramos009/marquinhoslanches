@@ -19,6 +19,9 @@ export type Product = {
   accepts_addons: boolean;
   sort_order: number;
   suggestion_order: number | null;
+  stock_quantity: number | null;
+  track_stock: boolean;
+  addon_ids: string[];
 };
 
 export type Addon = {
@@ -47,7 +50,7 @@ export const menuQueryOptions = () =>
         supabase
           .from("products")
           .select(
-            "id, category_id, name, description, price, image_url, accepts_addons, sort_order, suggestion_order",
+          "id, category_id, name, description, price, image_url, accepts_addons, sort_order, suggestion_order, stock_quantity, track_stock, product_addons(addon_id)",
           )
           .eq("is_active", true)
           .order("sort_order"),
@@ -62,9 +65,10 @@ export const menuQueryOptions = () =>
       if (addons.error) throw addons.error;
       return {
         categories: cats.data.map((c) => ({ ...c, sort_order: c.sort_order ?? 0 })) as Category[],
-        products: (prods.data as unknown as Product[]).map((p) => ({
+        products: (prods.data as unknown as (Product & { product_addons?: { addon_id: string }[] })[]).map((p) => ({
           ...p,
           price: Number(p.price),
+          addon_ids: (p.product_addons ?? []).map((x) => x.addon_id),
         })),
         addons: (addons.data as unknown as Addon[]).map((a) => ({
           ...a,
