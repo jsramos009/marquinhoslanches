@@ -46,6 +46,12 @@
   --color-input: var(--input);
   --color-ring: var(--ring);
   --color-ring-offset-background: var(--background);
+  --color-brand-red: var(--brand-red);
+  --color-brand-yellow: var(--brand-yellow);
+  --color-brand-cream: var(--brand-cream);
+  --color-brand-black: var(--brand-black);
+  --font-display: "Bebas Neue", "Oswald", "Impact", sans-serif;
+  --font-body: "Inter", system-ui, sans-serif;
   --color-chart-1: var(--chart-1);
   --color-chart-2: var(--chart-2);
   --color-chart-3: var(--chart-3);
@@ -62,26 +68,36 @@
 }
 
 :root {
-  --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.129 0.042 264.695);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.129 0.042 264.695);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.129 0.042 264.695);
-  --primary: oklch(0.208 0.042 265.755);
-  --primary-foreground: oklch(0.984 0.003 247.858);
-  --secondary: oklch(0.968 0.007 247.896);
-  --secondary-foreground: oklch(0.208 0.042 265.755);
-  --muted: oklch(0.968 0.007 247.896);
-  --muted-foreground: oklch(0.554 0.046 257.417);
-  --accent: oklch(0.968 0.007 247.896);
-  --accent-foreground: oklch(0.208 0.042 265.755);
-  --destructive: oklch(0.577 0.245 27.325);
-  --destructive-foreground: oklch(0.984 0.003 247.858);
-  --border: oklch(0.929 0.013 255.508);
-  --input: oklch(0.929 0.013 255.508);
-  --ring: oklch(0.704 0.04 256.788);
+  --radius: 0.75rem;
+  /* Marquinhos Lanches brand palette */
+  --brand-black: oklch(0.16 0.01 30);
+  --brand-red: oklch(0.38 0.15 27);       /* #7a1f1f vibe */
+  --brand-red-deep: oklch(0.30 0.13 27);
+  --brand-yellow: oklch(0.83 0.16 88);    /* #f2c14e vibe */
+  --brand-cream: oklch(0.95 0.04 85);
+
+  --background: var(--brand-black);
+  --foreground: oklch(0.98 0.01 90);
+  --card: oklch(0.22 0.02 30);
+  --card-foreground: oklch(0.98 0.01 90);
+  --popover: oklch(0.22 0.02 30);
+  --popover-foreground: oklch(0.98 0.01 90);
+  --primary: var(--brand-yellow);
+  --primary-foreground: var(--brand-black);
+  --secondary: var(--brand-red);
+  --secondary-foreground: var(--brand-yellow);
+  --muted: oklch(0.28 0.02 30);
+  --muted-foreground: oklch(0.78 0.02 90);
+  --accent: var(--brand-red);
+  --accent-foreground: var(--brand-yellow);
+  --destructive: oklch(0.55 0.22 27);
+  --destructive-foreground: oklch(0.98 0.01 90);
+  --border: oklch(0.30 0.02 30);
+  --input: oklch(0.30 0.02 30);
+  --ring: var(--brand-yellow);
+
+  --shadow-brand: 0 10px 30px -10px oklch(0 0 0 / 0.6);
+  --gradient-red: linear-gradient(135deg, var(--brand-red), var(--brand-red-deep));
   --chart-1: oklch(0.646 0.222 41.116);
   --chart-2: oklch(0.6 0.118 184.704);
   --chart-3: oklch(0.398 0.07 227.392);
@@ -140,5 +156,23 @@
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
+    font-family: var(--font-body);
   }
+  h1, h2, h3, .font-display {
+    font-family: var(--font-display);
+    letter-spacing: 0.02em;
+  }
+}
+
+@utility cart-input {
+  width: 100%;
+  border-radius: 0.5rem;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-card);
+  padding: 0.625rem 0.75rem;
+  font-size: 0.875rem;
+  color: var(--color-foreground);
+  min-height: 2.75rem;
+  &::placeholder { color: var(--color-muted-foreground); }
+  &:focus { outline: none; border-color: var(--color-primary); }
 }
