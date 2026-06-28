@@ -21,6 +21,7 @@ import { Route as AuthenticatedAdminNovoPedidoRouteImport } from './routes/_auth
 import { Route as AuthenticatedAdminEstoqueRouteImport } from './routes/_authenticated/admin.estoque'
 import { Route as AuthenticatedAdminDashboardRouteImport } from './routes/_authenticated/admin.dashboard'
 import { Route as AuthenticatedAdminCatalogoRouteImport } from './routes/_authenticated/admin.catalogo'
+import { Route as AuthenticatedAdminArquivadosRouteImport } from './routes/_authenticated/admin.arquivados'
 
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
   id: '/reset-password',
@@ -88,11 +89,18 @@ const AuthenticatedAdminCatalogoRoute =
     path: '/admin/catalogo',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedAdminArquivadosRoute =
+  AuthenticatedAdminArquivadosRouteImport.update({
+    id: '/admin/arquivados',
+    path: '/admin/arquivados',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/admin/arquivados': typeof AuthenticatedAdminArquivadosRoute
   '/admin/catalogo': typeof AuthenticatedAdminCatalogoRoute
   '/admin/dashboard': typeof AuthenticatedAdminDashboardRoute
   '/admin/estoque': typeof AuthenticatedAdminEstoqueRoute
@@ -106,6 +114,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/admin/arquivados': typeof AuthenticatedAdminArquivadosRoute
   '/admin/catalogo': typeof AuthenticatedAdminCatalogoRoute
   '/admin/dashboard': typeof AuthenticatedAdminDashboardRoute
   '/admin/estoque': typeof AuthenticatedAdminEstoqueRoute
@@ -121,6 +130,7 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/_authenticated/admin/arquivados': typeof AuthenticatedAdminArquivadosRoute
   '/_authenticated/admin/catalogo': typeof AuthenticatedAdminCatalogoRoute
   '/_authenticated/admin/dashboard': typeof AuthenticatedAdminDashboardRoute
   '/_authenticated/admin/estoque': typeof AuthenticatedAdminEstoqueRoute
@@ -136,6 +146,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/reset-password'
+    | '/admin/arquivados'
     | '/admin/catalogo'
     | '/admin/dashboard'
     | '/admin/estoque'
@@ -149,6 +160,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/reset-password'
+    | '/admin/arquivados'
     | '/admin/catalogo'
     | '/admin/dashboard'
     | '/admin/estoque'
@@ -163,6 +175,7 @@ export interface FileRouteTypes {
     | '/_authenticated'
     | '/auth'
     | '/reset-password'
+    | '/_authenticated/admin/arquivados'
     | '/_authenticated/admin/catalogo'
     | '/_authenticated/admin/dashboard'
     | '/_authenticated/admin/estoque'
@@ -268,10 +281,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminCatalogoRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/admin/arquivados': {
+      id: '/_authenticated/admin/arquivados'
+      path: '/admin/arquivados'
+      fullPath: '/admin/arquivados'
+      preLoaderRoute: typeof AuthenticatedAdminArquivadosRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
   }
 }
 
 interface AuthenticatedRouteRouteChildren {
+  AuthenticatedAdminArquivadosRoute: typeof AuthenticatedAdminArquivadosRoute
   AuthenticatedAdminCatalogoRoute: typeof AuthenticatedAdminCatalogoRoute
   AuthenticatedAdminDashboardRoute: typeof AuthenticatedAdminDashboardRoute
   AuthenticatedAdminEstoqueRoute: typeof AuthenticatedAdminEstoqueRoute
@@ -281,6 +302,7 @@ interface AuthenticatedRouteRouteChildren {
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedAdminArquivadosRoute: AuthenticatedAdminArquivadosRoute,
   AuthenticatedAdminCatalogoRoute: AuthenticatedAdminCatalogoRoute,
   AuthenticatedAdminDashboardRoute: AuthenticatedAdminDashboardRoute,
   AuthenticatedAdminEstoqueRoute: AuthenticatedAdminEstoqueRoute,
