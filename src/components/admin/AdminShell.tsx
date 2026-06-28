@@ -2,13 +2,15 @@ import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { LayoutDashboard, ClipboardList, Users, LogOut } from "lucide-react";
+import { LayoutDashboard, ClipboardList, Users, LogOut, Package, BookOpen } from "lucide-react";
 
 type Item = { to: string; label: string; icon: ReactNode; adminOnly?: boolean };
 
 const ITEMS: Item[] = [
   { to: "/admin/dashboard", label: "Dashboard", icon: <LayoutDashboard size={18} /> },
   { to: "/admin/pedidos", label: "Pedidos", icon: <ClipboardList size={18} /> },
+  { to: "/admin/estoque", label: "Estoque", icon: <Package size={18} /> },
+  { to: "/admin/catalogo", label: "Catálogo", icon: <BookOpen size={18} />, adminOnly: true },
   { to: "/admin/usuarios", label: "Acessos", icon: <Users size={18} />, adminOnly: true },
 ];
 
