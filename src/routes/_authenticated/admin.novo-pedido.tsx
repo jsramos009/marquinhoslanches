@@ -221,43 +221,55 @@ function NovoPedidoPage() {
             </div>
           </Field>
 
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-            {filteredProducts.map((p) => {
-              const qty = quantityByProduct.get(p.id) ?? 0;
-              return (
-                <button
-                  key={p.id}
-                  type="button"
-                  onClick={() => addProduct(p.id)}
-                  className="group relative flex flex-col items-center rounded-xl border border-border bg-card p-3 text-center transition hover:border-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                >
-                  <div className="mb-2 grid h-16 w-16 place-items-center rounded-lg bg-secondary text-primary">
-                    {p.image_url ? (
-                      <img
-                        src={p.image_url}
-                        alt={p.name}
-                        loading="lazy"
-                        decoding="async"
-                        width={64}
-                        height={64}
-                        className="h-16 w-16 rounded-lg object-cover"
-                      />
-                    ) : (
-                      <ImageIcon size={24} />
-                    )}
-                  </div>
-                  <p className="line-clamp-2 text-xs font-semibold leading-tight text-foreground">
-                    {p.name}
-                  </p>
-                  <p className="mt-1 text-xs text-muted-foreground">{formatBRL(p.price)}</p>
-                  {qty > 0 && (
-                    <span className="absolute right-2 top-2 flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-[10px] font-semibold text-primary-foreground">
-                      {qty}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
+          <div className="space-y-5">
+            {groupedProducts.map((g) => (
+              <section key={g.category.id}>
+                <h3 className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  <span>{g.category.name}</span>
+                  <span className="rounded-full bg-secondary px-2 py-0.5 text-[10px] text-muted-foreground">
+                    {g.items.length}
+                  </span>
+                </h3>
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+                  {g.items.map((p) => {
+                    const qty = quantityByProduct.get(p.id) ?? 0;
+                    return (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => addProduct(p.id)}
+                        className="group relative flex flex-col items-center rounded-xl border border-border bg-card p-3 text-center transition hover:border-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                      >
+                        <div className="mb-2 grid h-16 w-16 place-items-center rounded-lg bg-secondary text-primary">
+                          {p.image_url ? (
+                            <img
+                              src={p.image_url}
+                              alt={p.name}
+                              loading="lazy"
+                              decoding="async"
+                              width={64}
+                              height={64}
+                              className="h-16 w-16 rounded-lg object-cover"
+                            />
+                          ) : (
+                            <ImageIcon size={24} />
+                          )}
+                        </div>
+                        <p className="line-clamp-2 text-xs font-semibold leading-tight text-foreground">
+                          {p.name}
+                        </p>
+                        <p className="mt-1 text-xs text-muted-foreground">{formatBRL(p.price)}</p>
+                        {qty > 0 && (
+                          <span className="absolute right-2 top-2 flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-[10px] font-semibold text-primary-foreground">
+                            {qty}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </section>
+            ))}
           </div>
           {search && filteredProducts.length === 0 && (
             <p className="text-center text-sm text-muted-foreground">
