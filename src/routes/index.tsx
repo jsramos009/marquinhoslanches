@@ -149,7 +149,7 @@ function MenuPage() {
       const hasBeverage = nextCart.some(
         (l) => l.product.category_id === beveragesCategoryId,
       );
-      console.log("[suggest-check]", { hasBeverage, beveragesCategoryId, lines: nextCart.map(l => ({name: l.product.name, cat: l.product.category_id})) });
+      console.log("[suggest-check] " + JSON.stringify({ hasBeverage, beveragesCategoryId, lines: nextCart.map(l => ({name: l.product.name, cat: l.product.category_id})) }));
       if (!hasBeverage) {
         // small delay so the product sheet close animation feels natural
         setTimeout(() => setSuggestionOpen(true), 150);
