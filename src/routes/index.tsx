@@ -899,7 +899,7 @@ function CartDialog({
               <div>
                 <p className="text-sm text-muted-foreground">Valor a pagar</p>
                 <p className="font-display text-3xl text-primary">
-                  {formatBRL(totalPrice)}
+                  {formatBRL(grandTotal)}
                 </p>
               </div>
               <div className="mx-auto w-fit rounded-2xl border border-border bg-white p-3">
