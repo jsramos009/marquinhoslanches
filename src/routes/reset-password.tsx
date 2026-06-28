@@ -32,6 +32,8 @@ function ResetPasswordPage() {
       const search = url.searchParams;
       const linkError = search.get("error_description") || hash.get("error_description");
       const code = search.get("code");
+      const tokenHash = search.get("token_hash") || hash.get("token_hash");
+      const type = search.get("type") || hash.get("type");
       const accessToken = hash.get("access_token");
       const refreshToken = hash.get("refresh_token");
 
@@ -49,6 +51,22 @@ function ResetPasswordPage() {
         if (exchangeError) {
           setInvalidLink(true);
           setError("Não foi possível validar este link. Peça um novo link no login.");
+          return;
+        }
+        window.history.replaceState({}, document.title, "/reset-password");
+        setReady(true);
+        return;
+      }
+
+      if (tokenHash && type === "recovery") {
+        const { error: verifyError } = await supabase.auth.verifyOtp({
+          token_hash: tokenHash,
+          type: "recovery",
+        });
+        if (cancelled) return;
+        if (verifyError) {
+          setInvalidLink(true);
+          setError("Este link de redefinição expirou ou já foi usado. Peça um novo link no login.");
           return;
         }
         window.history.replaceState({}, document.title, "/reset-password");
