@@ -17,6 +17,8 @@ import { Route as ApiPublicSetAdminPasswordRouteImport } from './routes/api/publ
 import { Route as ApiPublicBootstrapAdminRouteImport } from './routes/api/public/bootstrap-admin'
 import { Route as AuthenticatedAdminUsuariosRouteImport } from './routes/_authenticated/admin.usuarios'
 import { Route as AuthenticatedAdminPedidosRouteImport } from './routes/_authenticated/admin.pedidos'
+import { Route as AuthenticatedAdminNovoPedidoRouteImport } from './routes/_authenticated/admin.novo-pedido'
+import { Route as AuthenticatedAdminDashboardRouteImport } from './routes/_authenticated/admin.dashboard'
 
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
   id: '/reset-password',
@@ -60,11 +62,25 @@ const AuthenticatedAdminPedidosRoute =
     path: '/admin/pedidos',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedAdminNovoPedidoRoute =
+  AuthenticatedAdminNovoPedidoRouteImport.update({
+    id: '/admin/novo-pedido',
+    path: '/admin/novo-pedido',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedAdminDashboardRoute =
+  AuthenticatedAdminDashboardRouteImport.update({
+    id: '/admin/dashboard',
+    path: '/admin/dashboard',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/admin/dashboard': typeof AuthenticatedAdminDashboardRoute
+  '/admin/novo-pedido': typeof AuthenticatedAdminNovoPedidoRoute
   '/admin/pedidos': typeof AuthenticatedAdminPedidosRoute
   '/admin/usuarios': typeof AuthenticatedAdminUsuariosRoute
   '/api/public/bootstrap-admin': typeof ApiPublicBootstrapAdminRoute
@@ -74,6 +90,8 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/admin/dashboard': typeof AuthenticatedAdminDashboardRoute
+  '/admin/novo-pedido': typeof AuthenticatedAdminNovoPedidoRoute
   '/admin/pedidos': typeof AuthenticatedAdminPedidosRoute
   '/admin/usuarios': typeof AuthenticatedAdminUsuariosRoute
   '/api/public/bootstrap-admin': typeof ApiPublicBootstrapAdminRoute
@@ -85,6 +103,8 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/_authenticated/admin/dashboard': typeof AuthenticatedAdminDashboardRoute
+  '/_authenticated/admin/novo-pedido': typeof AuthenticatedAdminNovoPedidoRoute
   '/_authenticated/admin/pedidos': typeof AuthenticatedAdminPedidosRoute
   '/_authenticated/admin/usuarios': typeof AuthenticatedAdminUsuariosRoute
   '/api/public/bootstrap-admin': typeof ApiPublicBootstrapAdminRoute
@@ -96,6 +116,8 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/reset-password'
+    | '/admin/dashboard'
+    | '/admin/novo-pedido'
     | '/admin/pedidos'
     | '/admin/usuarios'
     | '/api/public/bootstrap-admin'
@@ -105,6 +127,8 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/reset-password'
+    | '/admin/dashboard'
+    | '/admin/novo-pedido'
     | '/admin/pedidos'
     | '/admin/usuarios'
     | '/api/public/bootstrap-admin'
@@ -115,6 +139,8 @@ export interface FileRouteTypes {
     | '/_authenticated'
     | '/auth'
     | '/reset-password'
+    | '/_authenticated/admin/dashboard'
+    | '/_authenticated/admin/novo-pedido'
     | '/_authenticated/admin/pedidos'
     | '/_authenticated/admin/usuarios'
     | '/api/public/bootstrap-admin'
@@ -188,15 +214,33 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminPedidosRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/admin/novo-pedido': {
+      id: '/_authenticated/admin/novo-pedido'
+      path: '/admin/novo-pedido'
+      fullPath: '/admin/novo-pedido'
+      preLoaderRoute: typeof AuthenticatedAdminNovoPedidoRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/admin/dashboard': {
+      id: '/_authenticated/admin/dashboard'
+      path: '/admin/dashboard'
+      fullPath: '/admin/dashboard'
+      preLoaderRoute: typeof AuthenticatedAdminDashboardRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
   }
 }
 
 interface AuthenticatedRouteRouteChildren {
+  AuthenticatedAdminDashboardRoute: typeof AuthenticatedAdminDashboardRoute
+  AuthenticatedAdminNovoPedidoRoute: typeof AuthenticatedAdminNovoPedidoRoute
   AuthenticatedAdminPedidosRoute: typeof AuthenticatedAdminPedidosRoute
   AuthenticatedAdminUsuariosRoute: typeof AuthenticatedAdminUsuariosRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedAdminDashboardRoute: AuthenticatedAdminDashboardRoute,
+  AuthenticatedAdminNovoPedidoRoute: AuthenticatedAdminNovoPedidoRoute,
   AuthenticatedAdminPedidosRoute: AuthenticatedAdminPedidosRoute,
   AuthenticatedAdminUsuariosRoute: AuthenticatedAdminUsuariosRoute,
 }
@@ -215,13 +259,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
