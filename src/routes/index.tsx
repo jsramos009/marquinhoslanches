@@ -1086,6 +1086,38 @@ function CartDialog({
               </div>
             </Field>
             {mode === "delivery" && (
+              <Field label="Bairro (frete)">
+                {deliveryFeesQuery.isLoading ? (
+                  <p className="text-xs text-muted-foreground">Carregando bairros…</p>
+                ) : deliveryFees.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">
+                    Combine o frete direto com a loja pelo WhatsApp.
+                  </p>
+                ) : (
+                  <>
+                    <select
+                      className="cart-input"
+                      value={neighborhoodId}
+                      onChange={(e) => setNeighborhoodId(e.target.value)}
+                    >
+                      <option value="">Selecione o bairro…</option>
+                      {deliveryFees.map((d) => (
+                        <option key={d.id} value={d.id}>
+                          {d.neighborhood} — {formatBRL(d.fee)}
+                        </option>
+                      ))}
+                    </select>
+                    {selectedFee && (
+                      <p className="mt-2 text-xs text-muted-foreground">
+                        Frete pra <strong className="text-foreground">{selectedFee.neighborhood}</strong>:{" "}
+                        <strong className="text-foreground">{formatBRL(selectedFee.fee)}</strong>
+                      </p>
+                    )}
+                  </>
+                )}
+              </Field>
+            )}
+            {mode === "delivery" && (
               <Field label="Endereço de entrega">
                 <textarea
                   className="cart-input"
