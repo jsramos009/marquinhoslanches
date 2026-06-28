@@ -5,9 +5,15 @@ import { Check, Minus, Plus, ShoppingBag, Trash2, X, MapPin, Phone, Clock } from
 import logoAsset from "@/assets/logo.png.asset.json";
 import { menuQueryOptions, formatBRL, isHamburgerCategory, type Product, type Addon } from "@/lib/menu";
 import { decodeRepeatToken } from "@/lib/order-flow";
+import { buildPixPayload } from "@/lib/pix";
+import QRCode from "qrcode";
 
 const WHATSAPP_NUMBER = "5594991032483";
 const WHATSAPP_DISPLAY = "(94) 99103-2483";
+// Chave PIX exibida ao cliente (telefone no padrão +55DDDNNNNNNNNN).
+const PIX_KEY = "+5594991032483";
+const PIX_MERCHANT_NAME = "Marquinhos Lanches";
+const PIX_MERCHANT_CITY = "MARABA";
 
 export const Route = createFileRoute("/")({
   head: () => ({
