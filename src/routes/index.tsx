@@ -1222,9 +1222,21 @@ function CartDialog({
 
       {cart.length > 0 && (
         <div className="border-t border-border bg-card px-5 py-4">
+          {freightCost > 0 && (
+            <div className="mb-1 flex items-center justify-between text-sm text-muted-foreground">
+              <span>Subtotal</span>
+              <span>{formatBRL(totalPrice)}</span>
+            </div>
+          )}
+          {freightCost > 0 && (
+            <div className="mb-1 flex items-center justify-between text-sm text-muted-foreground">
+              <span>Frete ({selectedFee?.neighborhood})</span>
+              <span>{formatBRL(freightCost)}</span>
+            </div>
+          )}
           <div className="mb-3 flex items-center justify-between font-display text-lg">
             <span>Total</span>
-            <span className="text-primary">{formatBRL(totalPrice)}</span>
+            <span className="text-primary">{formatBRL(grandTotal)}</span>
           </div>
           <button
             disabled={!canSubmit || submitting}
