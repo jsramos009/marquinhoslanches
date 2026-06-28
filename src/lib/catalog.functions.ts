@@ -166,11 +166,11 @@ export const setProductStock = createServerFn({ method: "POST" })
   .inputValidator((d: { id: string; track_stock: boolean; stock_quantity: number | null; is_active?: boolean }) => d)
   .handler(async ({ data, context }) => {
     await assertAdmin(context.supabase, context.userId);
-    const patch: Record<string, unknown> = {
+    const patch = {
       track_stock: data.track_stock,
       stock_quantity: data.track_stock ? Math.max(0, Math.floor(data.stock_quantity ?? 0)) : null,
+      ...(typeof data.is_active === "boolean" ? { is_active: data.is_active } : {}),
     };
-    if (typeof data.is_active === "boolean") patch.is_active = data.is_active;
     const { error } = await context.supabase.from("products").update(patch).eq("id", data.id);
     if (error) throw new Error(error.message);
     return { ok: true };
