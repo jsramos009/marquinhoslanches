@@ -5,6 +5,7 @@ import { useState } from "react";
 import { AdminShell, formatBRL } from "@/components/admin/AdminShell";
 import {
   listRecentOrders,
+  listArchivedOrders,
   updateOrderStatus,
   cancelOrder,
   type OrderRow,
@@ -57,6 +58,7 @@ function PedidosPage() {
     roles: string[];
   };
   const list = useServerFn(listRecentOrders);
+  const listArchived = useServerFn(listArchivedOrders);
   const updateFn = useServerFn(updateOrderStatus);
   const cancelFn = useServerFn(cancelOrder);
   const qc = useQueryClient();
@@ -82,9 +84,40 @@ function PedidosPage() {
     onSuccess: invalidate,
   });
 
-  const orders = q.data ?? [];
+  // Apenas pedidos de HOJE entram no quadro ativo / cancelados visíveis.
+  // Pedidos de dias anteriores migram automaticamente para "Arquivados".
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+  const startOfTodayMs = startOfToday.getTime();
+
+  const allOrders = q.data ?? [];
+  const orders = allOrders.filter(
+    (o) => new Date(o.created_at).getTime() >= startOfTodayMs,
+  );
   const cancelled = orders.filter((o) => o.status === "cancelado");
   const [showCancelled, setShowCancelled] = useState(false);
+  const [showArchived, setShowArchived] = useState(false);
+
+  const archivedQ = useQuery<OrderRow[]>({
+    queryKey: ["orders-archived", 30],
+    queryFn: () => listArchived({ data: { days: 30 } }),
+    enabled: showArchived,
+    staleTime: 60_000,
+  });
+
+  const archivedByDay = (archivedQ.data ?? []).reduce<Record<string, OrderRow[]>>(
+    (acc, o) => {
+      const d = new Date(o.created_at);
+      const key = d.toLocaleDateString("pt-BR", {
+        weekday: "long",
+        day: "2-digit",
+        month: "long",
+      });
+      (acc[key] ??= []).push(o);
+      return acc;
+    },
+    {},
+  );
 
   return (
     <AdminShell
@@ -98,6 +131,12 @@ function PedidosPage() {
             className="rounded-lg border border-border bg-card px-3 py-2 text-sm text-muted-foreground hover:text-foreground"
           >
             {showCancelled ? "Ocultar" : "Ver"} cancelados ({cancelled.length})
+          </button>
+          <button
+            onClick={() => setShowArchived((v) => !v)}
+            className="rounded-lg border border-border bg-card px-3 py-2 text-sm text-muted-foreground hover:text-foreground"
+          >
+            {showArchived ? "Ocultar" : "Ver"} arquivados
           </button>
           <Link
             to="/admin/novo-pedido"
@@ -166,6 +205,104 @@ function PedidosPage() {
                 )}
               </div>
             ))}
+          </div>
+        </section>
+      )}
+
+      {showArchived && (
+        <section className="mt-8">
+          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+            Pedidos arquivados (últimos 30 dias)
+          </h2>
+          {archivedQ.isLoading && (
+            <p className="text-sm text-muted-foreground">Carregando arquivados…</p>
+          )}
+          {archivedQ.error && (
+            <p className="text-sm text-destructive">
+              {(archivedQ.error as Error).message}
+            </p>
+          )}
+          {!archivedQ.isLoading && Object.keys(archivedByDay).length === 0 && (
+            <p className="text-sm text-muted-foreground">
+              Nenhum pedido arquivado.
+            </p>
+          )}
+          <div className="space-y-6">
+            {Object.entries(archivedByDay).map(([day, items]) => {
+              const dayTotal = items
+                .filter((o) => o.status !== "cancelado")
+                .reduce((s, o) => s + Number(o.total || 0), 0);
+              return (
+                <div key={day}>
+                  <header className="mb-2 flex items-center justify-between border-b border-border pb-1">
+                    <h3 className="text-sm font-semibold capitalize text-foreground">
+                      {day}
+                    </h3>
+                    <span className="text-xs text-muted-foreground">
+                      {items.length} pedido{items.length === 1 ? "" : "s"} ·{" "}
+                      <span className="font-mono text-foreground">
+                        {formatBRL(dayTotal)}
+                      </span>
+                    </span>
+                  </header>
+                  <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-3">
+                    {items.map((o) => (
+                      <div
+                        key={o.id}
+                        className={`rounded-xl border bg-card p-3 ${
+                          o.status === "cancelado"
+                            ? "border-destructive/40 opacity-70"
+                            : "border-border"
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-semibold text-foreground">
+                              {o.customer_name || "Sem cliente"}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {CHANNEL_LABEL[o.channel]} ·{" "}
+                              {new Date(o.created_at).toLocaleTimeString(
+                                "pt-BR",
+                                { hour: "2-digit", minute: "2-digit" },
+                              )}{" "}
+                              · {FLOW_STATUS_LABEL[o.status]}
+                            </p>
+                          </div>
+                          <span className="shrink-0 rounded bg-secondary px-2 py-0.5 text-xs font-mono">
+                            {formatBRL(o.total)}
+                          </span>
+                        </div>
+                        <ul className="mt-2 space-y-0.5 text-xs text-muted-foreground">
+                          {o.items.map((i) => (
+                            <li key={i.id}>
+                              <span className="text-foreground">
+                                {i.quantity}×
+                              </span>{" "}
+                              {i.product_name_snapshot}
+                              {i.addons.length > 0 && (
+                                <span>
+                                  {" "}
+                                  +{" "}
+                                  {i.addons
+                                    .map((a) => a.addon_name_snapshot)
+                                    .join(", ")}
+                                </span>
+                              )}
+                            </li>
+                          ))}
+                        </ul>
+                        {o.cancel_reason && (
+                          <p className="mt-2 text-xs text-destructive">
+                            Motivo: {o.cancel_reason}
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </section>
       )}
