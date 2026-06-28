@@ -1053,14 +1053,23 @@ function CartDialog({
             <span className="text-primary">{formatBRL(totalPrice)}</span>
           </div>
           <button
-            disabled={!canSubmit}
+            disabled={!canSubmit || submitting}
             onClick={submit}
             className="w-full rounded-xl bg-primary px-4 py-3 font-display text-lg uppercase tracking-wide text-primary-foreground transition-transform active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {payment === "pix"
-              ? "Prosseguir para o pagamento"
-              : "Enviar pedido pelo WhatsApp"}
+            {submitting
+              ? "Enviando…"
+              : payment === "pix"
+                ? "Prosseguir para o pagamento"
+                : alreadySent
+                  ? "Pedido já enviado"
+                  : "Enviar pedido pelo WhatsApp"}
           </button>
+          {submitError && (
+            <p className="mt-2 text-center text-xs text-destructive">
+              {submitError}
+            </p>
+          )}
           <p className="mt-2 text-center text-xs text-muted-foreground">
             {payment === "pix"
               ? "Você verá o QR Code e a chave PIX na próxima etapa."
