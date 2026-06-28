@@ -165,6 +165,7 @@ export type Database = {
         Row: {
           cancel_reason: string | null
           cancelled_at: string | null
+          change_for: number | null
           channel: Database["public"]["Enums"]["order_channel"]
           confirmed_at: string | null
           created_at: string
@@ -174,6 +175,7 @@ export type Database = {
           discount: number
           id: string
           notes: string | null
+          payment_method: Database["public"]["Enums"]["order_payment_method"]
           ready_at: string | null
           status: Database["public"]["Enums"]["order_status"]
           subtotal: number
@@ -183,6 +185,7 @@ export type Database = {
         Insert: {
           cancel_reason?: string | null
           cancelled_at?: string | null
+          change_for?: number | null
           channel?: Database["public"]["Enums"]["order_channel"]
           confirmed_at?: string | null
           created_at?: string
@@ -192,6 +195,7 @@ export type Database = {
           discount?: number
           id?: string
           notes?: string | null
+          payment_method?: Database["public"]["Enums"]["order_payment_method"]
           ready_at?: string | null
           status?: Database["public"]["Enums"]["order_status"]
           subtotal?: number
@@ -201,6 +205,7 @@ export type Database = {
         Update: {
           cancel_reason?: string | null
           cancelled_at?: string | null
+          change_for?: number | null
           channel?: Database["public"]["Enums"]["order_channel"]
           confirmed_at?: string | null
           created_at?: string
@@ -210,6 +215,7 @@ export type Database = {
           discount?: number
           id?: string
           notes?: string | null
+          payment_method?: Database["public"]["Enums"]["order_payment_method"]
           ready_at?: string | null
           status?: Database["public"]["Enums"]["order_status"]
           subtotal?: number
@@ -313,6 +319,12 @@ export type Database = {
     Enums: {
       app_role: "admin" | "staff"
       order_channel: "whatsapp" | "balcao" | "telefone" | "outro"
+      order_payment_method:
+        | "pix"
+        | "cartao_credito"
+        | "cartao_debito"
+        | "dinheiro"
+        | "nao_informado"
       order_status:
         | "recebido"
         | "em_producao"
@@ -448,6 +460,13 @@ export const Constants = {
     Enums: {
       app_role: ["admin", "staff"],
       order_channel: ["whatsapp", "balcao", "telefone", "outro"],
+      order_payment_method: [
+        "pix",
+        "cartao_credito",
+        "cartao_debito",
+        "dinheiro",
+        "nao_informado",
+      ],
       order_status: [
         "recebido",
         "em_producao",
