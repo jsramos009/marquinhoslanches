@@ -68,6 +68,156 @@ export type Database = {
         }
         Relationships: []
       }
+      order_item_addons: {
+        Row: {
+          addon_id: string | null
+          addon_name_snapshot: string
+          created_at: string
+          id: string
+          order_item_id: string
+          quantity: number
+          unit_price_snapshot: number
+        }
+        Insert: {
+          addon_id?: string | null
+          addon_name_snapshot: string
+          created_at?: string
+          id?: string
+          order_item_id: string
+          quantity?: number
+          unit_price_snapshot: number
+        }
+        Update: {
+          addon_id?: string | null
+          addon_name_snapshot?: string
+          created_at?: string
+          id?: string
+          order_item_id?: string
+          quantity?: number
+          unit_price_snapshot?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_item_addons_addon_id_fkey"
+            columns: ["addon_id"]
+            isOneToOne: false
+            referencedRelation: "addons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_item_addons_order_item_id_fkey"
+            columns: ["order_item_id"]
+            isOneToOne: false
+            referencedRelation: "order_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      order_items: {
+        Row: {
+          created_at: string
+          id: string
+          line_total: number
+          order_id: string
+          product_id: string | null
+          product_name_snapshot: string
+          quantity: number
+          unit_price_snapshot: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          line_total: number
+          order_id: string
+          product_id?: string | null
+          product_name_snapshot: string
+          quantity: number
+          unit_price_snapshot: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          line_total?: number
+          order_id?: string
+          product_id?: string | null
+          product_name_snapshot?: string
+          quantity?: number
+          unit_price_snapshot?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_items_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      orders: {
+        Row: {
+          cancel_reason: string | null
+          cancelled_at: string | null
+          channel: Database["public"]["Enums"]["order_channel"]
+          confirmed_at: string | null
+          created_at: string
+          created_by: string | null
+          customer_name: string | null
+          delivered_at: string | null
+          discount: number
+          id: string
+          notes: string | null
+          ready_at: string | null
+          status: Database["public"]["Enums"]["order_status"]
+          subtotal: number
+          total: number
+          updated_at: string
+        }
+        Insert: {
+          cancel_reason?: string | null
+          cancelled_at?: string | null
+          channel?: Database["public"]["Enums"]["order_channel"]
+          confirmed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          customer_name?: string | null
+          delivered_at?: string | null
+          discount?: number
+          id?: string
+          notes?: string | null
+          ready_at?: string | null
+          status?: Database["public"]["Enums"]["order_status"]
+          subtotal?: number
+          total?: number
+          updated_at?: string
+        }
+        Update: {
+          cancel_reason?: string | null
+          cancelled_at?: string | null
+          channel?: Database["public"]["Enums"]["order_channel"]
+          confirmed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          customer_name?: string | null
+          delivered_at?: string | null
+          discount?: number
+          id?: string
+          notes?: string | null
+          ready_at?: string | null
+          status?: Database["public"]["Enums"]["order_status"]
+          subtotal?: number
+          total?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       products: {
         Row: {
           accepts_addons: boolean
@@ -150,6 +300,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      dashboard_metrics: { Args: { _range?: string }; Returns: Json }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -157,9 +308,17 @@ export type Database = {
         }
         Returns: boolean
       }
+      has_staff_access: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
       app_role: "admin" | "staff"
+      order_channel: "whatsapp" | "balcao" | "telefone" | "outro"
+      order_status:
+        | "recebido"
+        | "em_producao"
+        | "pronto"
+        | "entregue"
+        | "cancelado"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -288,6 +447,14 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "staff"],
+      order_channel: ["whatsapp", "balcao", "telefone", "outro"],
+      order_status: [
+        "recebido",
+        "em_producao",
+        "pronto",
+        "entregue",
+        "cancelado",
+      ],
     },
   },
 } as const
