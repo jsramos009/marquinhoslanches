@@ -17,6 +17,7 @@ export type Product = {
   image_url: string | null;
   accepts_addons: boolean;
   sort_order: number;
+  suggestion_order: number | null;
 };
 
 export type Addon = {
