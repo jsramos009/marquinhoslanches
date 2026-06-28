@@ -9,6 +9,28 @@ import { buildPixPayload } from "@/lib/pix";
 import QRCode from "qrcode";
 import { submitPublicOrder } from "@/lib/orders-public.functions";
 import { useServerFn } from "@tanstack/react-start";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+
+type DeliveryFeeOption = { id: string; neighborhood: string; fee: number };
+
+const deliveryFeesQueryOptions = () => ({
+  queryKey: ["delivery-fees", "public"],
+  queryFn: async (): Promise<DeliveryFeeOption[]> => {
+    const { data, error } = await supabase
+      .from("delivery_fees")
+      .select("id, neighborhood, fee")
+      .eq("is_active", true)
+      .order("neighborhood", { ascending: true });
+    if (error) throw error;
+    return (data ?? []).map((d: any) => ({
+      id: d.id,
+      neighborhood: d.neighborhood,
+      fee: Number(d.fee),
+    }));
+  },
+  staleTime: 5 * 60_000,
+});
 
 const WHATSAPP_NUMBER = "5594991032483";
 const WHATSAPP_DISPLAY = "(94) 99103-2483";
@@ -581,6 +603,7 @@ function CartDialog({
   const [phone, setPhone] = useState("");
   const [mode, setMode] = useState<"delivery" | "pickup">("delivery");
   const [address, setAddress] = useState("");
+  const [neighborhoodId, setNeighborhoodId] = useState<string>("");
   const [orderNotes, setOrderNotes] = useState("");
   type PayMethod = "pix" | "cartao_credito" | "cartao_debito" | "dinheiro";
   const [payment, setPayment] = useState<PayMethod | null>(null);
@@ -596,15 +619,20 @@ function CartDialog({
   const [sentToast, setSentToast] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const submitOrder = useServerFn(submitPublicOrder);
+  const deliveryFeesQuery = useQuery(deliveryFeesQueryOptions());
+  const deliveryFees = deliveryFeesQuery.data ?? [];
+  const selectedFee = deliveryFees.find((f) => f.id === neighborhoodId) ?? null;
+  const freightCost = mode === "delivery" && selectedFee ? selectedFee.fee : 0;
+  const grandTotal = totalPrice + freightCost;
   const pixPayload = useMemo(
     () =>
       buildPixPayload({
         key: PIX_KEY,
-        amount: totalPrice,
+        amount: grandTotal,
         merchantName: PIX_MERCHANT_NAME,
         merchantCity: PIX_MERCHANT_CITY,
       }),
-    [totalPrice],
+    [grandTotal],
   );
 
   useEffect(() => {
@@ -674,6 +702,9 @@ function CartDialog({
     lines.push(`*Cliente:* ${name || "—"}`);
     if (phone) lines.push(`*Telefone:* ${phone}`);
     lines.push(`*Modo:* ${mode === "delivery" ? "Entrega" : "Retirada no local"}`);
+    if (mode === "delivery" && selectedFee) {
+      lines.push(`*Bairro:* ${selectedFee.neighborhood} (frete ${formatBRL(selectedFee.fee)})`);
+    }
     if (mode === "delivery" && address)
       lines.push(`*Endereço:* ${address}`);
     if (mode === "delivery" && mapsLink) {
@@ -688,7 +719,11 @@ function CartDialog({
       if (l.notes) lines.push(`   Obs.: ${l.notes}`);
     }
     lines.push("");
-    lines.push(`*Total: ${formatBRL(totalPrice)}*`);
+    if (freightCost > 0) {
+      lines.push(`*Subtotal:* ${formatBRL(totalPrice)}`);
+      lines.push(`*Frete:* ${formatBRL(freightCost)}`);
+    }
+    lines.push(`*Total: ${formatBRL(grandTotal)}*`);
     if (payment) {
       const label: Record<PayMethod, string> = {
         pix: "PIX",
@@ -718,7 +753,9 @@ function CartDialog({
     name.trim().length > 0 &&
     phone.trim().length > 0 &&
     payment !== null &&
-    (mode === "pickup" || address.trim().length > 0);
+    (mode === "pickup" ||
+      (address.trim().length > 0 &&
+        (deliveryFees.length === 0 || neighborhoodId !== "")));
 
   const sendWhatsapp = (extra?: string) => {
     const body = extra ? `${buildMessage()}\n\n${extra}` : buildMessage();
@@ -743,10 +780,11 @@ function CartDialog({
       phone.trim(),
       mode,
       mode === "delivery" ? address.trim() : "",
+      mode === "delivery" ? neighborhoodId : "",
       payment ?? "",
       payment === "dinheiro" ? changeFor : "",
     ].join("§");
-  }, [cart, name, phone, mode, address, payment, changeFor]);
+  }, [cart, name, phone, mode, address, neighborhoodId, payment, changeFor]);
 
   const alreadySent = submittedFp === orderFingerprint;
 
@@ -772,6 +810,9 @@ function CartDialog({
             [
               mode === "delivery" && mapsLink
                 ? `Localização GPS: ${mapsLink}`
+                : null,
+              mode === "delivery" && selectedFee
+                ? `Bairro: ${selectedFee.neighborhood} — frete ${formatBRL(selectedFee.fee)} (total c/ frete ${formatBRL(grandTotal)})`
                 : null,
               orderNotes || null,
             ]
@@ -858,7 +899,7 @@ function CartDialog({
               <div>
                 <p className="text-sm text-muted-foreground">Valor a pagar</p>
                 <p className="font-display text-3xl text-primary">
-                  {formatBRL(totalPrice)}
+                  {formatBRL(grandTotal)}
                 </p>
               </div>
               <div className="mx-auto w-fit rounded-2xl border border-border bg-white p-3">
@@ -1045,6 +1086,38 @@ function CartDialog({
               </div>
             </Field>
             {mode === "delivery" && (
+              <Field label="Bairro (frete)">
+                {deliveryFeesQuery.isLoading ? (
+                  <p className="text-xs text-muted-foreground">Carregando bairros…</p>
+                ) : deliveryFees.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">
+                    Combine o frete direto com a loja pelo WhatsApp.
+                  </p>
+                ) : (
+                  <>
+                    <select
+                      className="cart-input"
+                      value={neighborhoodId}
+                      onChange={(e) => setNeighborhoodId(e.target.value)}
+                    >
+                      <option value="">Selecione o bairro…</option>
+                      {deliveryFees.map((d) => (
+                        <option key={d.id} value={d.id}>
+                          {d.neighborhood} — {formatBRL(d.fee)}
+                        </option>
+                      ))}
+                    </select>
+                    {selectedFee && (
+                      <p className="mt-2 text-xs text-muted-foreground">
+                        Frete pra <strong className="text-foreground">{selectedFee.neighborhood}</strong>:{" "}
+                        <strong className="text-foreground">{formatBRL(selectedFee.fee)}</strong>
+                      </p>
+                    )}
+                  </>
+                )}
+              </Field>
+            )}
+            {mode === "delivery" && (
               <Field label="Endereço de entrega">
                 <textarea
                   className="cart-input"
@@ -1149,9 +1222,21 @@ function CartDialog({
 
       {cart.length > 0 && (
         <div className="border-t border-border bg-card px-5 py-4">
+          {freightCost > 0 && (
+            <div className="mb-1 flex items-center justify-between text-sm text-muted-foreground">
+              <span>Subtotal</span>
+              <span>{formatBRL(totalPrice)}</span>
+            </div>
+          )}
+          {freightCost > 0 && (
+            <div className="mb-1 flex items-center justify-between text-sm text-muted-foreground">
+              <span>Frete ({selectedFee?.neighborhood})</span>
+              <span>{formatBRL(freightCost)}</span>
+            </div>
+          )}
           <div className="mb-3 flex items-center justify-between font-display text-lg">
             <span>Total</span>
-            <span className="text-primary">{formatBRL(totalPrice)}</span>
+            <span className="text-primary">{formatBRL(grandTotal)}</span>
           </div>
           <button
             disabled={!canSubmit || submitting}

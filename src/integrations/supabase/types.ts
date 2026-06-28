@@ -68,6 +68,33 @@ export type Database = {
         }
         Relationships: []
       }
+      delivery_fees: {
+        Row: {
+          created_at: string
+          fee: number
+          id: string
+          is_active: boolean
+          neighborhood: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          fee?: number
+          id?: string
+          is_active?: boolean
+          neighborhood: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          fee?: number
+          id?: string
+          is_active?: boolean
+          neighborhood?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       order_item_addons: {
         Row: {
           addon_id: string | null
