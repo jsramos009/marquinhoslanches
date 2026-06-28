@@ -225,17 +225,19 @@ function Row({
   actions,
 }: {
   email: string | null;
-  role: "admin" | "staff";
+  role: AccessRole;
   createdAt: string;
   actions: React.ReactNode;
 }) {
+  const roleLabel =
+    role === "admin" ? "Admin" : role === "balcao" ? "Balcão" : "Staff";
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card p-3">
       <div className="min-w-0">
         <p className="truncate text-sm font-medium text-foreground">{email ?? "(sem e-mail)"}</p>
         <p className="text-xs text-muted-foreground">
           <span className="rounded-full bg-secondary px-2 py-0.5 uppercase tracking-wide">
-            {role}
+            {roleLabel}
           </span>
           <span className="ml-2">
             cadastrado em {new Date(createdAt).toLocaleString("pt-BR")}
