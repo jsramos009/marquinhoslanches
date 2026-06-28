@@ -782,7 +782,14 @@ function CartDialog({
     }
   };
 
-  const sendReceipt = () => {
+  const sendReceipt = async () => {
+    if (!alreadySent) {
+      const ok = await persistOrder();
+      if (!ok) return;
+    } else {
+      setSentToast(true);
+      setTimeout(() => setSentToast(false), 3500);
+    }
     sendWhatsapp(
       "✅ *Pagamento via PIX* — segue em anexo o comprovante. Aguardo confirmação do pedido!",
     );
