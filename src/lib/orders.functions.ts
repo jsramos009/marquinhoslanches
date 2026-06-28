@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { isHamburgerCategory } from "@/lib/menu";
+import { isHamburgerCategory } from "@/lib/menu-utils";
 
 export type OrderStatus =
   | "recebido"

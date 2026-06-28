@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { queryOptions } from "@tanstack/react-query";
+export { isHamburgerCategory } from "@/lib/menu-utils";
 
 export type Category = {
   id: string;
@@ -75,14 +76,6 @@ export const menuQueryOptions = () =>
     gcTime: 15 * 60_000,
     retry: 1,
   });
-
-export function isHamburgerCategory(slug?: string | null, name?: string | null) {
-  const text = `${slug ?? ""} ${name ?? ""}`
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase();
-  return text.includes("hamburg") || text.includes("especial") || text.includes("tradicion");
-}
 
 export const formatBRL = (v: number) =>
   v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
