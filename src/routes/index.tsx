@@ -776,3 +776,66 @@ function FooterInfo() {
     </footer>
   );
 }
+
+function BeverageSuggestionSheet({
+  beverages,
+  onAdd,
+  onDismiss,
+}: {
+  beverages: Product[];
+  onAdd: (bev: Product) => void;
+  onDismiss: () => void;
+}) {
+  return (
+    <Sheet onClose={onDismiss} title="Vai querer uma bebida?">
+      <div className="flex-1 overflow-y-auto px-5 py-4">
+        <p className="text-sm text-muted-foreground">
+          Que tal completar seu pedido com uma bebida gelada?
+        </p>
+        <ul className="mt-4 space-y-2">
+          {beverages.map((b) => (
+            <li key={b.id}>
+              <button
+                onClick={() => onAdd(b)}
+                className="flex w-full items-center justify-between gap-3 rounded-xl border border-border bg-card px-3 py-3 text-left transition-colors hover:border-primary/60 active:scale-[0.99]"
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-lg bg-secondary/30 text-xl">
+                    {b.image_url ? (
+                      <img
+                        src={b.image_url}
+                        alt={b.name}
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      "🥤"
+                    )}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="truncate font-display text-base text-primary">
+                      {b.name}
+                    </p>
+                    <p className="text-sm text-foreground">
+                      {formatBRL(b.price)}
+                    </p>
+                  </div>
+                </div>
+                <span className="inline-flex items-center gap-1 rounded-full bg-primary px-3 py-2 text-xs font-bold uppercase tracking-wide text-primary-foreground">
+                  <Plus className="h-3.5 w-3.5" /> Add
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      </div>
+      <div className="border-t border-border bg-card px-5 py-4">
+        <button
+          onClick={onDismiss}
+          className="w-full rounded-xl border border-border bg-background px-4 py-3 font-semibold text-foreground hover:bg-secondary"
+        >
+          Não, obrigado
+        </button>
+      </div>
+    </Sheet>
+  );
+}
