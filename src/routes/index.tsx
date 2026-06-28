@@ -734,12 +734,12 @@ function Sheet({
   }, []);
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 sm:items-center"
+      className="sheet-backdrop-in fixed inset-0 z-50 flex items-end justify-center bg-black/70 sm:items-center"
       onClick={onClose}
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="flex max-h-[92vh] w-full max-w-lg flex-col rounded-t-2xl border border-border bg-background shadow-[var(--shadow-brand)] sm:rounded-2xl"
+        className="sheet-panel-in flex max-h-[92vh] w-full max-w-lg flex-col rounded-t-2xl border border-border bg-background shadow-[var(--shadow-brand)] sm:rounded-2xl"
       >
         <div className="flex items-center justify-between border-b border-border px-5 py-3">
           <h3 className="font-display text-xl text-primary">{title}</h3>
