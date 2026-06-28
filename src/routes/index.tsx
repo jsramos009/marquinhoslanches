@@ -24,7 +24,9 @@ export const Route = createFileRoute("/")({
       },
     ],
   }),
-  loader: ({ context }) => context.queryClient.ensureQueryData(menuQueryOptions()),
+  loader: async ({ context }) => {
+    await context.queryClient.ensureQueryData(menuQueryOptions());
+  },
   component: MenuPage,
 });
 
