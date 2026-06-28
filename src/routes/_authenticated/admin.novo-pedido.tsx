@@ -44,6 +44,10 @@ function NovoPedidoPage() {
   const [discount, setDiscount] = useState(0);
   const [items, setItems] = useState<DraftItem[]>([]);
   const [search, setSearch] = useState("");
+  const [addonDialog, setAddonDialog] = useState<{
+    productId: string;
+    selected: Set<string>;
+  } | null>(null);
 
   const products = menu.data?.products ?? [];
   const addons = menu.data?.addons ?? [];
@@ -101,6 +105,10 @@ function NovoPedidoPage() {
 
   function addProduct(productId: string) {
     if (!productId) return;
+    if (productAcceptsAddons(productId)) {
+      setAddonDialog({ productId, selected: new Set() });
+      return;
+    }
     setItems((prev) => {
       const simpleIndex = prev.findIndex(
         (it) => it.product_id === productId && it.addons.length === 0,
@@ -115,6 +123,31 @@ function NovoPedidoPage() {
         { key: crypto.randomUUID(), product_id: productId, quantity: 1, addons: [] },
       ];
     });
+  }
+
+  function confirmAddonDialog(withAddons: boolean) {
+    if (!addonDialog) return;
+    const { productId, selected } = addonDialog;
+    const chosen = withAddons
+      ? Array.from(selected).map((addon_id) => ({ addon_id, quantity: 1 }))
+      : [];
+    setItems((prev) => {
+      if (chosen.length === 0) {
+        const idx = prev.findIndex(
+          (it) => it.product_id === productId && it.addons.length === 0,
+        );
+        if (idx >= 0) {
+          const next = [...prev];
+          next[idx] = { ...next[idx], quantity: next[idx].quantity + 1 };
+          return next;
+        }
+      }
+      return [
+        ...prev,
+        { key: crypto.randomUUID(), product_id: productId, quantity: 1, addons: chosen },
+      ];
+    });
+    setAddonDialog(null);
   }
 
   function updateItem(key: string, patch: Partial<DraftItem>) {
@@ -390,6 +423,101 @@ function NovoPedidoPage() {
           </button>
         </aside>
       </form>
+      {addonDialog && (() => {
+        const p = productMap.get(addonDialog.productId);
+        if (!p) return null;
+        return (
+          <div
+            className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4 sm:items-center"
+            onClick={() => setAddonDialog(null)}
+          >
+            <div
+              className="w-full max-w-md rounded-2xl border border-border bg-card p-4 shadow-xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="mb-3 flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                    Adicionar
+                  </p>
+                  <h3 className="truncate text-base font-semibold">{p.name}</h3>
+                  <p className="text-xs text-muted-foreground">
+                    Deseja incluir algum adicional?
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setAddonDialog(null)}
+                  className="rounded-full p-1 text-muted-foreground hover:bg-secondary hover:text-foreground"
+                  aria-label="Fechar"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+              {addons.length === 0 ? (
+                <p className="rounded-lg border border-dashed border-border p-3 text-center text-xs text-muted-foreground">
+                  Nenhum adicional cadastrado.
+                </p>
+              ) : (
+                <div className="max-h-64 space-y-1 overflow-y-auto pr-1">
+                  {addons.map((a) => {
+                    const checked = addonDialog.selected.has(a.id);
+                    return (
+                      <label
+                        key={a.id}
+                        className={`flex cursor-pointer items-center justify-between gap-2 rounded-lg border px-3 py-2 text-sm transition ${
+                          checked
+                            ? "border-primary bg-primary/10"
+                            : "border-border bg-background hover:border-primary/50"
+                        }`}
+                      >
+                        <span className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => {
+                              setAddonDialog((prev) => {
+                                if (!prev) return prev;
+                                const next = new Set(prev.selected);
+                                if (next.has(a.id)) next.delete(a.id);
+                                else next.add(a.id);
+                                return { ...prev, selected: next };
+                              });
+                            }}
+                            className="h-4 w-4 accent-primary"
+                          />
+                          <span>{a.name}</span>
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          + {formatBRL(a.price)}
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+              )}
+              <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+                <button
+                  type="button"
+                  onClick={() => confirmAddonDialog(false)}
+                  className="flex-1 rounded-lg border border-border bg-card px-3 py-2 text-sm text-muted-foreground hover:text-foreground"
+                >
+                  Sem adicional
+                </button>
+                <button
+                  type="button"
+                  onClick={() => confirmAddonDialog(true)}
+                  disabled={addonDialog.selected.size === 0}
+                  className="flex-1 rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-50"
+                >
+                  Adicionar com {addonDialog.selected.size} adicional
+                  {addonDialog.selected.size === 1 ? "" : "is"}
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </AdminShell>
   );
 }
