@@ -57,17 +57,25 @@ function NovoPedidoPage() {
   }, [menu.data]);
   const productMap = useMemo(() => new Map(products.map((p) => [p.id, p])), [products]);
   const addonMap = useMemo(() => new Map(addons.map((a) => [a.id, a])), [addons]);
+  const norm = (s: string) =>
+    s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
   const filteredProducts = useMemo(() => {
-    const q = search.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    const q = norm(search.trim());
     if (!q) return products;
-    return products.filter((p) =>
-      p.name
-        .toLowerCase()
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "")
-        .includes(q),
-    );
+    return products.filter((p) => norm(p.name).includes(q));
   }, [products, search]);
+  const groupedProducts = useMemo(() => {
+    const cats = menu.data?.categories ?? [];
+    const byCat = new Map<string, typeof products>();
+    for (const p of filteredProducts) {
+      const arr = byCat.get(p.category_id) ?? [];
+      arr.push(p);
+      byCat.set(p.category_id, arr);
+    }
+    return cats
+      .map((c) => ({ category: c, items: byCat.get(c.id) ?? [] }))
+      .filter((g) => g.items.length > 0);
+  }, [filteredProducts, menu.data?.categories, products]);
   const quantityByProduct = useMemo(() => {
     const map = new Map<string, number>();
     for (const it of items) {
