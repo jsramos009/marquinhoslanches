@@ -10,6 +10,13 @@ export type OrderStatus =
 
 export type OrderChannel = "whatsapp" | "balcao" | "telefone" | "outro";
 
+export type OrderPaymentMethod =
+  | "pix"
+  | "cartao_credito"
+  | "cartao_debito"
+  | "dinheiro"
+  | "nao_informado";
+
 export type OrderRow = {
   id: string;
   customer_name: string | null;
@@ -20,6 +27,8 @@ export type OrderRow = {
   total: number;
   notes: string | null;
   cancel_reason: string | null;
+  payment_method: OrderPaymentMethod;
+  change_for: number | null;
   created_at: string;
   ready_at: string | null;
   delivered_at: string | null;
@@ -60,6 +69,8 @@ type CreateOrderInput = {
   channel?: OrderChannel;
   notes?: string | null;
   discount?: number;
+  payment_method?: OrderPaymentMethod;
+  change_for?: number | null;
   items: {
     product_id: string;
     quantity: number;
@@ -152,6 +163,11 @@ export const createOrder = createServerFn({ method: "POST" })
         subtotal,
         discount,
         total,
+        payment_method: data.payment_method ?? "nao_informado",
+        change_for:
+          data.payment_method === "dinheiro" && data.change_for && data.change_for > 0
+            ? data.change_for
+            : null,
         created_by: userId,
       })
       .select("id")
@@ -223,7 +239,7 @@ export const listRecentOrders = createServerFn({ method: "GET" })
     const { data: rows, error } = await context.supabase
       .from("orders")
       .select(
-        "id, customer_name, channel, status, subtotal, discount, total, notes, cancel_reason, created_at, ready_at, delivered_at, order_items(id, product_name_snapshot, quantity, unit_price_snapshot, line_total, order_item_addons(id, addon_name_snapshot, quantity, unit_price_snapshot))",
+        "id, customer_name, channel, status, subtotal, discount, total, notes, cancel_reason, payment_method, change_for, created_at, ready_at, delivered_at, order_items(id, product_name_snapshot, quantity, unit_price_snapshot, line_total, order_item_addons(id, addon_name_snapshot, quantity, unit_price_snapshot))",
       )
       .gte("created_at", since)
       .order("created_at", { ascending: false });
@@ -239,6 +255,8 @@ export const listRecentOrders = createServerFn({ method: "GET" })
         total: number;
         notes: string | null;
         cancel_reason: string | null;
+        payment_method: OrderPaymentMethod;
+        change_for: number | null;
         created_at: string;
         ready_at: string | null;
         delivered_at: string | null;
@@ -266,6 +284,8 @@ export const listRecentOrders = createServerFn({ method: "GET" })
         total: Number(row.total),
         notes: row.notes,
         cancel_reason: row.cancel_reason,
+        payment_method: row.payment_method ?? "nao_informado",
+        change_for: row.change_for != null ? Number(row.change_for) : null,
         created_at: row.created_at,
         ready_at: row.ready_at,
         delivered_at: row.delivered_at,
