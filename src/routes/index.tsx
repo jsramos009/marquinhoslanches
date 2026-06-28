@@ -7,6 +7,8 @@ import { menuQueryOptions, formatBRL, isHamburgerCategory, type Product, type Ad
 import { decodeRepeatToken } from "@/lib/order-flow";
 import { buildPixPayload } from "@/lib/pix";
 import QRCode from "qrcode";
+import { submitPublicOrder } from "@/lib/orders-public.functions";
+import { useServerFn } from "@tanstack/react-start";
 
 const WHATSAPP_NUMBER = "5594991032483";
 const WHATSAPP_DISPLAY = "(94) 99103-2483";
