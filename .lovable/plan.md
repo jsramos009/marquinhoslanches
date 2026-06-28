@@ -1,94 +1,43 @@
-## Resumo
+## O que vou fazer
 
-Como o pedido vai ser lançado manualmente no painel (e a conversão de cliente acontece fora, via WhatsApp), o "funil de conversão" dentro do sistema vira **funil de status do pedido** (recebido → em produção → pronto → entregue/cancelado). Isso é o que de fato dá pra medir aqui.
+### 1. Banco — forma de pagamento e troco
+Adicionar em `orders`:
+- `payment_method` — enum (`pix`, `cartao_credito`, `cartao_debito`, `dinheiro`, `nao_informado`)
+- `change_for` — numérico opcional (valor pra qual precisa de troco, só quando dinheiro)
 
-## 1. Banco de dados (1 migração)
+Atualizar `createOrder` (server fn) pra aceitar esses campos e `listRecentOrders` pra retorná-los.
 
-Tabelas novas em `public`:
+### 2. Checkout do cardápio (homepage pública `/`)
+No `CartDialog`, **acima do bloco "Observações do pedido"**, adicionar bloco "Como vai pagar?":
+- 4 botões grandes com a mesma animação dos chips de adicionais já existentes: **PIX**, **Cartão crédito**, **Cartão débito**, **Dinheiro**.
+- Quando "Dinheiro" estiver ativo, aparece campo "Precisa de troco pra quanto?" (opcional — se vazio, "Sem troco").
+- Mantém o resto do fluxo (entrega/retirada, observações, envio pro WhatsApp) intacto.
+- A mensagem do WhatsApp passa a incluir "Pagamento: PIX" / "Dinheiro — troco pra R$ 50,00" etc.
 
-- **`orders`** — um pedido
-  - `customer_name` (texto livre, opcional)
-  - `channel` enum: `whatsapp` | `balcao` | `telefone` | `outro` (default `whatsapp`)
-  - `status` enum: `recebido` | `em_producao` | `pronto` | `entregue` | `cancelado`
-  - `subtotal`, `discount`, `total` (numeric, calculados no servidor ao salvar)
-  - `notes` (texto)
-  - `created_by` (uuid → auth.users — quem lançou)
-  - `confirmed_at`, `ready_at`, `delivered_at`, `cancelled_at` (preenchidos quando o status muda)
+### 3. Dashboard `/admin/dashboard` — Cards de pedidos do dia (3×4)
+Acima do gráfico "Faturamento", grid responsivo (desktop 4 colunas × 3 linhas = 12 cards mais recentes do dia; mobile rola). Cada card quadrado mostra:
+- Nome do cliente (ou "Sem nome")
+- Resumo dos itens (ex.: "2× X-Tudo, 1× Coca 2L")
+- Valor total pago
+- Forma de pagamento (badge: PIX / Cartão / Dinheiro + troco se houver)
+- Hora do pedido, status (badge colorido)
+- **Botão "Imprimir comanda"** → abre janela de impressão otimizada para impressora térmica 80mm
 
-- **`order_items`** — uma linha do pedido
-  - `order_id`, `product_id`, `product_name_snapshot`, `unit_price_snapshot`, `quantity`, `line_total`
+### 4. Impressão térmica 80mm
+- Componente `ThermalReceipt` (oculto fora do print) com CSS `@media print`: largura 80mm, fonte monoespaçada, sem cores, header com nome do estabelecimento, nome do cliente, itens detalhados (com adicionais), total, forma de pagamento, **troco destacado quando houver** (essencial pro motoboy), horário da impressão, número resumido do pedido.
+- Botão imprime via `window.print()` após renderizar o recibo daquele pedido específico (usando estado isolado).
 
-- **`order_item_addons`** — adicionais por item
-  - `order_item_id`, `addon_id`, `addon_name_snapshot`, `unit_price_snapshot`, `quantity`
+### 5. Link público curto
+A slug do link `.lovable.app` é definida na hora de publicar. Quando você clicar em **Publish**, vou usar a slug **`marquinhos-lanches`** — fica `https://marquinhos-lanches.lovable.app` (curto, com o nome). A homepage já é o cardápio, então o link raiz já serve. Não precisa de rota nova.
 
-Snapshots de nome/preço para que renomear ou reprecificar um produto não distorça o histórico.
+---
 
-Índices: `orders(created_at desc)`, `orders(status)`, `order_items(product_id)`.
+## Detalhes técnicos
+- Migração: `ALTER TABLE orders ADD COLUMN payment_method`, `change_for numeric`. Sem mudança de RLS.
+- `src/lib/orders.functions.ts`: amplia `inputValidator` de `createOrder` + select de `listRecentOrders`.
+- `src/routes/index.tsx`: adiciona estado `paymentMethod` e `changeFor` no `CartDialog`, novo bloco UI, inclui no payload do WhatsApp.
+- `src/routes/_authenticated/admin.dashboard.tsx`: nova seção `TodayOrdersGrid` usando `listRecentOrders({ sinceHours: 24 })` filtrado por hoje, com botão de imprimir.
+- Novo `src/components/admin/ThermalReceipt.tsx` + estilos print-only em `src/styles.css`.
+- Fora de escopo agora: integração ESC/POS direta (WebUSB) — fica na próxima fase se a impressão via diálogo do navegador não atender.
 
-RLS: tudo restrito a `has_role(auth.uid(), 'admin')` OR `has_role(auth.uid(), 'staff')` — leitura e escrita. Sem acesso anônimo. GRANTs corretos em cada tabela.
-
-Trigger: `updated_at` automático; gatilho que carimba `confirmed_at/ready_at/delivered_at/cancelled_at` quando `status` muda.
-
-## 2. Server functions (`src/lib/orders.functions.ts`)
-
-Tudo com `requireSupabaseAuth` + checagem de staff/admin:
-
-- `createOrder({ customer_name, channel, items: [{ product_id, quantity, addons: [{ addon_id, quantity }] }], discount, notes })` — calcula totais no servidor a partir do preço atual do produto/adicional, insere `orders` + `order_items` + `order_item_addons`.
-- `updateOrderStatus({ order_id, status })`
-- `cancelOrder({ order_id, reason })`
-- `listTodayOrders()` — pedidos do dia, ordenados.
-- `getDashboardMetrics({ range: 'today' | '7d' | '30d' | 'mtd' })` — retorna:
-  - faturamento total, ticket médio, nº de pedidos
-  - série diária (para gráfico de linha) + variação % vs período anterior equivalente
-  - top 10 produtos por receita e por quantidade
-  - produtos sem venda no período (com cadastro ativo)
-  - contagem por status (funil)
-  - tempo médio entre `created_at` → `ready_at` e `ready_at` → `delivered_at`
-
-Todos os agregados em SQL (uma função RPC `dashboard_metrics(range)` em Postgres) para evitar puxar linhas cruas pro Worker.
-
-## 3. Telas
-
-### `/admin/pedidos` (substitui o placeholder atual)
-- Header com botão "Novo pedido" + filtros (status, canal, data).
-- Lista em cards/colunas estilo kanban por status (`recebido` | `em_producao` | `pronto` | `entregue`); cancelados numa aba separada.
-- Cada card: cliente, itens resumidos, total, tempo desde criação. Botões para avançar status.
-- Realtime: revalida via `router.invalidate()` a cada 30s (sem websocket por enquanto).
-
-### `/admin/pedidos/novo` (drawer ou rota dedicada)
-- Form: cliente, canal, busca de produto (com adicionais quando aplicável), quantidade, desconto, observação.
-- Mostra subtotal/total ao vivo.
-- Submete `createOrder`.
-
-### `/admin/dashboard` (nova rota, vira a home do admin)
-Blocos:
-1. **KPIs** (4 cards): faturamento, ticket médio, nº pedidos, variação % vs período anterior.
-2. **Gráfico de linha** — faturamento por dia no range selecionado (Recharts).
-3. **Operacional do dia** — contagem por status + tempo médio de preparo.
-4. **Funil de status** — barras horizontais: recebido → em_producao → pronto → entregue, com % de drop pra cancelado.
-5. **Top produtos** — tabela top 10 por receita (toggle: receita | quantidade).
-6. **Produtos parados** — lista de produtos ativos sem venda no período.
-
-Seletor de range no topo (hoje / 7d / 30d / mês corrente).
-
-### Navegação
-Sidebar admin minimal com: Dashboard · Pedidos · Cardápio (placeholder) · Acessos. Staff vê Dashboard + Pedidos. Admin vê tudo.
-
-## 4. Detalhes técnicos
-
-- Recharts com tokens do design system (`hsl(var(--primary))` etc.), sem cores hardcoded.
-- TanStack Query: `ensureQueryData` no loader, `useSuspenseQuery` no componente.
-- Agregação no banco via função SQL (`dashboard_metrics`) — não puxa linhas cruas pro app.
-- Status muda só pra frente por padrão; admin pode reabrir cancelados (botão secundário).
-- Cancelamento exige motivo (texto).
-- Sem notificação por e-mail/WhatsApp nesta fase.
-
-## 5. Fora de escopo (próxima etapa, se quiser)
-
-- Integração WhatsApp Business (receber pedido automaticamente).
-- Custos/margem por produto (já existe coluna `cost` em `products`, mas não vou plotar margem agora).
-- Exportação CSV/PDF do dashboard.
-- Histórico de mudança de status por usuário (audit log).
-- Realtime via Supabase channels (hoje é polling 30s).
-
-Confirma que posso seguir? Se quiser cortar algo (ex: pular kanban e fazer só lista simples, ou adiar tela de "novo pedido" e me deixar só semear dados de teste) me avisa antes de eu começar.
+Posso seguir?
