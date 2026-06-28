@@ -768,7 +768,15 @@ function CartDialog({
           customer_phone: phone,
           delivery_mode: mode,
           delivery_address: mode === "delivery" ? address : null,
-          notes: orderNotes || null,
+          notes:
+            [
+              mode === "delivery" && mapsLink
+                ? `Localização GPS: ${mapsLink}`
+                : null,
+              orderNotes || null,
+            ]
+              .filter(Boolean)
+              .join("\n") || null,
           payment_method: payment ?? "nao_informado",
           change_for:
             payment === "dinheiro"
