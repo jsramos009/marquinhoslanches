@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { AdminShell, formatBRL } from "@/components/admin/AdminShell";
 import { isHamburgerCategory, menuQueryOptions } from "@/lib/menu";
 import { createOrder, type OrderChannel } from "@/lib/orders.functions";
+import { ImageIcon, Search, X } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/admin/novo-pedido")({
   component: NovoPedidoPage,
