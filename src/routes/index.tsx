@@ -865,10 +865,20 @@ function CartDialog({
           <div className="border-t border-border bg-card px-5 py-4 space-y-2">
             <button
               onClick={sendReceipt}
+              disabled={submitting}
               className="w-full rounded-xl bg-primary px-4 py-3 font-display text-lg uppercase tracking-wide text-primary-foreground transition-transform active:scale-[0.98]"
             >
-              Enviar comprovante
+              {submitting
+                ? "Enviando…"
+                : alreadySent
+                  ? "Comprovante já enviado"
+                  : "Enviar comprovante"}
             </button>
+            {submitError && (
+              <p className="text-center text-xs text-destructive">
+                {submitError}
+              </p>
+            )}
             <button
               onClick={() => setStep("form")}
               className="w-full rounded-xl border border-border bg-background px-4 py-2 text-sm text-muted-foreground hover:text-foreground"
