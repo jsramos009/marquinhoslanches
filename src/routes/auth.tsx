@@ -147,10 +147,7 @@ function AuthPage() {
         }
       }
       setLoading(false);
-      setInfo(
-        "Cadastro enviado! Aguarde o administrador aprovar seu acesso. Você pode tentar entrar depois.",
-      );
-      setMode("login");
+      navigate({ to: "/admin/pedidos", replace: true });
     } catch (err) {
       setLoading(false);
       setError(err instanceof Error ? err.message : "Erro inesperado.");
