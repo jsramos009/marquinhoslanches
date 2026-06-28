@@ -8,6 +8,8 @@ import {
   approveUser,
   rejectUser,
   revokeUser,
+  setUserRole,
+  type AccessRole,
 } from "@/lib/access.functions";
 
 export const Route = createFileRoute("/_authenticated/admin/usuarios")({
@@ -36,6 +38,7 @@ function UsuariosPage() {
   const approve = useServerFn(approveUser);
   const reject = useServerFn(rejectUser);
   const revoke = useServerFn(revokeUser);
+  const setRole = useServerFn(setUserRole);
 
   const queryClient = useQueryClient();
   const usersQuery = useQuery({
@@ -56,6 +59,11 @@ function UsuariosPage() {
   });
   const revokeMut = useMutation({
     mutationFn: (userId: string) => revoke({ data: { userId } }),
+    onSuccess: invalidate,
+  });
+  const setRoleMut = useMutation({
+    mutationFn: ({ userId, role }: { userId: string; role: AccessRole }) =>
+      setRole({ data: { userId, role } }),
     onSuccess: invalidate,
   });
 
