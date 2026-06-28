@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as CardapioRouteImport } from './routes/cardapio'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
@@ -28,6 +29,11 @@ import { Route as AuthenticatedAdminArquivadosRouteImport } from './routes/_auth
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
   id: '/reset-password',
   path: '/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CardapioRoute = CardapioRouteImport.update({
+  id: '/cardapio',
+  path: '/cardapio',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthRoute = AuthRouteImport.update({
@@ -112,6 +118,7 @@ const AuthenticatedAdminArquivadosRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/cardapio': typeof CardapioRoute
   '/reset-password': typeof ResetPasswordRoute
   '/admin/arquivados': typeof AuthenticatedAdminArquivadosRoute
   '/admin/catalogo': typeof AuthenticatedAdminCatalogoRoute
@@ -128,6 +135,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/cardapio': typeof CardapioRoute
   '/reset-password': typeof ResetPasswordRoute
   '/admin/arquivados': typeof AuthenticatedAdminArquivadosRoute
   '/admin/catalogo': typeof AuthenticatedAdminCatalogoRoute
@@ -146,6 +154,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
+  '/cardapio': typeof CardapioRoute
   '/reset-password': typeof ResetPasswordRoute
   '/_authenticated/admin/arquivados': typeof AuthenticatedAdminArquivadosRoute
   '/_authenticated/admin/catalogo': typeof AuthenticatedAdminCatalogoRoute
@@ -164,6 +173,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/auth'
+    | '/cardapio'
     | '/reset-password'
     | '/admin/arquivados'
     | '/admin/catalogo'
@@ -180,6 +190,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/auth'
+    | '/cardapio'
     | '/reset-password'
     | '/admin/arquivados'
     | '/admin/catalogo'
@@ -197,6 +208,7 @@ export interface FileRouteTypes {
     | '/'
     | '/_authenticated'
     | '/auth'
+    | '/cardapio'
     | '/reset-password'
     | '/_authenticated/admin/arquivados'
     | '/_authenticated/admin/catalogo'
@@ -215,6 +227,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
+  CardapioRoute: typeof CardapioRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   ApiPublicBootstrapAdminRoute: typeof ApiPublicBootstrapAdminRoute
   ApiPublicSetAdminPasswordRoute: typeof ApiPublicSetAdminPasswordRoute
@@ -227,6 +240,13 @@ declare module '@tanstack/react-router' {
       path: '/reset-password'
       fullPath: '/reset-password'
       preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/cardapio': {
+      id: '/cardapio'
+      path: '/cardapio'
+      fullPath: '/cardapio'
+      preLoaderRoute: typeof CardapioRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth': {
@@ -361,6 +381,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
+  CardapioRoute: CardapioRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   ApiPublicBootstrapAdminRoute: ApiPublicBootstrapAdminRoute,
   ApiPublicSetAdminPasswordRoute: ApiPublicSetAdminPasswordRoute,
