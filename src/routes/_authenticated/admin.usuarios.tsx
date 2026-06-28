@@ -1,7 +1,8 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
+import { AdminShell } from "@/components/admin/AdminShell";
 import {
   listAccessUsers,
   approveUser,
@@ -28,7 +29,7 @@ function UsuariosPage() {
   const isAdmin = roles.includes("admin");
 
   useEffect(() => {
-    if (!isAdmin) navigate({ to: "/admin/pedidos", replace: true });
+    if (!isAdmin) navigate({ to: "/admin/dashboard", replace: true });
   }, [isAdmin, navigate]);
 
   const list = useServerFn(listAccessUsers);
@@ -66,22 +67,10 @@ function UsuariosPage() {
   const rejected = users.filter((u) => u.status === "rejected");
 
   return (
-    <div className="min-h-screen bg-background px-5 py-8">
-      <div className="mx-auto max-w-3xl">
-        <header className="mb-6 flex items-center justify-between gap-4">
-          <div>
-            <h1 className="font-display text-2xl text-primary">Acessos do painel</h1>
-            <p className="text-sm text-muted-foreground">
-              Aprovar novos funcionários e gerenciar quem pode operar pedidos.
-            </p>
-          </div>
-          <Link
-            to="/admin/pedidos"
-            className="rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground hover:bg-secondary"
-          >
-            ← Pedidos
-          </Link>
-        </header>
+    <AdminShell user={user} roles={roles} title="Acessos do painel">
+      <p className="mb-4 text-sm text-muted-foreground">
+        Aprovar novos funcionários e gerenciar quem pode operar pedidos.
+      </p>
 
         {usersQuery.isLoading && (
           <p className="text-sm text-muted-foreground">Carregando…</p>
@@ -180,8 +169,7 @@ function UsuariosPage() {
             ))}
           </Section>
         )}
-      </div>
-    </div>
+    </AdminShell>
   );
 }
 
