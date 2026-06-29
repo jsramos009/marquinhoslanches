@@ -6,7 +6,6 @@ import logoAsset from "@/assets/logo.png.asset.json";
 import { menuQueryOptions, formatBRL, isHamburgerCategory, type Product, type Addon } from "@/lib/menu";
 import { decodeRepeatToken } from "@/lib/order-flow";
 import { buildPixPayload } from "@/lib/pix";
-import QRCode from "qrcode";
 import { submitPublicOrder } from "@/lib/orders-public.functions";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
@@ -665,7 +664,10 @@ function CartDialog({
   useEffect(() => {
     if (step !== "pix") return;
     let active = true;
-    QRCode.toDataURL(pixPayload, { margin: 1, width: 320 })
+    import("qrcode")
+      .then(({ default: QRCode }) =>
+        QRCode.toDataURL(pixPayload, { margin: 1, width: 320 }),
+      )
       .then((url) => {
         if (active) setPixQr(url);
       })
