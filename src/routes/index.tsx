@@ -1132,7 +1132,7 @@ function CartDialog({
                       <option value="">Selecione o bairro…</option>
                       {deliveryFees.map((d) => (
                         <option key={d.id} value={d.id}>
-                          {d.neighborhood} — {formatBRL(d.fee)}
+                          {d.neighborhood}
                         </option>
                       ))}
                     </select>
