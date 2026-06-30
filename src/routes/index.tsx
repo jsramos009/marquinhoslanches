@@ -403,8 +403,9 @@ function BrandHeader() {
           <p className="font-display text-xs uppercase tracking-[0.3em] text-primary/90">
             Cardápio Digital
           </p>
-          <h1 className="truncate font-display text-3xl text-primary sm:text-4xl">
-            Marquinhos Lanches
+          <h1 className="font-display text-3xl leading-tight text-primary sm:text-4xl">
+            <span className="block">Marquinhos</span>
+            <span className="block">Lanches</span>
           </h1>
           <a
             href={`https://wa.me/${WHATSAPP_NUMBER}`}
