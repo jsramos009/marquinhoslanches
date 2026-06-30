@@ -1180,7 +1180,10 @@ function CartDialog({
                     <select
                       className="cart-input"
                       value={neighborhoodId}
-                      onChange={(e) => setNeighborhoodId(e.target.value)}
+                      onChange={(e) => {
+                        neighborhoodManualRef.current = true;
+                        setNeighborhoodId(e.target.value);
+                      }}
                     >
                       <option value="">Selecione o bairro…</option>
                       {deliveryFees.map((d) => (
@@ -1224,13 +1227,12 @@ function CartDialog({
                   </button>
                   {geo && mapsLink && (
                     <div className="rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-200">
-                      <p className="font-semibold">📍 Localização capturada</p>
-                      <p className="mt-0.5 break-all">
-                        {geo.lat.toFixed(6)}, {geo.lng.toFixed(6)}{" "}
-                        <span className="opacity-80">
-                          (±{Math.round(geo.accuracy)}m)
-                        </span>
+                      <p className="font-semibold">
+                        📍 {geo.label || geo.neighborhood || "Localização capturada"}
                       </p>
+                      {geo.city && geo.neighborhood && (
+                        <p className="mt-0.5 opacity-80">{geo.city}</p>
+                      )}
                       <a
                         href={mapsLink}
                         target="_blank"
