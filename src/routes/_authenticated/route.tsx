@@ -14,23 +14,30 @@ export const Route = createFileRoute("/_authenticated")({
         search: { redirect: location.href },
       });
     }
-    let access: PanelAccess;
+    let access: PanelAccess = { roles: [], accessStatus: "none" };
     try {
       access = await getMyPanelAccess();
-    } catch {
-      const { data: rows, error: rolesError } = await supabase
-        .from("user_roles")
-        .select("role, status")
-        .eq("user_id", data.user.id);
-      if (rolesError) throw rolesError;
-      const all = rows ?? [];
-      const approved = all.filter((r) => r.status === "approved");
-      const roles = approved.map((r) => r.role as string);
-      let accessStatus: PanelAccess["accessStatus"] = "none";
-      if (approved.length > 0) accessStatus = "approved";
-      else if (all.some((r) => r.status === "pending")) accessStatus = "pending";
-      else if (all.some((r) => r.status === "rejected")) accessStatus = "rejected";
-      access = { roles, accessStatus };
+    } catch (err) {
+      console.warn("[auth] getMyPanelAccess failed, falling back to direct query", err);
+      try {
+        const { data: rows, error: rolesError } = await supabase
+          .from("user_roles")
+          .select("role, status")
+          .eq("user_id", data.user.id);
+        if (rolesError) throw rolesError;
+        const all = rows ?? [];
+        const approved = all.filter((r) => r.status === "approved");
+        const roles = approved.map((r) => r.role as string);
+        let accessStatus: PanelAccess["accessStatus"] = "none";
+        if (approved.length > 0) accessStatus = "approved";
+        else if (all.some((r) => r.status === "pending")) accessStatus = "pending";
+        else if (all.some((r) => r.status === "rejected")) accessStatus = "rejected";
+        access = { roles, accessStatus };
+      } catch (fallbackErr) {
+        console.error("[auth] fallback user_roles query failed", fallbackErr);
+        // Don't crash the route — let the layout show the "no access" UI.
+        access = { roles: [], accessStatus: "none" };
+      }
     }
     return {
       user: data.user,
