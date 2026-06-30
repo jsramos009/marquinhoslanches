@@ -629,9 +629,17 @@ function CartDialog({
   type PayMethod = "pix" | "cartao_credito" | "cartao_debito" | "dinheiro";
   const [payment, setPayment] = useState<PayMethod | null>(null);
   const [changeFor, setChangeFor] = useState<string>("");
-  const [geo, setGeo] = useState<{ lat: number; lng: number; accuracy: number } | null>(null);
+  const [geo, setGeo] = useState<{
+    lat: number;
+    lng: number;
+    accuracy: number;
+    neighborhood?: string;
+    city?: string;
+    label?: string;
+  } | null>(null);
   const [geoStatus, setGeoStatus] = useState<"idle" | "loading" | "error">("idle");
   const [geoError, setGeoError] = useState<string>("");
+  const neighborhoodManualRef = useRef(false);
   const [step, setStep] = useState<"form" | "pix">("form");
   const [pixQr, setPixQr] = useState<string>("");
   const [pixCopied, setPixCopied] = useState(false);
@@ -705,12 +713,55 @@ function CartDialog({
     setGeoStatus("loading");
     setGeoError("");
     navigator.geolocation.getCurrentPosition(
-      (pos) => {
+      async (pos) => {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        let neighborhood: string | undefined;
+        let city: string | undefined;
+        let label: string | undefined;
+        try {
+          const res = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&accept-language=pt-BR&zoom=16`,
+            { headers: { Accept: "application/json" } },
+          );
+          if (res.ok) {
+            const data: { address?: Record<string, string>; display_name?: string } =
+              await res.json();
+            const a = data.address ?? {};
+            neighborhood =
+              a.neighbourhood ||
+              a.suburb ||
+              a.quarter ||
+              a.city_district ||
+              a.residential ||
+              a.village ||
+              a.hamlet;
+            city = a.city || a.town || a.municipality || a.county;
+            label = [neighborhood, city].filter(Boolean).join(", ");
+          }
+        } catch {
+          // ignore — vamos mostrar só "Localização capturada"
+        }
         setGeo({
-          lat: pos.coords.latitude,
-          lng: pos.coords.longitude,
+          lat,
+          lng,
           accuracy: pos.coords.accuracy,
+          neighborhood,
+          city,
+          label,
         });
+        // Vincula bairro automaticamente se o cliente ainda não escolheu manualmente
+        if (neighborhood && !neighborhoodManualRef.current) {
+          const norm = (s: string) =>
+            s
+              .toLowerCase()
+              .normalize("NFD")
+              .replace(/[\u0300-\u036f]/g, "")
+              .trim();
+          const target = norm(neighborhood);
+          const match = deliveryFees.find((f) => norm(f.neighborhood) === target);
+          if (match) setNeighborhoodId(match.id);
+        }
         setGeoStatus("idle");
       },
       (err) => {
@@ -738,7 +789,8 @@ function CartDialog({
     if (mode === "delivery" && address)
       lines.push(`*Endereço:* ${address}`);
     if (mode === "delivery" && mapsLink) {
-      lines.push(`*Localização (GPS):* ${mapsLink}`);
+      const placeLabel = geo?.label || geo?.neighborhood || "Localização compartilhada";
+      lines.push(`*Localização:* ${placeLabel} — ${mapsLink}`);
     }
     lines.push("");
     lines.push("*Itens:*");
@@ -1128,7 +1180,10 @@ function CartDialog({
                     <select
                       className="cart-input"
                       value={neighborhoodId}
-                      onChange={(e) => setNeighborhoodId(e.target.value)}
+                      onChange={(e) => {
+                        neighborhoodManualRef.current = true;
+                        setNeighborhoodId(e.target.value);
+                      }}
                     >
                       <option value="">Selecione o bairro…</option>
                       {deliveryFees.map((d) => (
@@ -1172,13 +1227,12 @@ function CartDialog({
                   </button>
                   {geo && mapsLink && (
                     <div className="rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-200">
-                      <p className="font-semibold">📍 Localização capturada</p>
-                      <p className="mt-0.5 break-all">
-                        {geo.lat.toFixed(6)}, {geo.lng.toFixed(6)}{" "}
-                        <span className="opacity-80">
-                          (±{Math.round(geo.accuracy)}m)
-                        </span>
+                      <p className="font-semibold">
+                        📍 {geo.label || geo.neighborhood || "Localização capturada"}
                       </p>
+                      {geo.city && geo.neighborhood && (
+                        <p className="mt-0.5 opacity-80">{geo.city}</p>
+                      )}
                       <a
                         href={mapsLink}
                         target="_blank"
