@@ -14,7 +14,7 @@ import {
 import { FLOW_STATUS_LABEL, PAY_LABEL } from "@/lib/order-flow";
 
 const searchSchema = z.object({
-  d: fallback(z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(), undefined),
+  d: fallback(z.string().regex(/^\d{4}-\d{2}-\d{2}$/), "").optional(),
 });
 
 export const Route = createFileRoute("/_authenticated/admin/arquivados")({
