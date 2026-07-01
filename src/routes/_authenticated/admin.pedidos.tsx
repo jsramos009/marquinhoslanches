@@ -322,6 +322,20 @@ function OrderCard({
             WhatsApp
           </a>
         )}
+        {order.delivery_mode === "delivery" &&
+          order.status !== "cancelado" &&
+          order.status !== "entregue" && (
+            <a
+              href={buildMotoboyLink(order)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 rounded-lg border border-sky-500/40 bg-sky-500/10 px-2.5 py-1.5 text-xs font-semibold text-sky-400 hover:bg-sky-500/20"
+              title="Enviar detalhes para o motoboy no WhatsApp"
+              aria-label="Enviar para motoboy"
+            >
+              <Bike className="h-4 w-4" />
+            </a>
+          )}
         {order.status !== "entregue" && order.status !== "cancelado" && (
           <button
             disabled={busy}
