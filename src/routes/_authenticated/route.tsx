@@ -14,18 +14,31 @@ function panelAccessFromRows(rows: { role: string; status: string }[]): PanelAcc
   return { roles, accessStatus };
 }
 
+const ACCESS_CACHE_TTL_MS = 60_000;
+let accessCache:
+  | { userId: string; access: PanelAccess; expiresAt: number }
+  | undefined;
+
 async function loadPanelAccess(userId: string): Promise<PanelAccess> {
+  if (accessCache?.userId === userId && accessCache.expiresAt > Date.now()) {
+    return accessCache.access;
+  }
+
   try {
     const { data: rows, error } = await supabase
       .from("user_roles")
       .select("role, status")
       .eq("user_id", userId);
     if (error) throw error;
-    return panelAccessFromRows(rows ?? []);
+    const access = panelAccessFromRows(rows ?? []);
+    accessCache = { userId, access, expiresAt: Date.now() + ACCESS_CACHE_TTL_MS };
+    return access;
   } catch (err) {
     console.warn("[auth] direct user_roles query failed, falling back to server check", err);
     try {
-      return await getMyPanelAccess();
+      const access = await getMyPanelAccess();
+      accessCache = { userId, access, expiresAt: Date.now() + ACCESS_CACHE_TTL_MS };
+      return access;
     } catch (fallbackErr) {
       console.error("[auth] server access check failed", fallbackErr);
       return { roles: [], accessStatus: "none" };
@@ -92,6 +105,7 @@ function AuthenticatedLayout() {
 
   async function signOut() {
     setSigningOut(true);
+    accessCache = undefined;
     await queryClient.cancelQueries();
     queryClient.clear();
     await supabase.auth.signOut();
