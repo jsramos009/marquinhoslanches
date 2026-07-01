@@ -44,6 +44,30 @@ export const submitPublicOrder = createServerFn({ method: "POST" })
       "@/integrations/supabase/client.server"
     );
 
+    // Cumprimento de horário e pedido mínimo (server-side)
+    const { parseOperatingHours, isOpenNow } = await import(
+      "@/lib/business-hours"
+    );
+    const { data: settingsRows } = await supabaseAdmin
+      .from("app_settings")
+      .select("key, value")
+      .in("key", ["operating_hours", "block_when_closed", "min_order_value"]);
+    const smap: Record<string, string> = {};
+    (settingsRows ?? []).forEach((r: any) => {
+      if (r?.key) smap[r.key] = r.value ?? "";
+    });
+    const block = (smap.block_when_closed ?? "1") !== "0";
+    if (block) {
+      const hours = parseOperatingHours(smap.operating_hours);
+      const { open } = isOpenNow(hours);
+      if (!open) {
+        throw new Error(
+          "Estamos fechados no momento. Tente novamente no horário de funcionamento.",
+        );
+      }
+    }
+    const minOrder = Number(smap.min_order_value) || 0;
+
     const productIds = [...new Set(data.items.map((i) => i.product_id))];
     const addonIds = [
       ...new Set(
@@ -128,6 +152,12 @@ export const submitPublicOrder = createServerFn({ method: "POST" })
         notes: it.notes?.trim() || null,
         addons,
       });
+    }
+
+    if (minOrder > 0 && subtotal < minOrder) {
+      throw new Error(
+        `Pedido mínimo de R$ ${minOrder.toFixed(2)}. Adicione mais itens.`,
+      );
     }
 
     const deliveryMode = data.delivery_mode === "delivery" ? "delivery" : "pickup";
