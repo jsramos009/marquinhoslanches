@@ -674,11 +674,17 @@ function CartDialog({
   setCart,
   totalPrice,
   onClose,
+  blockOrders,
+  minOrderValue,
+  hoursSummary,
 }: {
   cart: CartLine[];
   setCart: React.Dispatch<React.SetStateAction<CartLine[]>>;
   totalPrice: number;
   onClose: () => void;
+  blockOrders: boolean;
+  minOrderValue: number;
+  hoursSummary?: OperatingHours;
 }) {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
