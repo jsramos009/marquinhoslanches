@@ -304,9 +304,9 @@ export function MenuPage() {
       {isClosed && (
         <div
           className={
-            "border-b px-4 py-3 text-center text-sm " +
+            "border-b px-4 py-4 text-center text-sm font-bold " +
             (blockOrders
-              ? "border-destructive/40 bg-destructive/15 text-destructive"
+              ? "border-brand-yellow/40 bg-brand-yellow text-brand-black"
               : "border-amber-500/40 bg-amber-500/10 text-amber-200")
           }
         >
