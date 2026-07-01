@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AdminShell, formatBRL } from "@/components/admin/AdminShell";
 import { isHamburgerCategory, menuQueryOptions } from "@/lib/menu";
 import { createOrder, type OrderChannel, type OrderPaymentMethod } from "@/lib/orders.functions";
@@ -50,6 +50,9 @@ function NovoPedidoPage() {
     user: { email?: string };
     roles: string[];
   };
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
   const navigate = useNavigate();
   const menu = useQuery(menuQueryOptions());
   const feesQuery = useQuery(deliveryFeesQueryOptions());
