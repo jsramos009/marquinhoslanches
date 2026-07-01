@@ -285,7 +285,7 @@ export const listRecentOrders = createServerFn({ method: "GET" })
     const { data: rows, error } = await context.supabase
       .from("orders")
       .select(
-        "id, customer_name, customer_phone, channel, status, subtotal, discount, total, notes, cancel_reason, payment_method, change_for, created_at, ready_at, delivered_at, order_items(id, product_id, product_name_snapshot, quantity, unit_price_snapshot, line_total, order_item_addons(id, addon_id, addon_name_snapshot, quantity, unit_price_snapshot))",
+        "id, customer_name, customer_phone, channel, status, subtotal, discount, total, notes, cancel_reason, payment_method, change_for, delivery_mode, delivery_fee, delivery_neighborhood, created_at, ready_at, delivered_at, order_items(id, product_id, product_name_snapshot, quantity, unit_price_snapshot, line_total, order_item_addons(id, addon_id, addon_name_snapshot, quantity, unit_price_snapshot))",
       )
       .gte("created_at", since)
       .order("created_at", { ascending: false });
@@ -304,6 +304,9 @@ export const listRecentOrders = createServerFn({ method: "GET" })
         cancel_reason: string | null;
         payment_method: OrderPaymentMethod;
         change_for: number | null;
+        delivery_mode: string | null;
+        delivery_fee: number | null;
+        delivery_neighborhood: string | null;
         created_at: string;
         ready_at: string | null;
         delivered_at: string | null;
@@ -336,6 +339,9 @@ export const listRecentOrders = createServerFn({ method: "GET" })
         cancel_reason: row.cancel_reason,
         payment_method: row.payment_method ?? "nao_informado",
         change_for: row.change_for != null ? Number(row.change_for) : null,
+        delivery_mode: (row.delivery_mode === "delivery" ? "delivery" : "pickup") as "delivery" | "pickup",
+        delivery_fee: Number(row.delivery_fee ?? 0),
+        delivery_neighborhood: row.delivery_neighborhood ?? null,
         created_at: row.created_at,
         ready_at: row.ready_at,
         delivered_at: row.delivered_at,
@@ -371,7 +377,7 @@ export const listArchivedOrders = createServerFn({ method: "GET" })
     const { data: rows, error } = await context.supabase
       .from("orders")
       .select(
-        "id, customer_name, customer_phone, channel, status, subtotal, discount, total, notes, cancel_reason, payment_method, change_for, created_at, ready_at, delivered_at, order_items(id, product_id, product_name_snapshot, quantity, unit_price_snapshot, line_total, order_item_addons(id, addon_id, addon_name_snapshot, quantity, unit_price_snapshot))",
+        "id, customer_name, customer_phone, channel, status, subtotal, discount, total, notes, cancel_reason, payment_method, change_for, delivery_mode, delivery_fee, delivery_neighborhood, created_at, ready_at, delivered_at, order_items(id, product_id, product_name_snapshot, quantity, unit_price_snapshot, line_total, order_item_addons(id, addon_id, addon_name_snapshot, quantity, unit_price_snapshot))",
       )
       .gte("created_at", since.toISOString())
       .lt("created_at", startOfToday.toISOString())
@@ -391,6 +397,9 @@ export const listArchivedOrders = createServerFn({ method: "GET" })
         cancel_reason: string | null;
         payment_method: OrderPaymentMethod;
         change_for: number | null;
+        delivery_mode: string | null;
+        delivery_fee: number | null;
+        delivery_neighborhood: string | null;
         created_at: string;
         ready_at: string | null;
         delivered_at: string | null;
@@ -423,6 +432,9 @@ export const listArchivedOrders = createServerFn({ method: "GET" })
         cancel_reason: row.cancel_reason,
         payment_method: row.payment_method ?? "nao_informado",
         change_for: row.change_for != null ? Number(row.change_for) : null,
+        delivery_mode: (row.delivery_mode === "delivery" ? "delivery" : "pickup") as "delivery" | "pickup",
+        delivery_fee: Number(row.delivery_fee ?? 0),
+        delivery_neighborhood: row.delivery_neighborhood ?? null,
         created_at: row.created_at,
         ready_at: row.ready_at,
         delivered_at: row.delivered_at,
