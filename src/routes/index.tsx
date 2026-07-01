@@ -695,6 +695,8 @@ function CartDialog({
   type PayMethod = "pix" | "cartao_credito" | "cartao_debito" | "dinheiro";
   const [payment, setPayment] = useState<PayMethod | null>(null);
   const [changeFor, setChangeFor] = useState<string>("");
+  const [saveProfile, setSaveProfile] = useState(true);
+  const [prefillNotice, setPrefillNotice] = useState<string | null>(null);
   const [geo, setGeo] = useState<{
     lat: number;
     lng: number;
@@ -716,6 +718,56 @@ function CartDialog({
   const submitOrder = useServerFn(submitPublicOrder);
   const deliveryFeesQuery = useQuery(deliveryFeesQueryOptions());
   const deliveryFees = deliveryFeesQuery.data ?? [];
+
+  // Perfil salvo por número de telefone (localStorage)
+  const profileKey = (digits: string) => `marquinhos:profile:${digits}`;
+  const onPhoneChange = (v: string) => {
+    setPhone(v);
+    if (typeof window === "undefined") return;
+    const digits = v.replace(/\D+/g, "");
+    if (digits.length < 10) return;
+    try {
+      const raw = window.localStorage.getItem(profileKey(digits));
+      if (!raw) return;
+      const p = JSON.parse(raw) as {
+        name?: string;
+        address?: string;
+        neighborhoodId?: string;
+        mode?: "delivery" | "pickup";
+        payment?: PayMethod;
+      };
+      let filled = false;
+      if (p.name && !name.trim()) { setName(p.name); filled = true; }
+      if (p.address && !address.trim()) { setAddress(p.address); filled = true; }
+      if (p.neighborhoodId && !neighborhoodId) {
+        setNeighborhoodId(p.neighborhoodId);
+        filled = true;
+      }
+      if (p.mode && !modeManualRef.current) { setMode(p.mode); filled = true; }
+      if (p.payment && !payment) { setPayment(p.payment); filled = true; }
+      if (filled) {
+        setPrefillNotice("Preenchemos com os dados do seu último pedido ✨");
+        setTimeout(() => setPrefillNotice(null), 3500);
+      }
+    } catch { /* ignore */ }
+  };
+  const persistProfile = () => {
+    if (!saveProfile || typeof window === "undefined") return;
+    const digits = phone.replace(/\D+/g, "");
+    if (digits.length < 10) return;
+    try {
+      window.localStorage.setItem(
+        profileKey(digits),
+        JSON.stringify({
+          name: name.trim(),
+          address: address.trim(),
+          neighborhoodId,
+          mode,
+          payment,
+        }),
+      );
+    } catch { /* ignore quota */ }
+  };
   const selectedFee = deliveryFees.find((f) => f.id === neighborhoodId) ?? null;
   const freightCost = mode === "delivery" && selectedFee ? selectedFee.fee : 0;
   const grandTotal = totalPrice + freightCost;
