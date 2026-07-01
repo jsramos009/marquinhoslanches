@@ -17,6 +17,7 @@ import {
   buildWhatsAppLink,
   whatsappTemplateFor,
 } from "@/lib/order-flow";
+import { useWhatsappTemplates } from "@/lib/wa-templates";
 
 export const Route = createFileRoute("/_authenticated/admin/pedidos")({
   component: PedidosPage,
