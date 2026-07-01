@@ -888,6 +888,9 @@ function CartDialog({
           customer_phone: phone,
           delivery_mode: mode,
           delivery_address: mode === "delivery" ? address : null,
+          delivery_fee: mode === "delivery" && selectedFee ? selectedFee.fee : 0,
+          delivery_neighborhood:
+            mode === "delivery" && selectedFee ? selectedFee.neighborhood : null,
           notes:
             [
               mode === "delivery" && mapsLink

@@ -105,13 +105,12 @@ export function decodeRepeatToken(token: string): RepeatPayload | null {
 }
 
 export function buildRepeatUrl(order: OrderRow): string | null {
-  const token = buildRepeatToken(order);
-  if (!token) return null;
+  if (!order?.id) return null;
   const origin =
     typeof window !== "undefined" && window.location?.origin
       ? window.location.origin
       : "";
-  return `${origin}/?r=${token}`;
+  return `${origin}/refazer/${order.id}`;
 }
 
 // ---------- Mensagens de WhatsApp prontas ----------
@@ -146,11 +145,16 @@ export function buildWhatsAppMessage(
   const name = order.customer_name?.trim() || "cliente";
   const summary = orderSummaryLines(order);
   const total = brl(order.total);
+  const fee = Number(order.delivery_fee || 0);
+  const feeLine =
+    order.delivery_mode === "delivery" && fee > 0
+      ? `\n*Subtotal:* ${brl(order.subtotal)}\n*Frete${order.delivery_neighborhood ? ` (${order.delivery_neighborhood})` : ""}:* ${brl(fee)}`
+      : "";
   const repeatUrl = buildRepeatUrl(order);
   const repeatLine = repeatUrl
     ? `\n\n🔁 Quer repetir esse pedido com 1 toque? ${repeatUrl}`
     : "";
-  const orderBlock = `\n\n📋 *Seu pedido*\n${summary}\n*Total:* ${total}`;
+  const orderBlock = `\n\n📋 *Seu pedido*\n${summary}${feeLine}\n*Total:* ${total}`;
 
   if (template === "aceito") {
     return `Olá ${name}! 👋\n\n✅ Seu pedido foi *aceito* e já está sendo preparado.\n⏱️ Tempo médio de preparo: *20 a 35 minutos*.${orderBlock}${repeatLine}\n\n— Marquinhos Lanches 🍔`;

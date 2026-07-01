@@ -4,8 +4,29 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { AdminShell, formatBRL } from "@/components/admin/AdminShell";
 import { isHamburgerCategory, menuQueryOptions } from "@/lib/menu";
-import { createOrder, type OrderChannel } from "@/lib/orders.functions";
-import { ImageIcon, Search, X } from "lucide-react";
+import { createOrder, type OrderChannel, type OrderPaymentMethod } from "@/lib/orders.functions";
+import { ImageIcon, Search, X, Minus, Plus } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+
+type DeliveryFeeOption = { id: string; neighborhood: string; fee: number };
+
+const deliveryFeesQueryOptions = () => ({
+  queryKey: ["delivery-fees", "public"],
+  queryFn: async (): Promise<DeliveryFeeOption[]> => {
+    const { data, error } = await supabase
+      .from("delivery_fees")
+      .select("id, neighborhood, fee")
+      .eq("is_active", true)
+      .order("neighborhood", { ascending: true });
+    if (error) throw error;
+    return (data ?? []).map((d: any) => ({
+      id: d.id,
+      neighborhood: d.neighborhood,
+      fee: Number(d.fee),
+    }));
+  },
+  staleTime: 5 * 60_000,
+});
 
 export const Route = createFileRoute("/_authenticated/admin/novo-pedido")({
   component: NovoPedidoPage,
@@ -31,6 +52,7 @@ function NovoPedidoPage() {
   };
   const navigate = useNavigate();
   const menu = useQuery(menuQueryOptions());
+  const feesQuery = useQuery(deliveryFeesQueryOptions());
   const create = useServerFn(createOrder);
   const mut = useMutation({
     mutationFn: create,
@@ -44,6 +66,12 @@ function NovoPedidoPage() {
   const [discount, setDiscount] = useState(0);
   const [items, setItems] = useState<DraftItem[]>([]);
   const [search, setSearch] = useState("");
+  const [customerOpen, setCustomerOpen] = useState(false);
+  const [mode, setMode] = useState<"pickup" | "delivery">("pickup");
+  const [neighborhoodId, setNeighborhoodId] = useState<string>("");
+  const [address, setAddress] = useState("");
+  const [payment, setPayment] = useState<OrderPaymentMethod>("nao_informado");
+  const [changeFor, setChangeFor] = useState<number>(0);
   const [addonDialog, setAddonDialog] = useState<{
     productId: string;
     selected: Set<string>;
@@ -51,6 +79,10 @@ function NovoPedidoPage() {
 
   const products = menu.data?.products ?? [];
   const addons = menu.data?.addons ?? [];
+  const deliveryFees = feesQuery.data ?? [];
+  const selectedFee =
+    deliveryFees.find((f) => f.id === neighborhoodId) ?? null;
+  const fee = mode === "delivery" && selectedFee ? selectedFee.fee : 0;
   const hamburgerCategoryIds = useMemo(() => {
     if (!menu.data) return new Set<string>();
     return new Set(
@@ -101,7 +133,7 @@ function NovoPedidoPage() {
     }, 0) : 0;
     return sum + (p.price + addonsTotal) * it.quantity;
   }, 0);
-  const total = Math.max(0, subtotal - discount);
+  const total = Math.max(0, subtotal - discount + fee);
 
   function addProduct(productId: string) {
     if (!productId) return;
@@ -176,13 +208,28 @@ function NovoPedidoPage() {
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (items.length === 0) return;
+    if (mode === "delivery" && deliveryFees.length > 0 && !neighborhoodId) return;
+    const addressNote =
+      mode === "delivery" && address.trim()
+        ? `Endereço: ${address.trim()}`
+        : null;
+    const combinedNotes = [notes.trim() || null, addressNote]
+      .filter(Boolean)
+      .join("\n") || null;
     mut.mutate({
       data: {
         customer_name: customer.trim() || null,
         customer_phone: phone.trim() || null,
         channel,
-        notes: notes.trim() || null,
+        notes: combinedNotes,
         discount,
+        delivery_mode: mode,
+        delivery_fee: fee,
+        delivery_neighborhood:
+          mode === "delivery" && selectedFee ? selectedFee.neighborhood : null,
+        payment_method: payment,
+        change_for:
+          payment === "dinheiro" && changeFor > total ? changeFor : null,
         items: items.map((it) => ({
           product_id: it.product_id,
           quantity: it.quantity,
@@ -196,39 +243,108 @@ function NovoPedidoPage() {
     <AdminShell user={user} roles={roles} title="Novo pedido">
       <form onSubmit={submit} className="grid gap-6 lg:grid-cols-[1fr_320px]">
         <div className="space-y-4">
-          <div className="grid gap-3 md:grid-cols-2">
-            <Field label="Cliente (opcional)">
-              <input
-                value={customer}
-                onChange={(e) => setCustomer(e.target.value)}
-                placeholder="Nome do cliente"
-                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
-              />
-            </Field>
-            <Field label="Telefone / WhatsApp">
-              <input
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                placeholder="(00) 00000-0000"
-                inputMode="tel"
-                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
-              />
-            </Field>
-          </div>
-          <div className="grid gap-3 md:grid-cols-2">
-            <Field label="Canal">
-              <select
-                value={channel}
-                onChange={(e) => setChannel(e.target.value as OrderChannel)}
-                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+          {/* Modo de entrega — primeiro passo, decide o restante */}
+          <div className="grid grid-cols-2 gap-2">
+            {(["pickup", "delivery"] as const).map((m) => (
+              <button
+                key={m}
+                type="button"
+                onClick={() => setMode(m)}
+                className={[
+                  "min-h-11 rounded-lg border px-3 py-2 text-sm font-semibold transition-colors",
+                  mode === m
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "border-border bg-card text-foreground hover:border-primary/50",
+                ].join(" ")}
               >
-                <option value="whatsapp">WhatsApp</option>
-                <option value="balcao">Balcão</option>
-                <option value="telefone">Telefone</option>
-                <option value="outro">Outro</option>
-              </select>
-            </Field>
+                {m === "pickup" ? "Balcão / Retirada" : "Entrega"}
+              </button>
+            ))}
           </div>
+
+          {/* Cliente / telefone / canal recolhíveis */}
+          <details
+            open={customerOpen || mode === "delivery"}
+            onToggle={(e) => setCustomerOpen((e.target as HTMLDetailsElement).open)}
+            className="rounded-xl border border-border bg-card/40"
+          >
+            <summary className="flex cursor-pointer list-none items-center justify-between px-3 py-2 text-sm font-semibold">
+              <span>
+                Cliente
+                {customer.trim() ? <span className="ml-2 font-normal text-muted-foreground">— {customer.trim()}</span> : null}
+              </span>
+              <span className="text-xs text-muted-foreground">
+                {mode === "delivery" ? "obrigatório" : "opcional"}
+              </span>
+            </summary>
+            <div className="grid gap-3 border-t border-border p-3 md:grid-cols-2">
+              <Field label={mode === "delivery" ? "Nome do cliente" : "Cliente (opcional)"}>
+                <input
+                  value={customer}
+                  onChange={(e) => setCustomer(e.target.value)}
+                  placeholder="Nome do cliente"
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                />
+              </Field>
+              <Field label={mode === "delivery" ? "Telefone / WhatsApp" : "Telefone (opcional)"}>
+                <input
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="(00) 00000-0000"
+                  inputMode="tel"
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                />
+              </Field>
+              <Field label="Canal">
+                <select
+                  value={channel}
+                  onChange={(e) => setChannel(e.target.value as OrderChannel)}
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                >
+                  <option value="balcao">Balcão</option>
+                  <option value="whatsapp">WhatsApp</option>
+                  <option value="telefone">Telefone</option>
+                  <option value="outro">Outro</option>
+                </select>
+              </Field>
+            </div>
+          </details>
+
+          {mode === "delivery" && (
+            <div className="space-y-3 rounded-xl border border-border bg-card/40 p-3">
+              <Field label="Bairro (frete)">
+                {feesQuery.isLoading ? (
+                  <p className="text-xs text-muted-foreground">Carregando bairros…</p>
+                ) : deliveryFees.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">
+                    Nenhum bairro cadastrado. Cadastre em Frete.
+                  </p>
+                ) : (
+                  <select
+                    value={neighborhoodId}
+                    onChange={(e) => setNeighborhoodId(e.target.value)}
+                    className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                  >
+                    <option value="">Selecione o bairro…</option>
+                    {deliveryFees.map((d) => (
+                      <option key={d.id} value={d.id}>
+                        {d.neighborhood} — {formatBRL(d.fee)}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </Field>
+              <Field label="Endereço de entrega">
+                <textarea
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  rows={2}
+                  placeholder="Rua, número, ponto de referência"
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                />
+              </Field>
+            </div>
+          )}
 
           <Field label="Buscar e adicionar produto">
             <div className="relative">
@@ -332,17 +448,31 @@ function NovoPedidoPage() {
                       <p className="text-xs text-muted-foreground">{formatBRL(p.price)} un</p>
                     </div>
                     <div className="flex items-center gap-2">
-                      <input
-                        type="number"
-                        min={1}
-                        value={it.quantity}
-                        onChange={(e) =>
-                          updateItem(it.key, {
-                            quantity: Math.max(1, Number(e.target.value) || 1),
-                          })
-                        }
-                        className="w-16 rounded-lg border border-border bg-background px-2 py-1 text-sm"
-                      />
+                      <div className="flex items-center gap-1 rounded-lg border border-border bg-background">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            updateItem(it.key, {
+                              quantity: Math.max(1, it.quantity - 1),
+                            })
+                          }
+                          className="grid h-9 w-9 place-items-center rounded-l-lg text-foreground hover:bg-secondary"
+                          aria-label="Diminuir"
+                        >
+                          <Minus size={16} />
+                        </button>
+                        <span className="w-8 text-center text-sm font-semibold">{it.quantity}</span>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            updateItem(it.key, { quantity: it.quantity + 1 })
+                          }
+                          className="grid h-9 w-9 place-items-center rounded-r-lg text-foreground hover:bg-secondary"
+                          aria-label="Aumentar"
+                        >
+                          <Plus size={16} />
+                        </button>
+                      </div>
                       <button
                         type="button"
                         onClick={() => removeItem(it.key)}
@@ -392,6 +522,9 @@ function NovoPedidoPage() {
         <aside className="space-y-3 rounded-xl border border-border bg-card p-4">
           <h2 className="text-sm font-semibold">Resumo</h2>
           <Row label="Subtotal" value={formatBRL(subtotal)} />
+          {mode === "delivery" && fee > 0 && (
+            <Row label={`Frete${selectedFee ? ` (${selectedFee.neighborhood})` : ""}`} value={formatBRL(fee)} />
+          )}
           <div>
             <label className="text-xs text-muted-foreground">Desconto (R$)</label>
             <input
@@ -403,6 +536,37 @@ function NovoPedidoPage() {
               className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
             />
           </div>
+          <div>
+            <label className="text-xs text-muted-foreground">Pagamento</label>
+            <select
+              value={payment}
+              onChange={(e) => setPayment(e.target.value as OrderPaymentMethod)}
+              className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+            >
+              <option value="nao_informado">Não informado</option>
+              <option value="dinheiro">Dinheiro</option>
+              <option value="pix">PIX</option>
+              <option value="cartao_debito">Cartão débito</option>
+              <option value="cartao_credito">Cartão crédito</option>
+            </select>
+          </div>
+          {payment === "dinheiro" && (
+            <div>
+              <label className="text-xs text-muted-foreground">Troco para (R$)</label>
+              <input
+                type="number"
+                min={0}
+                step={0.5}
+                value={changeFor || ""}
+                onChange={(e) => setChangeFor(Math.max(0, Number(e.target.value) || 0))}
+                placeholder="Deixe em branco se não precisa"
+                className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+              />
+              {changeFor > total && (
+                <p className="mt-1 text-xs text-muted-foreground">Troco: {formatBRL(changeFor - total)}</p>
+              )}
+            </div>
+          )}
           <Row label="Total" value={formatBRL(total)} bold />
           <button
             type="submit"

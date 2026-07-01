@@ -7,6 +7,8 @@ export type PublicOrderInput = {
   notes?: string | null;
   delivery_address?: string | null;
   delivery_mode?: "delivery" | "pickup";
+  delivery_fee?: number;
+  delivery_neighborhood?: string | null;
   payment_method?:
     | "pix"
     | "cartao_credito"
@@ -128,7 +130,9 @@ export const submitPublicOrder = createServerFn({ method: "POST" })
       });
     }
 
-    const total = subtotal;
+    const deliveryMode = data.delivery_mode === "delivery" ? "delivery" : "pickup";
+    const deliveryFee = deliveryMode === "delivery" ? Math.max(0, Number(data.delivery_fee) || 0) : 0;
+    const total = subtotal + deliveryFee;
     const notesParts: string[] = [];
     if (data.delivery_mode === "delivery" && data.delivery_address?.trim()) {
       notesParts.push(`Entrega: ${data.delivery_address.trim()}`);
@@ -160,6 +164,12 @@ export const submitPublicOrder = createServerFn({ method: "POST" })
           data.change_for &&
           data.change_for > 0
             ? data.change_for
+            : null,
+        delivery_mode: deliveryMode,
+        delivery_fee: deliveryFee,
+        delivery_neighborhood:
+          deliveryMode === "delivery"
+            ? data.delivery_neighborhood?.trim() || null
             : null,
       })
       .select("id")
@@ -198,4 +208,41 @@ export const submitPublicOrder = createServerFn({ method: "POST" })
     }
 
     return { id: order.id, total };
+  });
+
+/**
+ * Retorna dados m\u00ednimos de um pedido para reconstruir o carrinho no
+ * card\u00e1pio p\u00fablico via /refazer/{id}. N\u00e3o exp\u00f5e PII.
+ */
+export const getPublicOrderRepeat = createServerFn({ method: "GET" })
+  .inputValidator((d: { id: string }) => {
+    if (!d?.id || typeof d.id !== "string") throw new Error("id inv\u00e1lido");
+    return d;
+  })
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import(
+      "@/integrations/supabase/client.server"
+    );
+    const { data: order, error } = await supabaseAdmin
+      .from("orders")
+      .select(
+        "id, notes, order_items(product_id, quantity, order_item_addons(addon_id))",
+      )
+      .eq("id", data.id)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!order) throw new Error("Pedido n\u00e3o encontrado");
+    const items = ((order as any).order_items ?? [])
+      .filter((i: any) => i.product_id)
+      .map((i: any) => ({
+        p: i.product_id as string,
+        q: Math.max(1, Number(i.quantity) || 1),
+        a: ((i.order_item_addons ?? []) as any[])
+          .map((a) => a.addon_id)
+          .filter((x): x is string => typeof x === "string"),
+      }));
+    return {
+      items,
+      notes: (order as any).notes ?? null,
+    };
   });
