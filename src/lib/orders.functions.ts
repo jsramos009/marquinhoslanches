@@ -31,6 +31,9 @@ export type OrderRow = {
   cancel_reason: string | null;
   payment_method: OrderPaymentMethod;
   change_for: number | null;
+  delivery_mode: "delivery" | "pickup";
+  delivery_fee: number;
+  delivery_neighborhood: string | null;
   created_at: string;
   ready_at: string | null;
   delivered_at: string | null;
@@ -76,6 +79,9 @@ type CreateOrderInput = {
   discount?: number;
   payment_method?: OrderPaymentMethod;
   change_for?: number | null;
+  delivery_mode?: "delivery" | "pickup";
+  delivery_fee?: number;
+  delivery_neighborhood?: string | null;
   items: {
     product_id: string;
     quantity: number;
@@ -182,7 +188,10 @@ export const createOrder = createServerFn({ method: "POST" })
     }
 
     const discount = Math.max(0, Number(data.discount) || 0);
-    const total = Math.max(0, subtotal - discount);
+    const deliveryFee = Math.max(0, Number(data.delivery_fee) || 0);
+    const deliveryMode = data.delivery_mode === "delivery" ? "delivery" : "pickup";
+    const effectiveFee = deliveryMode === "delivery" ? deliveryFee : 0;
+    const total = Math.max(0, subtotal - discount + effectiveFee);
 
     const { data: order, error: oErr } = await supabase
       .from("orders")
@@ -198,6 +207,12 @@ export const createOrder = createServerFn({ method: "POST" })
         change_for:
           data.payment_method === "dinheiro" && data.change_for && data.change_for > 0
             ? data.change_for
+            : null,
+        delivery_mode: deliveryMode,
+        delivery_fee: effectiveFee,
+        delivery_neighborhood:
+          deliveryMode === "delivery"
+            ? data.delivery_neighborhood?.trim() || null
             : null,
         created_by: userId,
       })
