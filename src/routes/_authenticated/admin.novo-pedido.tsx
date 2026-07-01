@@ -243,39 +243,108 @@ function NovoPedidoPage() {
     <AdminShell user={user} roles={roles} title="Novo pedido">
       <form onSubmit={submit} className="grid gap-6 lg:grid-cols-[1fr_320px]">
         <div className="space-y-4">
-          <div className="grid gap-3 md:grid-cols-2">
-            <Field label="Cliente (opcional)">
-              <input
-                value={customer}
-                onChange={(e) => setCustomer(e.target.value)}
-                placeholder="Nome do cliente"
-                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
-              />
-            </Field>
-            <Field label="Telefone / WhatsApp">
-              <input
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                placeholder="(00) 00000-0000"
-                inputMode="tel"
-                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
-              />
-            </Field>
-          </div>
-          <div className="grid gap-3 md:grid-cols-2">
-            <Field label="Canal">
-              <select
-                value={channel}
-                onChange={(e) => setChannel(e.target.value as OrderChannel)}
-                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+          {/* Modo de entrega — primeiro passo, decide o restante */}
+          <div className="grid grid-cols-2 gap-2">
+            {(["pickup", "delivery"] as const).map((m) => (
+              <button
+                key={m}
+                type="button"
+                onClick={() => setMode(m)}
+                className={[
+                  "min-h-11 rounded-lg border px-3 py-2 text-sm font-semibold transition-colors",
+                  mode === m
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "border-border bg-card text-foreground hover:border-primary/50",
+                ].join(" ")}
               >
-                <option value="whatsapp">WhatsApp</option>
-                <option value="balcao">Balcão</option>
-                <option value="telefone">Telefone</option>
-                <option value="outro">Outro</option>
-              </select>
-            </Field>
+                {m === "pickup" ? "Balcão / Retirada" : "Entrega"}
+              </button>
+            ))}
           </div>
+
+          {/* Cliente / telefone / canal recolhíveis */}
+          <details
+            open={customerOpen || mode === "delivery"}
+            onToggle={(e) => setCustomerOpen((e.target as HTMLDetailsElement).open)}
+            className="rounded-xl border border-border bg-card/40"
+          >
+            <summary className="flex cursor-pointer list-none items-center justify-between px-3 py-2 text-sm font-semibold">
+              <span>
+                Cliente
+                {customer.trim() ? <span className="ml-2 font-normal text-muted-foreground">— {customer.trim()}</span> : null}
+              </span>
+              <span className="text-xs text-muted-foreground">
+                {mode === "delivery" ? "obrigatório" : "opcional"}
+              </span>
+            </summary>
+            <div className="grid gap-3 border-t border-border p-3 md:grid-cols-2">
+              <Field label={mode === "delivery" ? "Nome do cliente" : "Cliente (opcional)"}>
+                <input
+                  value={customer}
+                  onChange={(e) => setCustomer(e.target.value)}
+                  placeholder="Nome do cliente"
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                />
+              </Field>
+              <Field label={mode === "delivery" ? "Telefone / WhatsApp" : "Telefone (opcional)"}>
+                <input
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="(00) 00000-0000"
+                  inputMode="tel"
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                />
+              </Field>
+              <Field label="Canal">
+                <select
+                  value={channel}
+                  onChange={(e) => setChannel(e.target.value as OrderChannel)}
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                >
+                  <option value="balcao">Balcão</option>
+                  <option value="whatsapp">WhatsApp</option>
+                  <option value="telefone">Telefone</option>
+                  <option value="outro">Outro</option>
+                </select>
+              </Field>
+            </div>
+          </details>
+
+          {mode === "delivery" && (
+            <div className="space-y-3 rounded-xl border border-border bg-card/40 p-3">
+              <Field label="Bairro (frete)">
+                {feesQuery.isLoading ? (
+                  <p className="text-xs text-muted-foreground">Carregando bairros…</p>
+                ) : deliveryFees.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">
+                    Nenhum bairro cadastrado. Cadastre em Frete.
+                  </p>
+                ) : (
+                  <select
+                    value={neighborhoodId}
+                    onChange={(e) => setNeighborhoodId(e.target.value)}
+                    className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                  >
+                    <option value="">Selecione o bairro…</option>
+                    {deliveryFees.map((d) => (
+                      <option key={d.id} value={d.id}>
+                        {d.neighborhood} — {formatBRL(d.fee)}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </Field>
+              <Field label="Endereço de entrega">
+                <textarea
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  rows={2}
+                  placeholder="Rua, número, ponto de referência"
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                />
+              </Field>
+            </div>
+          )}
 
           <Field label="Buscar e adicionar produto">
             <div className="relative">
