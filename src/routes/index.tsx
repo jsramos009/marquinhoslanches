@@ -1039,6 +1039,7 @@ function CartDialog({
       setSubmittedFp(orderFingerprint);
       setSentToast(true);
       setTimeout(() => setSentToast(false), 3500);
+      persistProfile();
       return true;
     } catch (e) {
       setSubmitError(
