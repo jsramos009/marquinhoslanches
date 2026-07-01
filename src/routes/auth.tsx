@@ -6,7 +6,6 @@ import logoAsset from "@/assets/logo.png.asset.json";
 type AuthSearch = { redirect?: string };
 
 export const Route = createFileRoute("/auth")({
-  ssr: false,
   validateSearch: (search: Record<string, unknown>): AuthSearch => ({
     redirect: typeof search.redirect === "string" ? search.redirect : undefined,
   }),
@@ -31,8 +30,8 @@ function AuthPage() {
 
   useEffect(() => {
     let mounted = true;
-    supabase.auth.getUser().then(({ data }) => {
-      if (mounted && data.user) {
+    supabase.auth.getSession().then(({ data }) => {
+      if (mounted && data.session?.user) {
         navigate({ to: (search.redirect as string) || "/admin/dashboard", replace: true });
       }
     });
