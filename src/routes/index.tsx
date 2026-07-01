@@ -743,7 +743,7 @@ function CartDialog({
         setNeighborhoodId(p.neighborhoodId);
         filled = true;
       }
-      if (p.mode && !modeManualRef.current) { setMode(p.mode); filled = true; }
+      if (p.mode) { setMode(p.mode); filled = true; }
       if (p.payment && !payment) { setPayment(p.payment); filled = true; }
       if (filled) {
         setPrefillNotice("Preenchemos com os dados do seu último pedido ✨");
