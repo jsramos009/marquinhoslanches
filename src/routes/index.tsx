@@ -1393,6 +1393,23 @@ function CartDialog({
             <span>Total</span>
             <span className="text-primary">{formatBRL(grandTotal)}</span>
           </div>
+          {blockOrders && (
+            <p className="mb-2 rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-center text-xs text-destructive">
+              Estamos fechados agora. Novos pedidos só quando reabrirmos
+              {hoursSummary
+                ? ` (${DAY_KEYS.filter((d) => hoursSummary[d].enabled)
+                    .map((d) => `${DAY_LABELS[d]} ${hoursSummary[d].open}–${hoursSummary[d].close}`)
+                    .join(" · ")})`
+                : ""}
+              .
+            </p>
+          )}
+          {!blockOrders && minOrderValue > 0 && totalPrice < minOrderValue && (
+            <p className="mb-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-center text-xs text-amber-200">
+              Pedido mínimo de {formatBRL(minOrderValue)}. Faltam{" "}
+              {formatBRL(minOrderValue - totalPrice)}.
+            </p>
+          )}
           <button
             disabled={!canSubmit || submitting}
             onClick={submit}
