@@ -141,6 +141,7 @@ export function whatsappTemplateFor(status: OrderStatus): WaTemplate {
 export function buildWhatsAppMessage(
   order: OrderRow,
   template: WaTemplate,
+  overrides?: { accepted?: string; on_way?: string },
 ): string {
   const name = order.customer_name?.trim() || "cliente";
   const summary = orderSummaryLines(order);
@@ -155,6 +156,20 @@ export function buildWhatsAppMessage(
     ? `\n\n🔁 Quer repetir esse pedido com 1 toque? ${repeatUrl}`
     : "";
   const orderBlock = `\n\n📋 *Seu pedido*\n${summary}${feeLine}\n*Total:* ${total}`;
+
+  const render = (tpl: string) =>
+    tpl
+      .replace(/\{nome\}/g, name)
+      .replace(/\{pedido\}/g, summary)
+      .replace(/\{total\}/g, total)
+      .replace(/\{link\}/g, repeatUrl ?? "");
+
+  if (template === "aceito" && overrides?.accepted?.trim()) {
+    return render(overrides.accepted);
+  }
+  if (template === "a_caminho" && overrides?.on_way?.trim()) {
+    return render(overrides.on_way);
+  }
 
   if (template === "aceito") {
     return `Olá ${name}! 👋\n\n✅ Seu pedido foi *aceito* e já está sendo preparado.\n⏱️ Tempo médio de preparo: *20 a 35 minutos*.${orderBlock}${repeatLine}\n\n— Marquinhos Lanches 🍔`;
@@ -176,8 +191,9 @@ export function normalizeWhatsappNumber(phone: string | null | undefined): strin
 export function buildWhatsAppLink(
   order: OrderRow,
   template: WaTemplate,
+  overrides?: { accepted?: string; on_way?: string },
 ): string {
-  const text = encodeURIComponent(buildWhatsAppMessage(order, template));
+  const text = encodeURIComponent(buildWhatsAppMessage(order, template, overrides));
   const number = normalizeWhatsappNumber(order.customer_phone);
   return number ? `https://wa.me/${number}?text=${text}` : `https://wa.me/?text=${text}`;
 }

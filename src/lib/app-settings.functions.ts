@@ -6,6 +6,17 @@ export type AppSettings = {
   pix_merchant_name: string;
   pix_merchant_city: string;
   menu_link: string;
+  business_name: string;
+  business_phone: string;
+  business_address: string;
+  operating_hours: string; // JSON string
+  block_when_closed: string; // "1" | "0"
+  min_order_value: string; // number as string
+  service_fee_percent: string;
+  estimated_prep_minutes: string;
+  estimated_delivery_minutes: string;
+  wa_msg_accepted: string;
+  wa_msg_on_way: string;
 };
 
 const KEYS: (keyof AppSettings)[] = [
@@ -13,6 +24,17 @@ const KEYS: (keyof AppSettings)[] = [
   "pix_merchant_name",
   "pix_merchant_city",
   "menu_link",
+  "business_name",
+  "business_phone",
+  "business_address",
+  "operating_hours",
+  "block_when_closed",
+  "min_order_value",
+  "service_fee_percent",
+  "estimated_prep_minutes",
+  "estimated_delivery_minutes",
+  "wa_msg_accepted",
+  "wa_msg_on_way",
 ];
 
 async function assertAdmin(supabase: any, userId: string) {
@@ -39,12 +61,9 @@ export const getAppSettingsAdmin = createServerFn({ method: "GET" })
     (data ?? []).forEach((r: any) => {
       map[r.key] = r.value ?? "";
     });
-    return {
-      pix_key: map.pix_key ?? "",
-      pix_merchant_name: map.pix_merchant_name ?? "",
-      pix_merchant_city: map.pix_merchant_city ?? "",
-      menu_link: map.menu_link ?? "",
-    };
+    const out = {} as AppSettings;
+    for (const k of KEYS) out[k] = map[k] ?? "";
+    return out;
   });
 
 export const updateAppSettings = createServerFn({ method: "POST" })

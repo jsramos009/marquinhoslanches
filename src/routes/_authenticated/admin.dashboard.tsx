@@ -35,6 +35,7 @@ import {
   buildWhatsAppLink,
   whatsappTemplateFor,
 } from "@/lib/order-flow";
+import { useWhatsappTemplates } from "@/lib/wa-templates";
 
 export const Route = createFileRoute("/_authenticated/admin/dashboard")({
   component: DashboardPage,
@@ -433,6 +434,7 @@ function OrderMiniCard({
   onOpen: () => void;
 }) {
   const qc = useQueryClient();
+  const templates = useWhatsappTemplates();
   const advanceFn = useServerFn(updateOrderStatus);
   const advance = async (next: OrderStatus) => {
     await advanceFn({ data: { id: order.id, status: next } });
@@ -456,7 +458,7 @@ function OrderMiniCard({
   const waTemplate = whatsappTemplateFor(order.status);
   // WhatsApp só libera após aceitar (status > recebido)
   const waEnabled = order.status !== "recebido" && order.status !== "cancelado";
-  const waLink = waEnabled ? buildWhatsAppLink(order, waTemplate) : "";
+  const waLink = waEnabled ? buildWhatsAppLink(order, waTemplate, templates) : "";
 
   return (
     <div

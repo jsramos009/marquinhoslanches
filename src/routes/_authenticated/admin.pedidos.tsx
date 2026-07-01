@@ -17,6 +17,7 @@ import {
   buildWhatsAppLink,
   whatsappTemplateFor,
 } from "@/lib/order-flow";
+import { useWhatsappTemplates } from "@/lib/wa-templates";
 
 export const Route = createFileRoute("/_authenticated/admin/pedidos")({
   component: PedidosPage,
@@ -202,6 +203,7 @@ function OrderCard({
   onCancel: (reason: string) => void;
   busy: boolean;
 }) {
+  const templates = useWhatsappTemplates();
   return (
     <article className="rounded-xl border border-border bg-card p-3 shadow-sm">
       <div className="flex items-start justify-between gap-2">
@@ -246,7 +248,7 @@ function OrderCard({
         )}
         {order.status !== "recebido" && order.status !== "cancelado" && (
           <a
-            href={buildWhatsAppLink(order, whatsappTemplateFor(order.status))}
+            href={buildWhatsAppLink(order, whatsappTemplateFor(order.status), templates)}
             target="_blank"
             rel="noopener noreferrer"
             className="rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-400 hover:bg-emerald-500/20"

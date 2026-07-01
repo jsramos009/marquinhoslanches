@@ -10,6 +10,13 @@ import { submitPublicOrder } from "@/lib/orders-public.functions";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  isOpenNow,
+  parseOperatingHours,
+  DAY_LABELS,
+  DAY_KEYS,
+  type OperatingHours,
+} from "@/lib/business-hours";
 
 type DeliveryFeeOption = { id: string; neighborhood: string; fee: number };
 
@@ -44,7 +51,17 @@ const appSettingsQueryOptions = () => ({
     const { data, error } = await supabase
       .from("app_settings")
       .select("key, value")
-      .in("key", ["pix_key", "pix_merchant_name", "pix_merchant_city"]);
+      .in("key", [
+        "pix_key",
+        "pix_merchant_name",
+        "pix_merchant_city",
+        "business_name",
+        "business_phone",
+        "business_address",
+        "operating_hours",
+        "block_when_closed",
+        "min_order_value",
+      ]);
     if (error) throw error;
     const map: Record<string, string> = {};
     (data ?? []).forEach((r: any) => {
@@ -54,6 +71,12 @@ const appSettingsQueryOptions = () => ({
       pix_key: map.pix_key || PIX_KEY_FALLBACK,
       pix_merchant_name: map.pix_merchant_name || PIX_MERCHANT_NAME_FALLBACK,
       pix_merchant_city: map.pix_merchant_city || PIX_MERCHANT_CITY_FALLBACK,
+      business_name: map.business_name || "Marquinhos Lanches",
+      business_phone: map.business_phone || WHATSAPP_DISPLAY,
+      business_address: map.business_address || "",
+      operating_hours: parseOperatingHours(map.operating_hours),
+      block_when_closed: (map.block_when_closed ?? "1") !== "0",
+      min_order_value: Number(map.min_order_value) || 0,
     };
   },
   staleTime: 5 * 60_000,
@@ -98,6 +121,21 @@ export function MenuPage() {
   const [activeCat, setActiveCat] = useState<string>("");
   const [suggestionOpen, setSuggestionOpen] = useState(false);
   const [suggestionDismissed, setSuggestionDismissed] = useState(false);
+  const appSettingsQuery = useQuery(appSettingsQueryOptions());
+  const settings = appSettingsQuery.data;
+  const [nowTick, setNowTick] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => setNowTick((n) => n + 1), 60_000);
+    return () => clearInterval(t);
+  }, []);
+  const openState = useMemo(() => {
+    if (!settings) return null;
+    // nowTick força reavaliação a cada minuto
+    void nowTick;
+    return isOpenNow(settings.operating_hours);
+  }, [settings, nowTick]);
+  const isClosed = openState ? !openState.open : false;
+  const blockOrders = isClosed && (settings?.block_when_closed ?? true);
 
   const beveragesCategoryId = useMemo(
     () => data?.categories.find((c) => c.slug === "bebidas")?.id ?? null,
@@ -263,6 +301,25 @@ export function MenuPage() {
     <div className="min-h-screen bg-background pb-32">
       <BrandHeader />
 
+      {isClosed && (
+        <div
+          className={
+            "border-b px-4 py-3 text-center text-sm " +
+            (blockOrders
+              ? "border-destructive/40 bg-destructive/15 text-destructive"
+              : "border-amber-500/40 bg-amber-500/10 text-amber-200")
+          }
+        >
+          <strong>Estamos fechados no momento.</strong>{" "}
+          {openState?.nextOpenLabel
+            ? `Voltamos ${openState.nextOpenLabel}.`
+            : ""}{" "}
+          {blockOrders
+            ? "Novos pedidos só quando reabrirmos."
+            : "Você ainda pode registrar seu pedido."}
+        </div>
+      )}
+
       <nav className="sticky top-0 z-30 border-b border-border bg-background/95 backdrop-blur">
         <div className="mx-auto max-w-3xl">
           <ul className="flex gap-2 overflow-x-auto px-3 py-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -366,6 +423,9 @@ export function MenuPage() {
           setCart={setCart}
           totalPrice={totalPrice}
           onClose={() => setCartOpen(false)}
+          blockOrders={blockOrders}
+          minOrderValue={settings?.min_order_value ?? 0}
+          hoursSummary={settings?.operating_hours}
         />
       )}
 
@@ -614,11 +674,17 @@ function CartDialog({
   setCart,
   totalPrice,
   onClose,
+  blockOrders,
+  minOrderValue,
+  hoursSummary,
 }: {
   cart: CartLine[];
   setCart: React.Dispatch<React.SetStateAction<CartLine[]>>;
   totalPrice: number;
   onClose: () => void;
+  blockOrders: boolean;
+  minOrderValue: number;
+  hoursSummary?: OperatingHours;
 }) {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
@@ -835,6 +901,8 @@ function CartDialog({
     name.trim().length > 0 &&
     phone.trim().length > 0 &&
     payment !== null &&
+    !blockOrders &&
+    (minOrderValue <= 0 || totalPrice >= minOrderValue) &&
     (mode === "pickup" ||
       (address.trim().length > 0 &&
         (deliveryFees.length === 0 || neighborhoodId !== "")));
@@ -1325,6 +1393,23 @@ function CartDialog({
             <span>Total</span>
             <span className="text-primary">{formatBRL(grandTotal)}</span>
           </div>
+          {blockOrders && (
+            <p className="mb-2 rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-center text-xs text-destructive">
+              Estamos fechados agora. Novos pedidos só quando reabrirmos
+              {hoursSummary
+                ? ` (${DAY_KEYS.filter((d) => hoursSummary[d].enabled)
+                    .map((d) => `${DAY_LABELS[d]} ${hoursSummary[d].open}–${hoursSummary[d].close}`)
+                    .join(" · ")})`
+                : ""}
+              .
+            </p>
+          )}
+          {!blockOrders && minOrderValue > 0 && totalPrice < minOrderValue && (
+            <p className="mb-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-center text-xs text-amber-200">
+              Pedido mínimo de {formatBRL(minOrderValue)}. Faltam{" "}
+              {formatBRL(minOrderValue - totalPrice)}.
+            </p>
+          )}
           <button
             disabled={!canSubmit || submitting}
             onClick={submit}
