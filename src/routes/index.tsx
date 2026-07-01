@@ -795,7 +795,7 @@ function CartDialog({
     lines.push("");
     lines.push("*Itens:*");
     for (const l of cart) {
-      lines.push(`• ${l.qty}x ${l.product.name} — ${formatBRL(l.unitPrice * l.qty)}`);
+      lines.push(`• ${l.qty} > ${l.product.name} — ${formatBRL(l.unitPrice * l.qty)}`);
       if (l.addons.length)
         lines.push(`   Adicionais: ${l.addons.map((a) => a.name).join(", ")}`);
       if (l.notes) lines.push(`   Obs.: ${l.notes}`);
