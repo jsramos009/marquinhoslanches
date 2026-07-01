@@ -121,6 +121,21 @@ export function MenuPage() {
   const [activeCat, setActiveCat] = useState<string>("");
   const [suggestionOpen, setSuggestionOpen] = useState(false);
   const [suggestionDismissed, setSuggestionDismissed] = useState(false);
+  const appSettingsQuery = useQuery(appSettingsQueryOptions());
+  const settings = appSettingsQuery.data;
+  const [nowTick, setNowTick] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => setNowTick((n) => n + 1), 60_000);
+    return () => clearInterval(t);
+  }, []);
+  const openState = useMemo(() => {
+    if (!settings) return null;
+    // nowTick força reavaliação a cada minuto
+    void nowTick;
+    return isOpenNow(settings.operating_hours);
+  }, [settings, nowTick]);
+  const isClosed = openState ? !openState.open : false;
+  const blockOrders = isClosed && (settings?.block_when_closed ?? true);
 
   const beveragesCategoryId = useMemo(
     () => data?.categories.find((c) => c.slug === "bebidas")?.id ?? null,
@@ -286,6 +301,25 @@ export function MenuPage() {
     <div className="min-h-screen bg-background pb-32">
       <BrandHeader />
 
+      {isClosed && (
+        <div
+          className={
+            "border-b px-4 py-3 text-center text-sm " +
+            (blockOrders
+              ? "border-destructive/40 bg-destructive/15 text-destructive"
+              : "border-amber-500/40 bg-amber-500/10 text-amber-200")
+          }
+        >
+          <strong>Estamos fechados no momento.</strong>{" "}
+          {openState?.nextOpenLabel
+            ? `Voltamos ${openState.nextOpenLabel}.`
+            : ""}{" "}
+          {blockOrders
+            ? "Novos pedidos só quando reabrirmos."
+            : "Você ainda pode registrar seu pedido."}
+        </div>
+      )}
+
       <nav className="sticky top-0 z-30 border-b border-border bg-background/95 backdrop-blur">
         <div className="mx-auto max-w-3xl">
           <ul className="flex gap-2 overflow-x-auto px-3 py-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -389,6 +423,9 @@ export function MenuPage() {
           setCart={setCart}
           totalPrice={totalPrice}
           onClose={() => setCartOpen(false)}
+          blockOrders={blockOrders}
+          minOrderValue={settings?.min_order_value ?? 0}
+          hoursSummary={settings?.operating_hours}
         />
       )}
 
