@@ -4,8 +4,29 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { AdminShell, formatBRL } from "@/components/admin/AdminShell";
 import { isHamburgerCategory, menuQueryOptions } from "@/lib/menu";
-import { createOrder, type OrderChannel } from "@/lib/orders.functions";
-import { ImageIcon, Search, X } from "lucide-react";
+import { createOrder, type OrderChannel, type OrderPaymentMethod } from "@/lib/orders.functions";
+import { ImageIcon, Search, X, Minus, Plus } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+
+type DeliveryFeeOption = { id: string; neighborhood: string; fee: number };
+
+const deliveryFeesQueryOptions = () => ({
+  queryKey: ["delivery-fees", "public"],
+  queryFn: async (): Promise<DeliveryFeeOption[]> => {
+    const { data, error } = await supabase
+      .from("delivery_fees")
+      .select("id, neighborhood, fee")
+      .eq("is_active", true)
+      .order("neighborhood", { ascending: true });
+    if (error) throw error;
+    return (data ?? []).map((d: any) => ({
+      id: d.id,
+      neighborhood: d.neighborhood,
+      fee: Number(d.fee),
+    }));
+  },
+  staleTime: 5 * 60_000,
+});
 
 export const Route = createFileRoute("/_authenticated/admin/novo-pedido")({
   component: NovoPedidoPage,
@@ -31,6 +52,7 @@ function NovoPedidoPage() {
   };
   const navigate = useNavigate();
   const menu = useQuery(menuQueryOptions());
+  const feesQuery = useQuery(deliveryFeesQueryOptions());
   const create = useServerFn(createOrder);
   const mut = useMutation({
     mutationFn: create,
@@ -44,6 +66,12 @@ function NovoPedidoPage() {
   const [discount, setDiscount] = useState(0);
   const [items, setItems] = useState<DraftItem[]>([]);
   const [search, setSearch] = useState("");
+  const [customerOpen, setCustomerOpen] = useState(false);
+  const [mode, setMode] = useState<"pickup" | "delivery">("pickup");
+  const [neighborhoodId, setNeighborhoodId] = useState<string>("");
+  const [address, setAddress] = useState("");
+  const [payment, setPayment] = useState<OrderPaymentMethod>("nao_informado");
+  const [changeFor, setChangeFor] = useState<number>(0);
   const [addonDialog, setAddonDialog] = useState<{
     productId: string;
     selected: Set<string>;
@@ -51,6 +79,10 @@ function NovoPedidoPage() {
 
   const products = menu.data?.products ?? [];
   const addons = menu.data?.addons ?? [];
+  const deliveryFees = feesQuery.data ?? [];
+  const selectedFee =
+    deliveryFees.find((f) => f.id === neighborhoodId) ?? null;
+  const fee = mode === "delivery" && selectedFee ? selectedFee.fee : 0;
   const hamburgerCategoryIds = useMemo(() => {
     if (!menu.data) return new Set<string>();
     return new Set(
@@ -101,7 +133,7 @@ function NovoPedidoPage() {
     }, 0) : 0;
     return sum + (p.price + addonsTotal) * it.quantity;
   }, 0);
-  const total = Math.max(0, subtotal - discount);
+  const total = Math.max(0, subtotal - discount + fee);
 
   function addProduct(productId: string) {
     if (!productId) return;
@@ -176,13 +208,28 @@ function NovoPedidoPage() {
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (items.length === 0) return;
+    if (mode === "delivery" && deliveryFees.length > 0 && !neighborhoodId) return;
+    const addressNote =
+      mode === "delivery" && address.trim()
+        ? `Endereço: ${address.trim()}`
+        : null;
+    const combinedNotes = [notes.trim() || null, addressNote]
+      .filter(Boolean)
+      .join("\n") || null;
     mut.mutate({
       data: {
         customer_name: customer.trim() || null,
         customer_phone: phone.trim() || null,
         channel,
-        notes: notes.trim() || null,
+        notes: combinedNotes,
         discount,
+        delivery_mode: mode,
+        delivery_fee: fee,
+        delivery_neighborhood:
+          mode === "delivery" && selectedFee ? selectedFee.neighborhood : null,
+        payment_method: payment,
+        change_for:
+          payment === "dinheiro" && changeFor > total ? changeFor : null,
         items: items.map((it) => ({
           product_id: it.product_id,
           quantity: it.quantity,
