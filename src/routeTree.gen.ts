@@ -14,6 +14,7 @@ import { Route as CardapioRouteImport } from './routes/cardapio'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as RefazerIdRouteImport } from './routes/refazer.$id'
 import { Route as ApiPublicSetAdminPasswordRouteImport } from './routes/api/public/set-admin-password'
 import { Route as ApiPublicBootstrapAdminRouteImport } from './routes/api/public/bootstrap-admin'
 import { Route as AuthenticatedAdminUsuariosRouteImport } from './routes/_authenticated/admin.usuarios'
@@ -48,6 +49,11 @@ const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RefazerIdRoute = RefazerIdRouteImport.update({
+  id: '/refazer/$id',
+  path: '/refazer/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiPublicSetAdminPasswordRoute =
@@ -120,6 +126,7 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/cardapio': typeof CardapioRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/refazer/$id': typeof RefazerIdRoute
   '/admin/arquivados': typeof AuthenticatedAdminArquivadosRoute
   '/admin/catalogo': typeof AuthenticatedAdminCatalogoRoute
   '/admin/configuracoes': typeof AuthenticatedAdminConfiguracoesRoute
@@ -137,6 +144,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/cardapio': typeof CardapioRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/refazer/$id': typeof RefazerIdRoute
   '/admin/arquivados': typeof AuthenticatedAdminArquivadosRoute
   '/admin/catalogo': typeof AuthenticatedAdminCatalogoRoute
   '/admin/configuracoes': typeof AuthenticatedAdminConfiguracoesRoute
@@ -156,6 +164,7 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/cardapio': typeof CardapioRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/refazer/$id': typeof RefazerIdRoute
   '/_authenticated/admin/arquivados': typeof AuthenticatedAdminArquivadosRoute
   '/_authenticated/admin/catalogo': typeof AuthenticatedAdminCatalogoRoute
   '/_authenticated/admin/configuracoes': typeof AuthenticatedAdminConfiguracoesRoute
@@ -175,6 +184,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/cardapio'
     | '/reset-password'
+    | '/refazer/$id'
     | '/admin/arquivados'
     | '/admin/catalogo'
     | '/admin/configuracoes'
@@ -192,6 +202,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/cardapio'
     | '/reset-password'
+    | '/refazer/$id'
     | '/admin/arquivados'
     | '/admin/catalogo'
     | '/admin/configuracoes'
@@ -210,6 +221,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/cardapio'
     | '/reset-password'
+    | '/refazer/$id'
     | '/_authenticated/admin/arquivados'
     | '/_authenticated/admin/catalogo'
     | '/_authenticated/admin/configuracoes'
@@ -229,6 +241,7 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRoute
   CardapioRoute: typeof CardapioRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
+  RefazerIdRoute: typeof RefazerIdRoute
   ApiPublicBootstrapAdminRoute: typeof ApiPublicBootstrapAdminRoute
   ApiPublicSetAdminPasswordRoute: typeof ApiPublicSetAdminPasswordRoute
 }
@@ -268,6 +281,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/refazer/$id': {
+      id: '/refazer/$id'
+      path: '/refazer/$id'
+      fullPath: '/refazer/$id'
+      preLoaderRoute: typeof RefazerIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/set-admin-password': {
@@ -383,6 +403,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRoute,
   CardapioRoute: CardapioRoute,
   ResetPasswordRoute: ResetPasswordRoute,
+  RefazerIdRoute: RefazerIdRoute,
   ApiPublicBootstrapAdminRoute: ApiPublicBootstrapAdminRoute,
   ApiPublicSetAdminPasswordRoute: ApiPublicSetAdminPasswordRoute,
 }
