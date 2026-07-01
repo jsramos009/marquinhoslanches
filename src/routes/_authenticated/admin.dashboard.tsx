@@ -23,7 +23,7 @@ import {
   type OrderRow,
 } from "@/lib/orders.functions";
 import { ThermalReceipt } from "@/components/admin/ThermalReceipt";
-import { Printer, MessageCircle, Check } from "lucide-react";
+import { Printer, MessageCircle, Check, Bike } from "lucide-react";
 import { useNewOrderAlert } from "@/hooks/use-new-order-alert";
 import { useRealtimeOrders } from "@/hooks/use-realtime-orders";
 import { useQueryClient } from "@tanstack/react-query";
