@@ -2,13 +2,15 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { Copy, ExternalLink, Save, Share2 } from "lucide-react";
+import { Copy, ExternalLink, Save, Share2, FileDown, Loader2 } from "lucide-react";
 import { AdminShell } from "@/components/admin/AdminShell";
 import {
   getAppSettingsAdmin,
   updateAppSettings,
   type AppSettings,
 } from "@/lib/app-settings.functions";
+import { menuQueryOptions } from "@/lib/menu";
+import { buildMenuPdf } from "@/lib/menu-pdf";
 
 export const Route = createFileRoute("/_authenticated/admin/configuracoes")({
   component: ConfiguracoesPage,
@@ -50,6 +52,31 @@ function ConfiguracoesPage() {
   });
   const [copied, setCopied] = useState<string | null>(null);
   const [savedToast, setSavedToast] = useState(false);
+  const [pdfLoading, setPdfLoading] = useState(false);
+  const [pdfError, setPdfError] = useState<string | null>(null);
+  const menuQ = useQuery(menuQueryOptions());
+
+  const downloadPdf = async () => {
+    setPdfError(null);
+    setPdfLoading(true);
+    try {
+      const menu = menuQ.data ?? (await menuQ.refetch()).data;
+      if (!menu) throw new Error("Card\u00e1pio n\u00e3o carregou.");
+      const blob = await buildMenuPdf(menu);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `cardapio-marquinhos-${new Date().toISOString().slice(0, 10)}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (e) {
+      setPdfError(e instanceof Error ? e.message : "Falha ao gerar PDF.");
+    } finally {
+      setPdfLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (query.data) setForm(query.data);
@@ -134,6 +161,36 @@ function ConfiguracoesPage() {
                 >
                   <ExternalLink size={14} /> Abrir
                 </a>
+              </div>
+            </section>
+
+            <section className="rounded-2xl border border-border bg-card/40 p-5">
+              <h2 className="font-display text-lg text-primary">
+                Cardápio em PDF
+              </h2>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Baixe uma versão do cardápio (com fotos) para enviar aos clientes.
+              </p>
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={downloadPdf}
+                  disabled={pdfLoading}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-xs text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
+                >
+                  {pdfLoading ? (
+                    <>
+                      <Loader2 size={14} className="animate-spin" /> Gerando…
+                    </>
+                  ) : (
+                    <>
+                      <FileDown size={14} /> Baixar cardápio (PDF)
+                    </>
+                  )}
+                </button>
+                {pdfError && (
+                  <span className="text-xs text-destructive">{pdfError}</span>
+                )}
               </div>
             </section>
 
