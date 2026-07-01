@@ -434,56 +434,73 @@ function NovoPedidoPage() {
             </p>
           )}
 
+          <Field label="Observações">
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              rows={2}
+              placeholder="Sem cebola, ponto da carne, etc."
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+            />
+          </Field>
+        </div>
+
+        <aside className="space-y-3 rounded-xl border border-border bg-card p-4 lg:sticky lg:top-4 lg:self-start lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto">
+          <h2 className="text-sm font-semibold">Resumo do pedido</h2>
           <div className="space-y-2">
             {items.length === 0 && (
-              <p className="rounded-lg border border-dashed border-border p-4 text-center text-sm text-muted-foreground">
-                Nenhum item ainda. Adicione um produto acima.
+              <p className="rounded-lg border border-dashed border-border p-3 text-center text-xs text-muted-foreground">
+                Nenhum item ainda. Adicione um produto ao lado.
               </p>
             )}
             {items.map((it) => {
               const p = productMap.get(it.product_id);
               if (!p) return null;
               return (
-                <div key={it.key} className="rounded-xl border border-border bg-card p-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-semibold">{p.name}</p>
-                      <p className="text-xs text-muted-foreground">{formatBRL(p.price)} un</p>
+                <div key={it.key} className="rounded-lg border border-border bg-background/60 p-2">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-xs font-semibold">{p.name}</p>
+                      <p className="text-[11px] text-muted-foreground">{formatBRL(p.price)} un</p>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <div className="flex items-center gap-1 rounded-lg border border-border bg-background">
-                        <button
-                          type="button"
-                          onClick={() =>
-                            updateItem(it.key, {
-                              quantity: Math.max(1, it.quantity - 1),
-                            })
-                          }
-                          className="grid h-9 w-9 place-items-center rounded-l-lg text-foreground hover:bg-secondary"
-                          aria-label="Diminuir"
-                        >
-                          <Minus size={16} />
-                        </button>
-                        <span className="w-8 text-center text-sm font-semibold">{it.quantity}</span>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            updateItem(it.key, { quantity: it.quantity + 1 })
-                          }
-                          className="grid h-9 w-9 place-items-center rounded-r-lg text-foreground hover:bg-secondary"
-                          aria-label="Aumentar"
-                        >
-                          <Plus size={16} />
-                        </button>
-                      </div>
+                    <button
+                      type="button"
+                      onClick={() => removeItem(it.key)}
+                      className="text-muted-foreground hover:text-destructive"
+                      aria-label="Remover"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                  <div className="mt-2 flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-1 rounded-lg border border-border bg-background">
                       <button
                         type="button"
-                        onClick={() => removeItem(it.key)}
-                        className="rounded-lg border border-destructive/40 px-2 py-1 text-xs text-destructive hover:bg-destructive/10"
+                        onClick={() =>
+                          updateItem(it.key, {
+                            quantity: Math.max(1, it.quantity - 1),
+                          })
+                        }
+                        className="grid h-7 w-7 place-items-center rounded-l-lg text-foreground hover:bg-secondary"
+                        aria-label="Diminuir"
                       >
-                        Remover
+                        <Minus size={14} />
+                      </button>
+                      <span className="w-6 text-center text-xs font-semibold">{it.quantity}</span>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          updateItem(it.key, { quantity: it.quantity + 1 })
+                        }
+                        className="grid h-7 w-7 place-items-center rounded-r-lg text-foreground hover:bg-secondary"
+                        aria-label="Aumentar"
+                      >
+                        <Plus size={14} />
                       </button>
                     </div>
+                    <span className="text-xs font-semibold">
+                      {formatBRL(p.price * it.quantity)}
+                    </span>
                   </div>
                   {productAcceptsAddons(p.id) && addons.length > 0 && (
                     <div className="mt-2 flex flex-wrap gap-1">
@@ -494,7 +511,7 @@ function NovoPedidoPage() {
                             key={a.id}
                             type="button"
                             onClick={() => toggleAddon(it.key, a.id)}
-                            className={`rounded-full px-2.5 py-1 text-xs ${
+                            className={`rounded-full px-2 py-0.5 text-[10px] ${
                               active
                                 ? "bg-primary text-primary-foreground"
                                 : "border border-border bg-card text-muted-foreground hover:text-foreground"
@@ -510,20 +527,7 @@ function NovoPedidoPage() {
               );
             })}
           </div>
-
-          <Field label="Observações">
-            <textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              rows={2}
-              placeholder="Sem cebola, ponto da carne, etc."
-              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
-            />
-          </Field>
-        </div>
-
-        <aside className="space-y-3 rounded-xl border border-border bg-card p-4">
-          <h2 className="text-sm font-semibold">Resumo</h2>
+          <div className="border-t border-border pt-3" />
           <Row label="Subtotal" value={formatBRL(subtotal)} />
           {mode === "delivery" && fee > 0 && (
             <Row label={`Frete${selectedFee ? ` (${selectedFee.neighborhood})` : ""}`} value={formatBRL(fee)} />
