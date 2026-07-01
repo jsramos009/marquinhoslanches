@@ -48,12 +48,11 @@ type DraftItem = {
 function NovoPedidoPage() {
   const { user, roles } = Route.useRouteContext() as {
     user: { email?: string };
-
+    roles: string[];
+  };
   useEffect(() => {
     window.scrollTo(0, 0);
   }, []);
-    roles: string[];
-  };
   const navigate = useNavigate();
   const menu = useQuery(menuQueryOptions());
   const feesQuery = useQuery(deliveryFeesQueryOptions());
