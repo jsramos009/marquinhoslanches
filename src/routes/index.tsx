@@ -1267,10 +1267,24 @@ function CartDialog({
               <input
                 className="cart-input"
                 value={phone}
-                onChange={(e) => setPhone(e.target.value)}
+                onChange={(e) => onPhoneChange(e.target.value)}
                 placeholder="(00) 00000-0000"
                 inputMode="tel"
               />
+              <label className="mt-2 flex items-start gap-2 text-xs text-muted-foreground">
+                <input
+                  type="checkbox"
+                  checked={saveProfile}
+                  onChange={(e) => setSaveProfile(e.target.checked)}
+                  className="mt-0.5"
+                />
+                <span>
+                  Salvar meus dados neste dispositivo para a próxima compra.
+                </span>
+              </label>
+              {prefillNotice && (
+                <p className="mt-1 text-xs text-emerald-400">{prefillNotice}</p>
+              )}
             </Field>
             <Field label="Entrega ou retirada?">
               <div className="grid grid-cols-2 gap-2">
