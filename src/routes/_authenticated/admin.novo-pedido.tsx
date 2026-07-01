@@ -448,17 +448,31 @@ function NovoPedidoPage() {
                       <p className="text-xs text-muted-foreground">{formatBRL(p.price)} un</p>
                     </div>
                     <div className="flex items-center gap-2">
-                      <input
-                        type="number"
-                        min={1}
-                        value={it.quantity}
-                        onChange={(e) =>
-                          updateItem(it.key, {
-                            quantity: Math.max(1, Number(e.target.value) || 1),
-                          })
-                        }
-                        className="w-16 rounded-lg border border-border bg-background px-2 py-1 text-sm"
-                      />
+                      <div className="flex items-center gap-1 rounded-lg border border-border bg-background">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            updateItem(it.key, {
+                              quantity: Math.max(1, it.quantity - 1),
+                            })
+                          }
+                          className="grid h-9 w-9 place-items-center rounded-l-lg text-foreground hover:bg-secondary"
+                          aria-label="Diminuir"
+                        >
+                          <Minus size={16} />
+                        </button>
+                        <span className="w-8 text-center text-sm font-semibold">{it.quantity}</span>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            updateItem(it.key, { quantity: it.quantity + 1 })
+                          }
+                          className="grid h-9 w-9 place-items-center rounded-r-lg text-foreground hover:bg-secondary"
+                          aria-label="Aumentar"
+                        >
+                          <Plus size={16} />
+                        </button>
+                      </div>
                       <button
                         type="button"
                         onClick={() => removeItem(it.key)}
@@ -508,6 +522,9 @@ function NovoPedidoPage() {
         <aside className="space-y-3 rounded-xl border border-border bg-card p-4">
           <h2 className="text-sm font-semibold">Resumo</h2>
           <Row label="Subtotal" value={formatBRL(subtotal)} />
+          {mode === "delivery" && fee > 0 && (
+            <Row label={`Frete${selectedFee ? ` (${selectedFee.neighborhood})` : ""}`} value={formatBRL(fee)} />
+          )}
           <div>
             <label className="text-xs text-muted-foreground">Desconto (R$)</label>
             <input
@@ -519,6 +536,37 @@ function NovoPedidoPage() {
               className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
             />
           </div>
+          <div>
+            <label className="text-xs text-muted-foreground">Pagamento</label>
+            <select
+              value={payment}
+              onChange={(e) => setPayment(e.target.value as OrderPaymentMethod)}
+              className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+            >
+              <option value="nao_informado">Não informado</option>
+              <option value="dinheiro">Dinheiro</option>
+              <option value="pix">PIX</option>
+              <option value="cartao_debito">Cartão débito</option>
+              <option value="cartao_credito">Cartão crédito</option>
+            </select>
+          </div>
+          {payment === "dinheiro" && (
+            <div>
+              <label className="text-xs text-muted-foreground">Troco para (R$)</label>
+              <input
+                type="number"
+                min={0}
+                step={0.5}
+                value={changeFor || ""}
+                onChange={(e) => setChangeFor(Math.max(0, Number(e.target.value) || 0))}
+                placeholder="Deixe em branco se não precisa"
+                className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+              />
+              {changeFor > total && (
+                <p className="mt-1 text-xs text-muted-foreground">Troco: {formatBRL(changeFor - total)}</p>
+              )}
+            </div>
+          )}
           <Row label="Total" value={formatBRL(total)} bold />
           <button
             type="submit"
