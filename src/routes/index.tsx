@@ -10,6 +10,13 @@ import { submitPublicOrder } from "@/lib/orders-public.functions";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  isOpenNow,
+  parseOperatingHours,
+  DAY_LABELS,
+  DAY_KEYS,
+  type OperatingHours,
+} from "@/lib/business-hours";
 
 type DeliveryFeeOption = { id: string; neighborhood: string; fee: number };
 
@@ -44,7 +51,17 @@ const appSettingsQueryOptions = () => ({
     const { data, error } = await supabase
       .from("app_settings")
       .select("key, value")
-      .in("key", ["pix_key", "pix_merchant_name", "pix_merchant_city"]);
+      .in("key", [
+        "pix_key",
+        "pix_merchant_name",
+        "pix_merchant_city",
+        "business_name",
+        "business_phone",
+        "business_address",
+        "operating_hours",
+        "block_when_closed",
+        "min_order_value",
+      ]);
     if (error) throw error;
     const map: Record<string, string> = {};
     (data ?? []).forEach((r: any) => {
@@ -54,6 +71,12 @@ const appSettingsQueryOptions = () => ({
       pix_key: map.pix_key || PIX_KEY_FALLBACK,
       pix_merchant_name: map.pix_merchant_name || PIX_MERCHANT_NAME_FALLBACK,
       pix_merchant_city: map.pix_merchant_city || PIX_MERCHANT_CITY_FALLBACK,
+      business_name: map.business_name || "Marquinhos Lanches",
+      business_phone: map.business_phone || WHATSAPP_DISPLAY,
+      business_address: map.business_address || "",
+      operating_hours: parseOperatingHours(map.operating_hours),
+      block_when_closed: (map.block_when_closed ?? "1") !== "0",
+      min_order_value: Number(map.min_order_value) || 0,
     };
   },
   staleTime: 5 * 60_000,
