@@ -304,9 +304,9 @@ export function MenuPage() {
       {isClosed && (
         <div
           className={
-            "border-b px-4 py-3 text-center text-sm " +
+            "border-b px-4 py-4 text-center text-sm font-bold " +
             (blockOrders
-              ? "border-destructive/40 bg-destructive/15 text-destructive"
+              ? "border-brand-yellow/40 bg-brand-yellow text-brand-black"
               : "border-amber-500/40 bg-amber-500/10 text-amber-200")
           }
         >
@@ -1461,7 +1461,7 @@ function CartDialog({
             <span className="text-primary">{formatBRL(grandTotal)}</span>
           </div>
           {blockOrders && (
-            <p className="mb-2 rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-center text-xs text-destructive">
+            <p className="mb-3 rounded-lg border border-brand-yellow/40 bg-brand-yellow px-3 py-3 text-center text-xs font-bold text-brand-black">
               Estamos fechados agora. Novos pedidos só quando reabrirmos
               {hoursSummary
                 ? ` (${DAY_KEYS.filter((d) => hoursSummary[d].enabled)
