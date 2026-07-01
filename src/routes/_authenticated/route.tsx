@@ -4,49 +4,93 @@ import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { getMyPanelAccess, type PanelAccess } from "@/lib/access.functions";
 
+function panelAccessFromRows(rows: { role: string; status: string }[]): PanelAccess {
+  const approved = rows.filter((r) => r.status === "approved");
+  const roles = approved.map((r) => r.role);
+  let accessStatus: PanelAccess["accessStatus"] = "none";
+  if (approved.length > 0) accessStatus = "approved";
+  else if (rows.some((r) => r.status === "pending")) accessStatus = "pending";
+  else if (rows.some((r) => r.status === "rejected")) accessStatus = "rejected";
+  return { roles, accessStatus };
+}
+
+const ACCESS_CACHE_TTL_MS = 60_000;
+let accessCache:
+  | { userId: string; access: PanelAccess; expiresAt: number }
+  | undefined;
+
+async function loadPanelAccess(userId: string): Promise<PanelAccess> {
+  if (accessCache?.userId === userId && accessCache.expiresAt > Date.now()) {
+    return accessCache.access;
+  }
+
+  try {
+    const { data: rows, error } = await supabase
+      .from("user_roles")
+      .select("role, status")
+      .eq("user_id", userId);
+    if (error) throw error;
+    const access = panelAccessFromRows(rows ?? []);
+    accessCache = { userId, access, expiresAt: Date.now() + ACCESS_CACHE_TTL_MS };
+    return access;
+  } catch (err) {
+    console.warn("[auth] direct user_roles query failed, falling back to server check", err);
+    try {
+      const access = await getMyPanelAccess();
+      accessCache = { userId, access, expiresAt: Date.now() + ACCESS_CACHE_TTL_MS };
+      return access;
+    } catch (fallbackErr) {
+      console.error("[auth] server access check failed", fallbackErr);
+      return { roles: [], accessStatus: "none" };
+    }
+  }
+}
+
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
   beforeLoad: async ({ location }) => {
-    const { data, error } = await supabase.auth.getUser();
-    if (error || !data.user) {
+    const { data: sessionData } = await supabase.auth.getSession();
+    let user = sessionData.session?.user ?? null;
+
+    if (!user) {
+      const { data, error } = await supabase.auth.getUser();
+      if (error || !data.user) {
+        throw redirect({
+          to: "/auth",
+          search: { redirect: location.href },
+        });
+      }
+      user = data.user;
+    }
+
+    if (!user) {
       throw redirect({
         to: "/auth",
         search: { redirect: location.href },
       });
     }
-    let access: PanelAccess = { roles: [], accessStatus: "none" };
-    try {
-      access = await getMyPanelAccess();
-    } catch (err) {
-      console.warn("[auth] getMyPanelAccess failed, falling back to direct query", err);
-      try {
-        const { data: rows, error: rolesError } = await supabase
-          .from("user_roles")
-          .select("role, status")
-          .eq("user_id", data.user.id);
-        if (rolesError) throw rolesError;
-        const all = rows ?? [];
-        const approved = all.filter((r) => r.status === "approved");
-        const roles = approved.map((r) => r.role as string);
-        let accessStatus: PanelAccess["accessStatus"] = "none";
-        if (approved.length > 0) accessStatus = "approved";
-        else if (all.some((r) => r.status === "pending")) accessStatus = "pending";
-        else if (all.some((r) => r.status === "rejected")) accessStatus = "rejected";
-        access = { roles, accessStatus };
-      } catch (fallbackErr) {
-        console.error("[auth] fallback user_roles query failed", fallbackErr);
-        // Don't crash the route — let the layout show the "no access" UI.
-        access = { roles: [], accessStatus: "none" };
-      }
-    }
+
+    const access = await loadPanelAccess(user.id);
     return {
-      user: data.user,
+      user,
       roles: access.roles,
       accessStatus: access.accessStatus,
     };
   },
+  pendingComponent: AdminRouteLoading,
   component: AuthenticatedLayout,
 });
+
+function AdminRouteLoading() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-background px-4 py-10">
+      <div className="text-center">
+        <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-border border-t-primary" />
+        <p className="mt-3 text-sm text-muted-foreground">Abrindo painel…</p>
+      </div>
+    </div>
+  );
+}
 
 function AuthenticatedLayout() {
   const { user, accessStatus } = Route.useRouteContext() as {
@@ -61,6 +105,7 @@ function AuthenticatedLayout() {
 
   async function signOut() {
     setSigningOut(true);
+    accessCache = undefined;
     await queryClient.cancelQueries();
     queryClient.clear();
     await supabase.auth.signOut();
