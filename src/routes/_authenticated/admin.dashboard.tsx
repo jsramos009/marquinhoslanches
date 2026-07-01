@@ -124,15 +124,15 @@ function DashboardPage() {
         </div>
       }
     >
-      {q.isLoading && <p className="text-sm text-muted-foreground">Carregando métricas…</p>}
-      {q.error && <p className="text-sm text-destructive">{(q.error as Error).message}</p>}
+      <div className="space-y-6">
+        {/* Pedidos do dia carregam imediatamente, sem esperar os gráficos. */}
+        <TodayOrdersGrid />
 
-      {m && (
-        <div className="space-y-6">
-          {/* Pedidos do dia (cards) */}
-          <TodayOrdersGrid />
+        {q.isLoading && <MetricsLoading />}
+        {q.error && <p className="text-sm text-destructive">{(q.error as Error).message}</p>}
 
-          {/* KPIs */}
+        {m && (
+          <>
           <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
             <Kpi
               label="Faturamento"
@@ -158,135 +158,146 @@ function DashboardPage() {
             />
           </div>
 
-          {/* Revenue chart */}
-          <Card title="Faturamento por dia">
-            <div className="h-64 w-full">
-              <ResponsiveContainer>
-                <LineChart data={m.series} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                  <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" vertical={false} />
-                  <XAxis dataKey="day" stroke="var(--muted-foreground)" fontSize={11} />
-                  <YAxis stroke="var(--muted-foreground)" fontSize={11} />
-                  <Tooltip
-                    contentStyle={{
-                      background: "var(--card)",
-                      border: "1px solid var(--border)",
-                      borderRadius: 8,
-                      color: "var(--foreground)",
-                    }}
-                    formatter={(v: number) => formatBRL(Number(v))}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="revenue"
-                    stroke="var(--primary)"
-                    strokeWidth={2.5}
-                    dot={{ r: 3, fill: "var(--primary)" }}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-            {m.series.length === 0 && (
-              <p className="text-center text-sm text-muted-foreground">Sem vendas no período.</p>
-            )}
-          </Card>
-
-          <div className="grid gap-4 md:grid-cols-2">
-            {/* Funnel of status */}
-            <Card title="Funil de status">
-              <div className="space-y-2">
-                {STATUS_ORDER.map((s) => {
-                  const n = statusMap.get(s) ?? 0;
-                  const max = Math.max(
-                    1,
-                    ...STATUS_ORDER.map((x) => statusMap.get(x) ?? 0),
-                  );
-                  const w = (n / max) * 100;
-                  return (
-                    <div key={s}>
-                      <div className="mb-1 flex items-center justify-between text-xs">
-                        <span className="text-muted-foreground">{STATUS_LABEL[s]}</span>
-                        <span className="font-mono text-foreground">{n}</span>
-                      </div>
-                      <div className="h-2 w-full overflow-hidden rounded-full bg-secondary">
-                        <div
-                          className={`h-full rounded-full ${
-                            s === "cancelado" ? "bg-destructive" : "bg-primary"
-                          }`}
-                          style={{ width: `${w}%` }}
-                        />
-                      </div>
-                    </div>
-                  );
-                })}
+            <Card title="Faturamento por dia">
+              <div className="h-64 w-full">
+                <ResponsiveContainer>
+                  <LineChart data={m.series} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                    <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" vertical={false} />
+                    <XAxis dataKey="day" stroke="var(--muted-foreground)" fontSize={11} />
+                    <YAxis stroke="var(--muted-foreground)" fontSize={11} />
+                    <Tooltip
+                      contentStyle={{
+                        background: "var(--card)",
+                        border: "1px solid var(--border)",
+                        borderRadius: 8,
+                        color: "var(--foreground)",
+                      }}
+                      formatter={(v: number) => formatBRL(Number(v))}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="revenue"
+                      stroke="var(--primary)"
+                      strokeWidth={2.5}
+                      dot={{ r: 3, fill: "var(--primary)" }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
               </div>
-            </Card>
-
-            {/* Top products */}
-            <Card title="Top produtos (receita)">
-              {m.top_products.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Sem dados no período.</p>
-              ) : (
-                <div className="h-64 w-full">
-                  <ResponsiveContainer>
-                    <BarChart
-                      data={m.top_products.slice(0, 8)}
-                      layout="vertical"
-                      margin={{ top: 0, right: 10, left: 8, bottom: 0 }}
-                    >
-                      <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" horizontal={false} />
-                      <XAxis type="number" stroke="var(--muted-foreground)" fontSize={11} />
-                      <YAxis
-                        type="category"
-                        dataKey="name"
-                        stroke="var(--muted-foreground)"
-                        fontSize={11}
-                        width={110}
-                      />
-                      <Tooltip
-                        contentStyle={{
-                          background: "var(--card)",
-                          border: "1px solid var(--border)",
-                          borderRadius: 8,
-                          color: "var(--foreground)",
-                        }}
-                        formatter={(v: number) => formatBRL(Number(v))}
-                      />
-                      <Bar dataKey="revenue" fill="var(--primary)" radius={[0, 4, 4, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
+              {m.series.length === 0 && (
+                <p className="text-center text-sm text-muted-foreground">Sem vendas no período.</p>
               )}
             </Card>
-          </div>
 
-          {/* Idle products */}
-          <Card
-            title="Produtos parados no período"
-            subtitle="Cadastrados como ativos mas sem nenhuma venda."
-          >
-            {m.idle_products.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                Tudo girando — nenhum produto ativo sem venda.
-              </p>
-            ) : (
-              <ul className="grid gap-1 md:grid-cols-2">
-                {m.idle_products.map((p) => (
-                  <li
-                    key={p.id}
-                    className="flex items-center justify-between rounded-lg border border-border bg-card/60 px-3 py-2 text-sm"
-                  >
-                    <span className="truncate">{p.name}</span>
-                    <span className="ml-2 shrink-0 font-mono text-xs text-muted-foreground">
-                      {formatBRL(Number(p.price))}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </Card>
-        </div>
-      )}
+            <div className="grid gap-4 md:grid-cols-2">
+              <Card title="Funil de status">
+                <div className="space-y-2">
+                  {STATUS_ORDER.map((s) => {
+                    const n = statusMap.get(s) ?? 0;
+                    const max = Math.max(
+                      1,
+                      ...STATUS_ORDER.map((x) => statusMap.get(x) ?? 0),
+                    );
+                    const w = (n / max) * 100;
+                    return (
+                      <div key={s}>
+                        <div className="mb-1 flex items-center justify-between text-xs">
+                          <span className="text-muted-foreground">{STATUS_LABEL[s]}</span>
+                          <span className="font-mono text-foreground">{n}</span>
+                        </div>
+                        <div className="h-2 w-full overflow-hidden rounded-full bg-secondary">
+                          <div
+                            className={`h-full rounded-full ${
+                              s === "cancelado" ? "bg-destructive" : "bg-primary"
+                            }`}
+                            style={{ width: `${w}%` }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </Card>
+
+              <Card title="Top produtos (receita)">
+                {m.top_products.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">Sem dados no período.</p>
+                ) : (
+                  <div className="h-64 w-full">
+                    <ResponsiveContainer>
+                      <BarChart
+                        data={m.top_products.slice(0, 8)}
+                        layout="vertical"
+                        margin={{ top: 0, right: 10, left: 8, bottom: 0 }}
+                      >
+                        <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" horizontal={false} />
+                        <XAxis type="number" stroke="var(--muted-foreground)" fontSize={11} />
+                        <YAxis
+                          type="category"
+                          dataKey="name"
+                          stroke="var(--muted-foreground)"
+                          fontSize={11}
+                          width={110}
+                        />
+                        <Tooltip
+                          contentStyle={{
+                            background: "var(--card)",
+                            border: "1px solid var(--border)",
+                            borderRadius: 8,
+                            color: "var(--foreground)",
+                          }}
+                          formatter={(v: number) => formatBRL(Number(v))}
+                        />
+                        <Bar dataKey="revenue" fill="var(--primary)" radius={[0, 4, 4, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
+              </Card>
+            </div>
+
+            <Card
+              title="Produtos parados no período"
+              subtitle="Cadastrados como ativos mas sem nenhuma venda."
+            >
+              {m.idle_products.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  Tudo girando — nenhum produto ativo sem venda.
+                </p>
+              ) : (
+                <ul className="grid gap-1 md:grid-cols-2">
+                  {m.idle_products.map((p) => (
+                    <li
+                      key={p.id}
+                      className="flex items-center justify-between rounded-lg border border-border bg-card/60 px-3 py-2 text-sm"
+                    >
+                      <span className="truncate">{p.name}</span>
+                      <span className="ml-2 shrink-0 font-mono text-xs text-muted-foreground">
+                        {formatBRL(Number(p.price))}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Card>
+          </>
+        )}
+      </div>
     </AdminShell>
+  );
+}
+
+function MetricsLoading() {
+  return (
+    <div className="grid grid-cols-2 gap-3 md:grid-cols-4" aria-label="Carregando métricas">
+      {Array.from({ length: 4 }).map((_, index) => (
+        <div key={index} className="rounded-xl border border-border bg-card p-4">
+          <div className="h-3 w-24 animate-pulse rounded bg-secondary" />
+          <div className="mt-3 h-7 w-28 animate-pulse rounded bg-secondary" />
+          <div className="mt-3 h-3 w-20 animate-pulse rounded bg-secondary" />
+        </div>
+      ))}
+    </div>
   );
 }
 
