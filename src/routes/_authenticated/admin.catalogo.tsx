@@ -671,15 +671,6 @@ function PhotoPicker({
           >
             <Upload size={14} /> {busy ? "Enviando…" : value ? "Trocar foto" : "Enviar foto"}
           </button>
-          <button
-            type="button"
-            onClick={handleGenerate}
-            disabled={busy || aiBusy}
-            className="flex items-center gap-1 rounded-lg border border-primary px-3 py-1.5 text-sm text-primary hover:bg-primary/10 disabled:opacity-50"
-            title="Gera uma foto a partir do nome e da descrição/ingredientes"
-          >
-            <Sparkles size={14} /> {aiBusy ? "Gerando…" : "Gerar com IA"}
-          </button>
           {value && (
             <button
               type="button"
@@ -692,7 +683,7 @@ function PhotoPicker({
           )}
         </div>
         <p className="text-xs text-muted-foreground">
-          Envie uma foto ou gere uma com IA a partir do nome e dos ingredientes.
+          Envie uma foto do item.
         </p>
         {err && <p className="text-xs text-destructive">{err}</p>}
       </div>
