@@ -901,6 +901,8 @@ function CartDialog({
     name.trim().length > 0 &&
     phone.trim().length > 0 &&
     payment !== null &&
+    !blockOrders &&
+    (minOrderValue <= 0 || totalPrice >= minOrderValue) &&
     (mode === "pickup" ||
       (address.trim().length > 0 &&
         (deliveryFees.length === 0 || neighborhoodId !== "")));
