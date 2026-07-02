@@ -569,7 +569,7 @@ function OrderMiniCard({
             </>
           )}
         </div>
-        <div className="grid grid-cols-3 gap-1">
+        <div className="grid grid-cols-4 gap-1">
           <button
             type="button"
             onClick={(e) => {
@@ -609,6 +609,22 @@ function OrderMiniCard({
             <MessageCircle className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">WhatsApp</span>
           </a>
+          {order.delivery_mode === "delivery" &&
+            order.status !== "cancelado" &&
+            order.status !== "entregue" && (
+              <a
+                href={buildMotoboyLink(order)}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className="flex items-center justify-center gap-1 rounded-md border border-sky-500/40 bg-sky-500/10 px-1 py-1.5 text-[11px] font-semibold text-sky-400 transition hover:bg-sky-500/20"
+                title="Enviar detalhes para o motoboy no WhatsApp"
+                aria-label="Enviar para motoboy"
+              >
+                <Bike className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Motoboy</span>
+              </a>
+            )}
           {action ? (
             <button
               type="button"
