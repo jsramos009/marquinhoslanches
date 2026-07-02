@@ -33,6 +33,7 @@ export type OrderRow = {
   change_for: number | null;
   delivery_mode: "delivery" | "pickup";
   delivery_fee: number;
+  delivery_address: string | null;
   delivery_neighborhood: string | null;
   created_at: string;
   ready_at: string | null;
