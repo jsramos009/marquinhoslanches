@@ -33,6 +33,7 @@ export type OrderRow = {
   change_for: number | null;
   delivery_mode: "delivery" | "pickup";
   delivery_fee: number;
+  delivery_address: string | null;
   delivery_neighborhood: string | null;
   created_at: string;
   ready_at: string | null;
@@ -81,6 +82,7 @@ type CreateOrderInput = {
   change_for?: number | null;
   delivery_mode?: "delivery" | "pickup";
   delivery_fee?: number;
+  delivery_address?: string | null;
   delivery_neighborhood?: string | null;
   items: {
     product_id: string;
@@ -210,12 +212,16 @@ export const createOrder = createServerFn({ method: "POST" })
             : null,
         delivery_mode: deliveryMode,
         delivery_fee: effectiveFee,
+        delivery_address:
+          deliveryMode === "delivery"
+            ? data.delivery_address?.trim() || null
+            : null,
         delivery_neighborhood:
           deliveryMode === "delivery"
             ? data.delivery_neighborhood?.trim() || null
             : null,
         created_by: userId,
-      })
+      } as any)
       .select("id")
       .single();
     if (oErr || !order) throw new Error(oErr?.message || "Falha ao criar pedido");
@@ -285,7 +291,7 @@ export const listRecentOrders = createServerFn({ method: "GET" })
     const { data: rows, error } = await context.supabase
       .from("orders")
       .select(
-        "id, customer_name, customer_phone, channel, status, subtotal, discount, total, notes, cancel_reason, payment_method, change_for, delivery_mode, delivery_fee, delivery_neighborhood, created_at, ready_at, delivered_at, order_items(id, product_id, product_name_snapshot, quantity, unit_price_snapshot, line_total, order_item_addons(id, addon_id, addon_name_snapshot, quantity, unit_price_snapshot))",
+        "id, customer_name, customer_phone, channel, status, subtotal, discount, total, notes, cancel_reason, payment_method, change_for, delivery_mode, delivery_fee, delivery_address, delivery_neighborhood, created_at, ready_at, delivered_at, order_items(id, product_id, product_name_snapshot, quantity, unit_price_snapshot, line_total, order_item_addons(id, addon_id, addon_name_snapshot, quantity, unit_price_snapshot))",
       )
       .gte("created_at", since)
       .order("created_at", { ascending: false });
@@ -306,6 +312,7 @@ export const listRecentOrders = createServerFn({ method: "GET" })
         change_for: number | null;
         delivery_mode: string | null;
         delivery_fee: number | null;
+        delivery_address: string | null;
         delivery_neighborhood: string | null;
         created_at: string;
         ready_at: string | null;
@@ -341,6 +348,7 @@ export const listRecentOrders = createServerFn({ method: "GET" })
         change_for: row.change_for != null ? Number(row.change_for) : null,
         delivery_mode: (row.delivery_mode === "delivery" ? "delivery" : "pickup") as "delivery" | "pickup",
         delivery_fee: Number(row.delivery_fee ?? 0),
+        delivery_address: row.delivery_address ?? null,
         delivery_neighborhood: row.delivery_neighborhood ?? null,
         created_at: row.created_at,
         ready_at: row.ready_at,
@@ -377,7 +385,7 @@ export const listArchivedOrders = createServerFn({ method: "GET" })
     const { data: rows, error } = await context.supabase
       .from("orders")
       .select(
-        "id, customer_name, customer_phone, channel, status, subtotal, discount, total, notes, cancel_reason, payment_method, change_for, delivery_mode, delivery_fee, delivery_neighborhood, created_at, ready_at, delivered_at, order_items(id, product_id, product_name_snapshot, quantity, unit_price_snapshot, line_total, order_item_addons(id, addon_id, addon_name_snapshot, quantity, unit_price_snapshot))",
+        "id, customer_name, customer_phone, channel, status, subtotal, discount, total, notes, cancel_reason, payment_method, change_for, delivery_mode, delivery_fee, delivery_address, delivery_neighborhood, created_at, ready_at, delivered_at, order_items(id, product_id, product_name_snapshot, quantity, unit_price_snapshot, line_total, order_item_addons(id, addon_id, addon_name_snapshot, quantity, unit_price_snapshot))",
       )
       .gte("created_at", since.toISOString())
       .lt("created_at", startOfToday.toISOString())
@@ -399,6 +407,7 @@ export const listArchivedOrders = createServerFn({ method: "GET" })
         change_for: number | null;
         delivery_mode: string | null;
         delivery_fee: number | null;
+        delivery_address: string | null;
         delivery_neighborhood: string | null;
         created_at: string;
         ready_at: string | null;
@@ -434,6 +443,7 @@ export const listArchivedOrders = createServerFn({ method: "GET" })
         change_for: row.change_for != null ? Number(row.change_for) : null,
         delivery_mode: (row.delivery_mode === "delivery" ? "delivery" : "pickup") as "delivery" | "pickup",
         delivery_fee: Number(row.delivery_fee ?? 0),
+        delivery_address: row.delivery_address ?? null,
         delivery_neighborhood: row.delivery_neighborhood ?? null,
         created_at: row.created_at,
         ready_at: row.ready_at,
