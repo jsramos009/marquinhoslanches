@@ -212,6 +212,10 @@ export const createOrder = createServerFn({ method: "POST" })
             : null,
         delivery_mode: deliveryMode,
         delivery_fee: effectiveFee,
+        delivery_address:
+          deliveryMode === "delivery"
+            ? data.delivery_address?.trim() || null
+            : null,
         delivery_neighborhood:
           deliveryMode === "delivery"
             ? data.delivery_neighborhood?.trim() || null
