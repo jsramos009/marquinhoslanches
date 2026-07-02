@@ -21,8 +21,6 @@ import { useWhatsappTemplates } from "@/lib/wa-templates";
 import { buildMotoboyLink } from "@/lib/motoboy";
 import { Bike } from "lucide-react";
 
-import { buildMotoboyLink } from "@/lib/motoboy";
-import { Bike } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/admin/pedidos")({
   component: PedidosPage,
