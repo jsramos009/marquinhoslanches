@@ -205,7 +205,7 @@ export const submitPublicOrder = createServerFn({ method: "POST" })
           deliveryMode === "delivery"
             ? data.delivery_neighborhood?.trim() || null
             : null,
-      })
+      } as any)
       .select("id")
       .single();
     if (oErr || !order) throw new Error(oErr?.message || "Falha ao criar pedido");
