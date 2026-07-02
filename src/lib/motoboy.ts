@@ -20,8 +20,14 @@ function extractGpsLink(notes: string | null): string | null {
 
 function extractAddressFromNotes(notes: string | null): string | null {
   if (!notes) return null;
-  const m = notes.match(/Entrega:\s*([^\n]+)/i);
-  return m ? m[1].trim() : null;
+  // Aceita tanto "Entrega:" quanto "Endereço:" (formatos legados/novos).
+  // Captura múltiplas linhas até encontrar linha em branco, "Bairro:",
+  // "Localização", "N=" ou o fim das notas.
+  const m = notes.match(
+    /(?:Endere[cç]o|Entrega)\s*:\s*([\s\S]+?)(?:\n\s*\n|\n\s*(?:Bairro|Localiza[cç][aã]o|N\s*=|✅|Pagamento|Frete|Total)|$)/i,
+  );
+  if (!m) return null;
+  return m[1].split("\n").map((l) => l.trim()).filter(Boolean).join(", ");
 }
 
 export function buildMotoboyLink(order: OrderRow): string {
