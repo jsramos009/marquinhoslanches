@@ -38,14 +38,6 @@ import {
 import { useWhatsappTemplates } from "@/lib/wa-templates";
 import { buildMotoboyLink } from "@/lib/motoboy";
 
-const PAY_LABEL_FULL: Record<OrderRow["payment_method"], string> = {
-  pix: "PIX",
-  cartao_credito: "Cartão de crédito",
-  cartao_debito: "Cartão de débito",
-  dinheiro: "Dinheiro",
-  nao_informado: "Não informado",
-};
-
 export const Route = createFileRoute("/_authenticated/admin/dashboard")({
   component: DashboardPage,
   head: () => ({
