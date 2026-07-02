@@ -402,6 +402,7 @@ export const listArchivedOrders = createServerFn({ method: "GET" })
         change_for: number | null;
         delivery_mode: string | null;
         delivery_fee: number | null;
+        delivery_address: string | null;
         delivery_neighborhood: string | null;
         created_at: string;
         ready_at: string | null;
@@ -437,6 +438,7 @@ export const listArchivedOrders = createServerFn({ method: "GET" })
         change_for: row.change_for != null ? Number(row.change_for) : null,
         delivery_mode: (row.delivery_mode === "delivery" ? "delivery" : "pickup") as "delivery" | "pickup",
         delivery_fee: Number(row.delivery_fee ?? 0),
+        delivery_address: row.delivery_address ?? null,
         delivery_neighborhood: row.delivery_neighborhood ?? null,
         created_at: row.created_at,
         ready_at: row.ready_at,
