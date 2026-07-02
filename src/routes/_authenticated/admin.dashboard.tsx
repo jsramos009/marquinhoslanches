@@ -23,7 +23,7 @@ import {
   type OrderRow,
 } from "@/lib/orders.functions";
 import { ThermalReceipt } from "@/components/admin/ThermalReceipt";
-import { Printer, MessageCircle, Check } from "lucide-react";
+import { Printer, MessageCircle, Check, Bike } from "lucide-react";
 import { useNewOrderAlert } from "@/hooks/use-new-order-alert";
 import { useRealtimeOrders } from "@/hooks/use-realtime-orders";
 import { useQueryClient } from "@tanstack/react-query";
@@ -36,6 +36,66 @@ import {
   whatsappTemplateFor,
 } from "@/lib/order-flow";
 import { useWhatsappTemplates } from "@/lib/wa-templates";
+
+const PAY_LABEL_FULL: Record<OrderRow["payment_method"], string> = {
+  pix: "PIX",
+  cartao_credito: "Cartão de crédito",
+  cartao_debito: "Cartão de débito",
+  dinheiro: "Dinheiro",
+  nao_informado: "Não informado",
+};
+
+function extractDeliveryAddress(order: OrderRow): string | null {
+  if (!order.notes) return null;
+  const m = order.notes.match(/Entrega:\s*([^\n]+)/i);
+  return m ? m[1].trim() : null;
+}
+
+function buildMotoboyLink(order: OrderRow): string {
+  const brl = (n: number) =>
+    n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  const address = extractDeliveryAddress(order);
+  const itemsTxt = order.items
+    .map((i) => {
+      const add = i.addons.length
+        ? ` (+ ${i.addons.map((a) => `${a.quantity}x ${a.addon_name_snapshot}`).join(", ")})`
+        : "";
+      return `• ${i.quantity}× ${i.product_name_snapshot}${add}`;
+    })
+    .join("\n");
+  const lines: string[] = [];
+  lines.push("🛵 *Entrega — Marquinhos Lanches*");
+  lines.push("");
+  lines.push(`*Cliente:* ${order.customer_name || "—"}`);
+  if (order.customer_phone) lines.push(`*Telefone:* ${order.customer_phone}`);
+  if (address) {
+    lines.push(`*Endereço:* ${address}`);
+    const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
+    lines.push(`*Localização:* ${mapUrl}`);
+  }
+  if (order.delivery_neighborhood)
+    lines.push(`*Bairro:* ${order.delivery_neighborhood}`);
+  lines.push("");
+  lines.push("📋 *Pedido*");
+  lines.push(itemsTxt);
+  if (order.delivery_fee && order.delivery_fee > 0) {
+    lines.push(`*Subtotal:* ${brl(order.subtotal)}`);
+    lines.push(`*Frete:* ${brl(order.delivery_fee)}`);
+  }
+  lines.push(`*Total:* ${brl(order.total)}`);
+  lines.push("");
+  lines.push(`*Pagamento:* ${PAY_LABEL_FULL[order.payment_method]}`);
+  if (order.payment_method === "dinheiro") {
+    if (order.change_for && order.change_for > order.total) {
+      const troco = order.change_for - order.total;
+      lines.push(`*Levar troco para:* ${brl(order.change_for)} (troco ${brl(troco)})`);
+    } else {
+      lines.push(`*Troco:* não precisa`);
+    }
+  }
+  const text = encodeURIComponent(lines.join("\n"));
+  return `https://wa.me/?text=${text}`;
+}
 
 export const Route = createFileRoute("/_authenticated/admin/dashboard")({
   component: DashboardPage,
@@ -509,7 +569,7 @@ function OrderMiniCard({
             </>
           )}
         </div>
-        <div className="grid grid-cols-3 gap-1">
+        <div className="grid grid-cols-4 gap-1">
           <button
             type="button"
             onClick={(e) => {
@@ -549,6 +609,22 @@ function OrderMiniCard({
             <MessageCircle className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">WhatsApp</span>
           </a>
+          {order.delivery_mode === "delivery" &&
+            order.status !== "cancelado" &&
+            order.status !== "entregue" && (
+              <a
+                href={buildMotoboyLink(order)}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className="flex items-center justify-center gap-1 rounded-md border border-sky-500/40 bg-sky-500/10 px-1 py-1.5 text-[11px] font-semibold text-sky-400 transition hover:bg-sky-500/20"
+                title="Enviar detalhes para o motoboy no WhatsApp"
+                aria-label="Enviar para motoboy"
+              >
+                <Bike className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Motoboy</span>
+              </a>
+            )}
           {action ? (
             <button
               type="button"
