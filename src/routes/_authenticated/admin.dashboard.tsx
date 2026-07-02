@@ -36,6 +36,7 @@ import {
   whatsappTemplateFor,
 } from "@/lib/order-flow";
 import { useWhatsappTemplates } from "@/lib/wa-templates";
+import { buildMotoboyLink } from "@/lib/motoboy";
 
 const PAY_LABEL_FULL: Record<OrderRow["payment_method"], string> = {
   pix: "PIX",
@@ -44,58 +45,6 @@ const PAY_LABEL_FULL: Record<OrderRow["payment_method"], string> = {
   dinheiro: "Dinheiro",
   nao_informado: "Não informado",
 };
-
-function extractDeliveryAddress(order: OrderRow): string | null {
-  if (!order.notes) return null;
-  const m = order.notes.match(/Entrega:\s*([^\n]+)/i);
-  return m ? m[1].trim() : null;
-}
-
-function buildMotoboyLink(order: OrderRow): string {
-  const brl = (n: number) =>
-    n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-  const address = extractDeliveryAddress(order);
-  const itemsTxt = order.items
-    .map((i) => {
-      const add = i.addons.length
-        ? ` (+ ${i.addons.map((a) => `${a.quantity}x ${a.addon_name_snapshot}`).join(", ")})`
-        : "";
-      return `• ${i.quantity}× ${i.product_name_snapshot}${add}`;
-    })
-    .join("\n");
-  const lines: string[] = [];
-  lines.push("🛵 *Entrega — Marquinhos Lanches*");
-  lines.push("");
-  lines.push(`*Cliente:* ${order.customer_name || "—"}`);
-  if (order.customer_phone) lines.push(`*Telefone:* ${order.customer_phone}`);
-  if (address) {
-    lines.push(`*Endereço:* ${address}`);
-    const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
-    lines.push(`*Localização:* ${mapUrl}`);
-  }
-  if (order.delivery_neighborhood)
-    lines.push(`*Bairro:* ${order.delivery_neighborhood}`);
-  lines.push("");
-  lines.push("📋 *Pedido*");
-  lines.push(itemsTxt);
-  if (order.delivery_fee && order.delivery_fee > 0) {
-    lines.push(`*Subtotal:* ${brl(order.subtotal)}`);
-    lines.push(`*Frete:* ${brl(order.delivery_fee)}`);
-  }
-  lines.push(`*Total:* ${brl(order.total)}`);
-  lines.push("");
-  lines.push(`*Pagamento:* ${PAY_LABEL_FULL[order.payment_method]}`);
-  if (order.payment_method === "dinheiro") {
-    if (order.change_for && order.change_for > order.total) {
-      const troco = order.change_for - order.total;
-      lines.push(`*Levar troco para:* ${brl(order.change_for)} (troco ${brl(troco)})`);
-    } else {
-      lines.push(`*Troco:* não precisa`);
-    }
-  }
-  const text = encodeURIComponent(lines.join("\n"));
-  return `https://wa.me/?text=${text}`;
-}
 
 export const Route = createFileRoute("/_authenticated/admin/dashboard")({
   component: DashboardPage,
