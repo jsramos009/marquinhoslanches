@@ -221,7 +221,7 @@ export const createOrder = createServerFn({ method: "POST" })
             ? data.delivery_neighborhood?.trim() || null
             : null,
         created_by: userId,
-      })
+      } as any)
       .select("id")
       .single();
     if (oErr || !order) throw new Error(oErr?.message || "Falha ao criar pedido");
