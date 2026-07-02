@@ -24,7 +24,7 @@ function extractAddressFromNotes(notes: string | null): string | null {
   // Captura múltiplas linhas até encontrar linha em branco, "Bairro:",
   // "Localização", "N=" ou o fim das notas.
   const m = notes.match(
-    /(?:Endere[cç]o|Entrega)\s*:\s*([\s\S]+?)(?:\n\s*\n|\n\s*(?:Bairro|Localiza[cç][aã]o|N\s*=|✅|Pagamento|Frete|Total)|$)/i,
+    /(?:Endere[cç]o|Entrega)\s*:\s*([\s\S]+?)(?:\n\s*\n|\n\s*(?:Bairro|Localiza[cç][aã]o|✅|Pagamento|Frete|Total)|$)/i,
   );
   if (!m) return null;
   return m[1].split("\n").map((l) => l.trim()).filter(Boolean).join(", ");
