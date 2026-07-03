@@ -88,9 +88,23 @@ export function isOpenNow(
   hours: OperatingHours,
   now: Date = new Date(),
 ): { open: boolean; today: DayHours; nextOpenLabel?: string } {
-  const dayKey = JS_TO_KEY[now.getDay()];
+  // Sempre avaliar no fuso America/Sao_Paulo (independe do fuso do cliente/SSR)
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Sao_Paulo",
+    weekday: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(now);
+  const wdMap: Record<string, number> = {
+    Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6,
+  };
+  const wd = wdMap[parts.find((p) => p.type === "weekday")?.value ?? "Sun"] ?? 0;
+  const hh = parseInt(parts.find((p) => p.type === "hour")?.value ?? "0", 10);
+  const mm = parseInt(parts.find((p) => p.type === "minute")?.value ?? "0", 10);
+  const dayKey = JS_TO_KEY[wd];
   const today = hours[dayKey];
-  const minsNow = now.getHours() * 60 + now.getMinutes();
+  const minsNow = (isFinite(hh) ? hh : 0) * 60 + (isFinite(mm) ? mm : 0);
   let open = false;
   if (today.enabled) {
     const a = toMinutes(today.open);
@@ -100,7 +114,7 @@ export function isOpenNow(
   }
   // Fallback: verifica se ainda estamos dentro do horário do dia anterior que virou
   if (!open) {
-    const prevKey = JS_TO_KEY[(now.getDay() + 6) % 7];
+    const prevKey = JS_TO_KEY[(wd + 6) % 7];
     const prev = hours[prevKey];
     if (prev.enabled) {
       const a = toMinutes(prev.open);
@@ -112,7 +126,7 @@ export function isOpenNow(
   let nextOpenLabel: string | undefined;
   if (!open) {
     for (let i = 0; i < 7; i++) {
-      const key = JS_TO_KEY[(now.getDay() + i) % 7];
+      const key = JS_TO_KEY[(wd + i) % 7];
       const d = hours[key];
       if (!d.enabled) continue;
       if (i === 0 && minsNow < toMinutes(d.open)) {
