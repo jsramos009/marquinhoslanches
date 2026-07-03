@@ -85,16 +85,15 @@ const appSettingsQueryOptions = () => ({
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Marquinhos Lanches — Cardápio Digital" },
+      { title: "Marquinhos Lanches, cardapio online" },
       {
         name: "description",
-        content:
-          "Cardápio digital da Marquinhos Lanches: hambúrgueres especiais, tradicionais, hot dogs e bebidas. Peça pelo WhatsApp.",
+        content: "Marquinhos Lanches, cardapio online",
       },
-      { property: "og:title", content: "Marquinhos Lanches — Cardápio Digital" },
+      { property: "og:title", content: "Marquinhos Lanches, cardapio online" },
       {
         property: "og:description",
-        content: "Hambúrgueres artesanais, hot dogs e bebidas. Peça já!",
+        content: "Marquinhos Lanches, cardapio online",
       },
     ],
   }),
