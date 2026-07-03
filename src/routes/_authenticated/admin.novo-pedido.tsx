@@ -7,6 +7,7 @@ import { isHamburgerCategory, menuQueryOptions } from "@/lib/menu";
 import { createOrder, type OrderChannel, type OrderPaymentMethod } from "@/lib/orders.functions";
 import { ImageIcon, Search, X, Minus, Plus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { normalizeWhatsappNumber } from "@/lib/order-flow";
 
 type DeliveryFeeOption = { id: string; neighborhood: string; fee: number };
 
@@ -59,7 +60,19 @@ function NovoPedidoPage() {
   const create = useServerFn(createOrder);
   const mut = useMutation({
     mutationFn: create,
-    onSuccess: () => navigate({ to: "/admin/pedidos" }),
+    onSuccess: () => {
+      try {
+        const text = buildCustomerSummary();
+        const number = normalizeWhatsappNumber(phone);
+        const url = number
+          ? `https://wa.me/${number}?text=${encodeURIComponent(text)}`
+          : `https://wa.me/?text=${encodeURIComponent(text)}`;
+        window.open(url, "_blank", "noopener,noreferrer");
+      } catch {
+        // se falhar a abertura, apenas segue
+      }
+      navigate({ to: "/admin/pedidos" });
+    },
   });
 
   const [customer, setCustomer] = useState("");
@@ -137,6 +150,69 @@ function NovoPedidoPage() {
     return sum + (p.price + addonsTotal) * it.quantity;
   }, 0);
   const total = Math.max(0, subtotal - discount + fee);
+
+  function buildCustomerSummary(): string {
+    const lines: string[] = [];
+    lines.push("*Resumo do seu pedido — Marquinhos Lanches*");
+    lines.push("");
+    if (customer.trim()) lines.push(`*Cliente:* ${customer.trim()}`);
+    if (phone.trim()) lines.push(`*Telefone:* ${phone.trim()}`);
+    lines.push(`*Modo:* ${mode === "delivery" ? "Entrega" : "Retirada no local"}`);
+    if (mode === "delivery" && selectedFee) {
+      lines.push(`*Bairro:* ${selectedFee.neighborhood} (frete ${formatBRL(selectedFee.fee)})`);
+    }
+    if (mode === "delivery" && address.trim()) {
+      lines.push(`*Endereço:* ${address.trim()}`);
+    }
+    lines.push("");
+    lines.push("*Itens:*");
+    for (const it of items) {
+      const p = productMap.get(it.product_id);
+      if (!p) continue;
+      const addonsTotal = productAcceptsAddons(it.product_id)
+        ? it.addons.reduce((s, a) => {
+            const ad = addonMap.get(a.addon_id);
+            return s + (ad ? ad.price * a.quantity : 0);
+          }, 0)
+        : 0;
+      const lineTotal = (p.price + addonsTotal) * it.quantity;
+      lines.push(`• ${it.quantity} > ${p.name} — ${formatBRL(lineTotal)}`);
+      if (productAcceptsAddons(it.product_id) && it.addons.length) {
+        const names = it.addons
+          .map((a) => addonMap.get(a.addon_id)?.name)
+          .filter(Boolean)
+          .join(", ");
+        if (names) lines.push(`   Adicionais: ${names}`);
+      }
+    }
+    lines.push("");
+    if (fee > 0 || discount > 0) {
+      lines.push(`*Subtotal:* ${formatBRL(subtotal)}`);
+      if (discount > 0) lines.push(`*Desconto:* -${formatBRL(discount)}`);
+      if (fee > 0) lines.push(`*Frete:* ${formatBRL(fee)}`);
+    }
+    lines.push(`*Total: ${formatBRL(total)}*`);
+    const payLabel: Record<OrderPaymentMethod, string> = {
+      nao_informado: "A combinar",
+      dinheiro: "Dinheiro",
+      pix: "PIX",
+      cartao_debito: "Cartão de Débito",
+      cartao_credito: "Cartão de Crédito",
+    };
+    lines.push(`*Pagamento:* ${payLabel[payment]}`);
+    if (payment === "dinheiro") {
+      if (changeFor > total) {
+        lines.push(`*Troco para:* ${formatBRL(changeFor)} (troco ${formatBRL(changeFor - total)})`);
+      } else {
+        lines.push(`*Troco:* Não precisa`);
+      }
+    }
+    if (notes.trim()) {
+      lines.push("");
+      lines.push(`*Observações:* ${notes.trim()}`);
+    }
+    return lines.join("\n");
+  }
 
   function addProduct(productId: string) {
     if (!productId) return;
@@ -580,8 +656,11 @@ function NovoPedidoPage() {
             disabled={mut.isPending || items.length === 0}
             className="w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-60"
           >
-            {mut.isPending ? "Salvando…" : "Lançar pedido"}
+            {mut.isPending ? "Salvando…" : "Lançar e enviar WhatsApp"}
           </button>
+          <p className="text-[11px] text-muted-foreground">
+            Ao lançar, abrimos o WhatsApp do cliente com o resumo completo do pedido.
+          </p>
           {mut.error && (
             <p className="text-xs text-destructive">{(mut.error as Error).message}</p>
           )}
