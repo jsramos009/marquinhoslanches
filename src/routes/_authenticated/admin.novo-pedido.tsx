@@ -271,7 +271,7 @@ function NovoPedidoPage() {
     }
     lines.push("");
     lines.push("*Pedido:*");
-    items.forEach((it, idx) => {
+    items.forEach((it) => {
       const p = productMap.get(it.product_id);
       if (!p) return;
       const addonsTotal = productAcceptsAddons(it.product_id)
@@ -281,7 +281,7 @@ function NovoPedidoPage() {
           }, 0)
         : 0;
       const lineTotal = (p.price + addonsTotal) * it.quantity;
-      lines.push(`${idx + 1} - ${it.quantity}x ${p.name} — ${formatBRL(lineTotal)}`);
+      lines.push(`${it.quantity}x ${p.name} — ${formatBRL(lineTotal)}`);
       if (productAcceptsAddons(it.product_id) && it.addons.length) {
         const names = it.addons
           .map((a) => addonMap.get(a.addon_id)?.name)
