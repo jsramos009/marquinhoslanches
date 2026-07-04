@@ -84,6 +84,7 @@ function NovoPedidoPage() {
   const navigate = useNavigate();
   const menu = useQuery(menuQueryOptions());
   const feesQuery = useQuery(deliveryFeesQueryOptions());
+  const pixSettingsQuery = useQuery(pixSettingsQueryOptions());
   const create = useServerFn(createOrder);
   const mut = useMutation({
     mutationFn: create,
@@ -94,11 +95,17 @@ function NovoPedidoPage() {
         const url = number
           ? `https://wa.me/${number}?text=${encodeURIComponent(text)}`
           : `https://wa.me/?text=${encodeURIComponent(text)}`;
+        setWaUrl(url);
         window.open(url, "_blank", "noopener,noreferrer");
       } catch {
         // se falhar a abertura, apenas segue
       }
-      navigate({ to: "/admin/pedidos" });
+      if (payment === "pix") {
+        // Abre modal com QR code — admin fecha depois de enviar ao cliente
+        setPixOpen(true);
+      } else {
+        navigate({ to: "/admin/pedidos" });
+      }
     },
   });
 
@@ -119,6 +126,10 @@ function NovoPedidoPage() {
     productId: string;
     selected: Set<string>;
   } | null>(null);
+  const [pixOpen, setPixOpen] = useState(false);
+  const [pixQr, setPixQr] = useState<string>("");
+  const [pixCopied, setPixCopied] = useState(false);
+  const [waUrl, setWaUrl] = useState<string>("");
 
   const products = menu.data?.products ?? [];
   const addons = menu.data?.addons ?? [];
