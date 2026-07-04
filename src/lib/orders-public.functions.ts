@@ -185,6 +185,7 @@ export const submitPublicOrder = createServerFn({ method: "POST" })
         customer_phone: data.customer_phone.trim(),
         channel: "whatsapp",
         notes,
+        status: "em_producao",
         subtotal,
         discount: 0,
         total,
