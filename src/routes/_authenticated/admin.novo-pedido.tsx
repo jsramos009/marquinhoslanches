@@ -865,6 +865,82 @@ function NovoPedidoPage() {
           </div>
         );
       })()}
+      {pixOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-4 sm:items-center"
+          onClick={closePixDialog}
+        >
+          <div
+            className="w-full max-w-md rounded-2xl border border-border bg-card p-4 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-3 flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">Pagamento PIX</p>
+                <h3 className="truncate text-base font-semibold">Envie ao cliente</h3>
+                <p className="text-xs text-muted-foreground">
+                  Valor: <span className="font-semibold text-foreground">{formatBRL(total)}</span>
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={closePixDialog}
+                className="rounded-full p-1 text-muted-foreground hover:bg-secondary hover:text-foreground"
+                aria-label="Fechar"
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <div className="flex flex-col items-center gap-3">
+              {pixQr ? (
+                <img
+                  src={pixQr}
+                  alt="QR Code PIX"
+                  width={240}
+                  height={240}
+                  className="h-60 w-60 rounded-lg border border-border bg-white p-2"
+                />
+              ) : (
+                <div className="grid h-60 w-60 place-items-center rounded-lg border border-dashed border-border text-xs text-muted-foreground">
+                  Gerando QR…
+                </div>
+              )}
+              <textarea
+                readOnly
+                value={pixPayload}
+                rows={3}
+                onFocus={(e) => e.currentTarget.select()}
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 font-mono text-[11px]"
+              />
+              <button
+                type="button"
+                onClick={copyPixCode}
+                className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90"
+              >
+                {pixCopied ? <Check size={16} /> : <Copy size={16} />}
+                {pixCopied ? "Copiado!" : "Copiar código PIX"}
+              </button>
+              {waUrl && (
+                <a
+                  href={waUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex w-full items-center justify-center rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground hover:border-primary/50"
+                >
+                  Abrir WhatsApp do cliente
+                </a>
+              )}
+              <button
+                type="button"
+                onClick={closePixDialog}
+                className="w-full rounded-lg px-3 py-2 text-xs text-muted-foreground hover:text-foreground"
+              >
+                Concluir e voltar aos pedidos
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </AdminShell>
   );
 }
