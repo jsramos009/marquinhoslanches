@@ -85,12 +85,12 @@ const appSettingsQueryOptions = () => ({
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Marquinhos Lanches, cardapio online" },
+      { title: "Marquinhos Lanches — Cardápio Digital" },
       {
         name: "description",
         content: "X-burgues, hot dogs e bebidas. Peça já!",
       },
-      { property: "og:title", content: "Marquinhos Lanches, cardapio online" },
+      { property: "og:title", content: "Marquinhos Lanches — Cardápio Digital" },
       {
         property: "og:description",
         content: "X-burgues, hot dogs e bebidas. Peça já!",
