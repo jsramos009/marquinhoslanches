@@ -5,15 +5,15 @@ import { MenuPage } from "./index";
 export const Route = createFileRoute("/cardapio")({
   head: () => ({
     meta: [
-      { title: "Marquinhos Lanches, cardapio online" },
+      { title: "Marquinhos Lanches — Cardápio Online" },
       {
         name: "description",
-        content: "Marquinhos Lanches, cardapio online",
+        content: "X-burgues, hot dogs e bebidas. Peça já pelo nosso cardápio online!",
       },
-      { property: "og:title", content: "Marquinhos Lanches, cardapio online" },
+      { property: "og:title", content: "Marquinhos Lanches — Cardápio Online" },
       {
         property: "og:description",
-        content: "Marquinhos Lanches, cardapio online",
+        content: "X-burgues, hot dogs e bebidas. Peça já pelo nosso cardápio online!",
       },
     ],
   }),
