@@ -88,12 +88,12 @@ export const Route = createFileRoute("/")({
       { title: "Marquinhos Lanches, cardapio online" },
       {
         name: "description",
-        content: "Marquinhos Lanches, cardapio online",
+        content: "X-burgues, hot dogs e bebidas. Peça já!",
       },
       { property: "og:title", content: "Marquinhos Lanches, cardapio online" },
       {
         property: "og:description",
-        content: "Marquinhos Lanches, cardapio online",
+        content: "X-burgues, hot dogs e bebidas. Peça já!",
       },
     ],
   }),
