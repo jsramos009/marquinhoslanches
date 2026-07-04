@@ -8,6 +8,8 @@ import { createOrder, type OrderChannel, type OrderPaymentMethod } from "@/lib/o
 import { ImageIcon, Search, X, Minus, Plus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { normalizeWhatsappNumber } from "@/lib/order-flow";
+import { buildPixPayload } from "@/lib/pix";
+import { Copy, Check } from "lucide-react";
 
 type DeliveryFeeOption = { id: string; neighborhood: string; fee: number };
 
@@ -25,6 +27,31 @@ const deliveryFeesQueryOptions = () => ({
       neighborhood: d.neighborhood,
       fee: Number(d.fee),
     }));
+  },
+  staleTime: 5 * 60_000,
+});
+
+const PIX_KEY_FALLBACK = "+5594991032483";
+const PIX_MERCHANT_NAME_FALLBACK = "Marquinhos Lanches";
+const PIX_MERCHANT_CITY_FALLBACK = "MARABA";
+
+const pixSettingsQueryOptions = () => ({
+  queryKey: ["app-settings", "pix", "public"],
+  queryFn: async () => {
+    const { data, error } = await supabase
+      .from("app_settings")
+      .select("key, value")
+      .in("key", ["pix_key", "pix_merchant_name", "pix_merchant_city"]);
+    if (error) throw error;
+    const map: Record<string, string> = {};
+    (data ?? []).forEach((r: any) => {
+      if (r?.key) map[r.key] = r.value ?? "";
+    });
+    return {
+      pix_key: map.pix_key || PIX_KEY_FALLBACK,
+      pix_merchant_name: map.pix_merchant_name || PIX_MERCHANT_NAME_FALLBACK,
+      pix_merchant_city: map.pix_merchant_city || PIX_MERCHANT_CITY_FALLBACK,
+    };
   },
   staleTime: 5 * 60_000,
 });
