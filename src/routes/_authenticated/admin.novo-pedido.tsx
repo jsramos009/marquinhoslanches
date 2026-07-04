@@ -281,7 +281,7 @@ function NovoPedidoPage() {
           }, 0)
         : 0;
       const lineTotal = (p.price + addonsTotal) * it.quantity;
-      lines.push(`${it.quantity}x ${p.name} — ${formatBRL(lineTotal)}`);
+      lines.push(`${it.quantity} ${p.name} — ${formatBRL(lineTotal)}`);
       if (productAcceptsAddons(it.product_id) && it.addons.length) {
         const names = it.addons
           .map((a) => addonMap.get(a.addon_id)?.name)
