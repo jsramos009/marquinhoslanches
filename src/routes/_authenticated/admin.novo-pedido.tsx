@@ -4,7 +4,13 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { AdminShell, formatBRL } from "@/components/admin/AdminShell";
 import { isHamburgerCategory, menuQueryOptions } from "@/lib/menu";
-import { createOrder, type OrderChannel, type OrderPaymentMethod } from "@/lib/orders.functions";
+import {
+  createOrder,
+  updateOrder,
+  getOrderById,
+  type OrderChannel,
+  type OrderPaymentMethod,
+} from "@/lib/orders.functions";
 import { ImageIcon, Search, X, Minus, Plus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { normalizeWhatsappNumber } from "@/lib/order-flow";
@@ -58,6 +64,9 @@ const pixSettingsQueryOptions = () => ({
 
 export const Route = createFileRoute("/_authenticated/admin/novo-pedido")({
   component: NovoPedidoPage,
+  validateSearch: (s: Record<string, unknown>) => ({
+    editId: typeof s.editId === "string" && s.editId ? s.editId : undefined,
+  }),
   head: () => ({
     meta: [
       { title: "Novo pedido — Marquinhos" },
@@ -78,6 +87,8 @@ function NovoPedidoPage() {
     user: { email?: string };
     roles: string[];
   };
+  const { editId } = Route.useSearch();
+  const isEditing = Boolean(editId);
   useEffect(() => {
     window.scrollTo(0, 0);
   }, []);
@@ -86,8 +97,19 @@ function NovoPedidoPage() {
   const feesQuery = useQuery(deliveryFeesQueryOptions());
   const pixSettingsQuery = useQuery(pixSettingsQueryOptions());
   const create = useServerFn(createOrder);
+  const update = useServerFn(updateOrder);
+  const fetchOrder = useServerFn(getOrderById);
+  const orderQuery = useQuery({
+    queryKey: ["order", editId],
+    queryFn: () => fetchOrder({ data: { id: editId! } }),
+    enabled: isEditing,
+    staleTime: 0,
+  });
   const mut = useMutation({
-    mutationFn: create,
+    mutationFn: (vars: Parameters<typeof create>[0]) =>
+      isEditing
+        ? update({ data: { ...(vars as any).data, id: editId! } } as any)
+        : create(vars),
     onSuccess: () => {
       try {
         const text = buildCustomerSummary();
@@ -130,6 +152,43 @@ function NovoPedidoPage() {
   const [pixQr, setPixQr] = useState<string>("");
   const [pixCopied, setPixCopied] = useState(false);
   const [waUrl, setWaUrl] = useState<string>("");
+  const [preloaded, setPreloaded] = useState(false);
+
+  // Preload state ao editar — só uma vez, depois de menu e fees carregarem
+  useEffect(() => {
+    if (!isEditing || preloaded) return;
+    if (!orderQuery.data || !menu.data) return;
+    const o = orderQuery.data;
+    setCustomer(o.customer_name ?? "");
+    setPhone(o.customer_phone ?? "");
+    setChannel(o.channel);
+    setNotes(o.notes ?? "");
+    setDiscount(Number(o.discount) || 0);
+    setMode(o.delivery_mode);
+    setAddress(o.delivery_address ?? "");
+    setPayment(o.payment_method);
+    setChangeFor(o.change_for != null ? Number(o.change_for) : 0);
+    if (o.delivery_mode === "delivery" && o.delivery_neighborhood) {
+      const match = (feesQuery.data ?? []).find(
+        (f) => f.neighborhood.toLowerCase() === o.delivery_neighborhood!.toLowerCase(),
+      );
+      if (match) setNeighborhoodId(match.id);
+    }
+    const productIds = new Set((menu.data?.products ?? []).map((p) => p.id));
+    const drafts: DraftItem[] = o.items
+      .filter((it) => it.product_id && productIds.has(it.product_id))
+      .map((it) => ({
+        key: crypto.randomUUID(),
+        product_id: it.product_id as string,
+        quantity: it.quantity,
+        addons: it.addons
+          .filter((a) => a.addon_id)
+          .map((a) => ({ addon_id: a.addon_id as string, quantity: a.quantity })),
+      }));
+    setItems(drafts);
+    setCustomerOpen(true);
+    setPreloaded(true);
+  }, [isEditing, preloaded, orderQuery.data, menu.data, feesQuery.data]);
 
   const products = menu.data?.products ?? [];
   const addons = menu.data?.addons ?? [];
@@ -416,7 +475,15 @@ function NovoPedidoPage() {
   }
 
   return (
-    <AdminShell user={user} roles={roles} title="Novo pedido">
+    <AdminShell user={user} roles={roles} title={isEditing ? "Editar pedido" : "Novo pedido"}>
+      {isEditing && orderQuery.isLoading && (
+        <p className="mb-3 text-sm text-muted-foreground">Carregando pedido…</p>
+      )}
+      {isEditing && orderQuery.error && (
+        <p className="mb-3 text-sm text-destructive">
+          {(orderQuery.error as Error).message}
+        </p>
+      )}
       <form onSubmit={submit} className="grid gap-6 lg:grid-cols-[1fr_320px]">
         <div className="space-y-4">
           {/* Modo de entrega — primeiro passo, decide o restante */}
@@ -753,10 +820,14 @@ function NovoPedidoPage() {
             disabled={mut.isPending || items.length === 0}
             className="w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-60"
           >
-            {mut.isPending ? "Salvando…" : "Lançar e enviar WhatsApp"}
+            {mut.isPending
+              ? "Salvando…"
+              : isEditing
+                ? "Salvar alterações e enviar WhatsApp"
+                : "Lançar e enviar WhatsApp"}
           </button>
           <p className="text-[11px] text-muted-foreground">
-            Ao lançar, abrimos o WhatsApp do cliente com o resumo completo do pedido.
+            Ao {isEditing ? "salvar" : "lançar"}, abrimos o WhatsApp do cliente com o resumo completo do pedido.
           </p>
           {mut.error && (
             <p className="text-xs text-destructive">{(mut.error as Error).message}</p>

@@ -270,6 +270,223 @@ export const updateOrderStatus = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+type UpdateOrderInput = CreateOrderInput & { id: string };
+
+export const updateOrder = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: UpdateOrderInput) => {
+    if (!d?.id) throw new Error("Pedido inválido.");
+    if (!Array.isArray(d.items) || d.items.length === 0) {
+      throw new Error("Pedido precisa de pelo menos 1 item.");
+    }
+    return d;
+  })
+  .handler(async ({ data, context }) => {
+    const { supabase } = context;
+
+    const productIds = [...new Set(data.items.map((i) => i.product_id))];
+    const addonIds = [
+      ...new Set(data.items.flatMap((i) => (i.addons ?? []).map((a) => a.addon_id))),
+    ];
+
+    const [{ data: prods, error: pErr }, addonsRes] = await Promise.all([
+      supabase
+        .from("products")
+        .select("id, name, price, accepts_addons, category_id, categories(slug, name)")
+        .in("id", productIds),
+      addonIds.length
+        ? supabase.from("addons").select("id, name, price").in("id", addonIds)
+        : Promise.resolve({ data: [] as { id: string; name: string; price: number }[], error: null }),
+    ]);
+    if (pErr) throw new Error(pErr.message);
+    if (addonsRes.error) throw new Error(addonsRes.error.message);
+    const productMap = new Map((prods ?? []).map((p) => [p.id, p]));
+    const addonMap = new Map((addonsRes.data ?? []).map((a) => [a.id, a]));
+
+    type ComputedItem = {
+      product_id: string;
+      product_name_snapshot: string;
+      unit_price_snapshot: number;
+      quantity: number;
+      line_total: number;
+      addons: {
+        addon_id: string;
+        addon_name_snapshot: string;
+        unit_price_snapshot: number;
+        quantity: number;
+      }[];
+    };
+
+    let subtotal = 0;
+    const computed: ComputedItem[] = [];
+    for (const it of data.items) {
+      const p = productMap.get(it.product_id);
+      if (!p) throw new Error(`Produto inválido: ${it.product_id}`);
+      const qty = Math.max(1, Math.floor(Number(it.quantity) || 1));
+      const unit = Number(p.price);
+      const rawCategory = (p as unknown as { categories?: unknown }).categories;
+      const category = Array.isArray(rawCategory)
+        ? ((rawCategory[0] as { slug?: string | null; name?: string | null } | undefined) ?? null)
+        : ((rawCategory as { slug?: string | null; name?: string | null } | null | undefined) ?? null);
+      const acceptsAddons = Boolean(p.accepts_addons) && isHamburgerCategory(category?.slug, category?.name);
+      const addons = (acceptsAddons ? (it.addons ?? []) : []).map((a) => {
+        const ad = addonMap.get(a.addon_id);
+        if (!ad) throw new Error(`Adicional inválido: ${a.addon_id}`);
+        const aqty = Math.max(1, Math.floor(Number(a.quantity ?? 1)));
+        return {
+          addon_id: ad.id,
+          addon_name_snapshot: ad.name,
+          unit_price_snapshot: Number(ad.price),
+          quantity: aqty,
+        };
+      });
+      const addonsTotal = addons.reduce((s, a) => s + a.unit_price_snapshot * a.quantity, 0);
+      const line_total = (unit + addonsTotal) * qty;
+      subtotal += line_total;
+      computed.push({
+        product_id: p.id,
+        product_name_snapshot: p.name,
+        unit_price_snapshot: unit,
+        quantity: qty,
+        line_total,
+        addons,
+      });
+    }
+
+    const discount = Math.max(0, Number(data.discount) || 0);
+    const deliveryFee = Math.max(0, Number(data.delivery_fee) || 0);
+    const deliveryMode = data.delivery_mode === "delivery" ? "delivery" : "pickup";
+    const effectiveFee = deliveryMode === "delivery" ? deliveryFee : 0;
+    const total = Math.max(0, subtotal - discount + effectiveFee);
+
+    const { error: uErr } = await supabase
+      .from("orders")
+      .update({
+        customer_name: data.customer_name?.trim() || null,
+        customer_phone: data.customer_phone?.trim() || null,
+        channel: data.channel ?? "whatsapp",
+        notes: data.notes?.trim() || null,
+        subtotal,
+        discount,
+        total,
+        payment_method: data.payment_method ?? "nao_informado",
+        change_for:
+          data.payment_method === "dinheiro" && data.change_for && data.change_for > 0
+            ? data.change_for
+            : null,
+        delivery_mode: deliveryMode,
+        delivery_fee: effectiveFee,
+        delivery_address:
+          deliveryMode === "delivery" ? data.delivery_address?.trim() || null : null,
+        delivery_neighborhood:
+          deliveryMode === "delivery" ? data.delivery_neighborhood?.trim() || null : null,
+      } as any)
+      .eq("id", data.id);
+    if (uErr) throw new Error(uErr.message);
+
+    // Remove itens antigos (order_item_addons removidos por cascade via FK)
+    const { data: oldItems, error: oiErr } = await supabase
+      .from("order_items")
+      .select("id")
+      .eq("order_id", data.id);
+    if (oiErr) throw new Error(oiErr.message);
+    const oldIds = (oldItems ?? []).map((r: any) => r.id);
+    if (oldIds.length) {
+      const { error: daErr } = await supabase
+        .from("order_item_addons")
+        .delete()
+        .in("order_item_id", oldIds);
+      if (daErr) throw new Error(daErr.message);
+      const { error: diErr } = await supabase.from("order_items").delete().eq("order_id", data.id);
+      if (diErr) throw new Error(diErr.message);
+    }
+
+    for (const it of computed) {
+      const { data: itemRow, error: iErr } = await supabase
+        .from("order_items")
+        .insert({
+          order_id: data.id,
+          product_id: it.product_id,
+          product_name_snapshot: it.product_name_snapshot,
+          unit_price_snapshot: it.unit_price_snapshot,
+          quantity: it.quantity,
+          line_total: it.line_total,
+        })
+        .select("id")
+        .single();
+      if (iErr || !itemRow) throw new Error(iErr?.message || "Falha ao inserir item");
+      if (it.addons.length) {
+        const { error: aErr } = await supabase.from("order_item_addons").insert(
+          it.addons.map((a) => ({
+            order_item_id: itemRow.id,
+            addon_id: a.addon_id,
+            addon_name_snapshot: a.addon_name_snapshot,
+            unit_price_snapshot: a.unit_price_snapshot,
+            quantity: a.quantity,
+          })),
+        );
+        if (aErr) throw new Error(aErr.message);
+      }
+    }
+
+    return { id: data.id, total };
+  });
+
+export const getOrderById = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { id: string }) => {
+    if (!d?.id) throw new Error("id obrigatório");
+    return d;
+  })
+  .handler(async ({ data, context }): Promise<OrderRow | null> => {
+    const { data: row, error } = await context.supabase
+      .from("orders")
+      .select(
+        "id, customer_name, customer_phone, channel, status, subtotal, discount, total, notes, cancel_reason, payment_method, change_for, delivery_mode, delivery_fee, delivery_address, delivery_neighborhood, created_at, ready_at, delivered_at, order_items(id, product_id, product_name_snapshot, quantity, unit_price_snapshot, line_total, order_item_addons(id, addon_id, addon_name_snapshot, quantity, unit_price_snapshot))",
+      )
+      .eq("id", data.id)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!row) return null;
+    const r = row as any;
+    return {
+      id: r.id,
+      customer_name: r.customer_name,
+      customer_phone: r.customer_phone,
+      channel: r.channel,
+      status: r.status,
+      subtotal: Number(r.subtotal),
+      discount: Number(r.discount),
+      total: Number(r.total),
+      notes: r.notes,
+      cancel_reason: r.cancel_reason,
+      payment_method: r.payment_method ?? "nao_informado",
+      change_for: r.change_for != null ? Number(r.change_for) : null,
+      delivery_mode: (r.delivery_mode === "delivery" ? "delivery" : "pickup") as "delivery" | "pickup",
+      delivery_fee: Number(r.delivery_fee ?? 0),
+      delivery_address: r.delivery_address ?? null,
+      delivery_neighborhood: r.delivery_neighborhood ?? null,
+      created_at: r.created_at,
+      ready_at: r.ready_at,
+      delivered_at: r.delivered_at,
+      items: (r.order_items ?? []).map((i: any) => ({
+        id: i.id,
+        product_id: i.product_id ?? null,
+        product_name_snapshot: i.product_name_snapshot,
+        quantity: i.quantity,
+        unit_price_snapshot: Number(i.unit_price_snapshot),
+        line_total: Number(i.line_total),
+        addons: (i.order_item_addons ?? []).map((a: any) => ({
+          id: a.id,
+          addon_id: a.addon_id ?? null,
+          addon_name_snapshot: a.addon_name_snapshot,
+          quantity: a.quantity,
+          unit_price_snapshot: Number(a.unit_price_snapshot),
+        })),
+      })),
+    };
+  });
+
 export const cancelOrder = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { id: string; reason: string }) => d)

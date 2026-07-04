@@ -19,7 +19,7 @@ import {
 } from "@/lib/order-flow";
 import { useWhatsappTemplates } from "@/lib/wa-templates";
 import { buildMotoboyLink } from "@/lib/motoboy";
-import { Bike } from "lucide-react";
+import { Bike, Pencil } from "lucide-react";
 
 
 export const Route = createFileRoute("/_authenticated/admin/pedidos")({
@@ -248,6 +248,17 @@ function OrderCard({
           >
             → {nextStatus === "em_producao" ? "Aceitar" : nextStatus === "pronto" ? "A caminho" : "Finalizar"}
           </button>
+        )}
+        {order.status !== "entregue" && order.status !== "cancelado" && (
+          <Link
+            to="/admin/novo-pedido"
+            search={{ editId: order.id }}
+            className="inline-flex items-center gap-1 rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs font-semibold text-foreground hover:border-primary/50"
+            title="Editar pedido"
+            aria-label="Editar pedido"
+          >
+            <Pencil className="h-3.5 w-3.5" />
+          </Link>
         )}
         {order.status !== "recebido" && order.status !== "cancelado" && (
           <a
