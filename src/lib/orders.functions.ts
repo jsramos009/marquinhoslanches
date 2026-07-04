@@ -202,6 +202,7 @@ export const createOrder = createServerFn({ method: "POST" })
         customer_phone: data.customer_phone?.trim() || null,
         channel: data.channel ?? "whatsapp",
         notes: data.notes?.trim() || null,
+        status: "em_producao",
         subtotal,
         discount,
         total,
