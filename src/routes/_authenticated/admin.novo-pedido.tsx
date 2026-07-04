@@ -8,6 +8,8 @@ import { createOrder, type OrderChannel, type OrderPaymentMethod } from "@/lib/o
 import { ImageIcon, Search, X, Minus, Plus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { normalizeWhatsappNumber } from "@/lib/order-flow";
+import { buildPixPayload } from "@/lib/pix";
+import { Copy, Check } from "lucide-react";
 
 type DeliveryFeeOption = { id: string; neighborhood: string; fee: number };
 
@@ -25,6 +27,31 @@ const deliveryFeesQueryOptions = () => ({
       neighborhood: d.neighborhood,
       fee: Number(d.fee),
     }));
+  },
+  staleTime: 5 * 60_000,
+});
+
+const PIX_KEY_FALLBACK = "+5594991032483";
+const PIX_MERCHANT_NAME_FALLBACK = "Marquinhos Lanches";
+const PIX_MERCHANT_CITY_FALLBACK = "MARABA";
+
+const pixSettingsQueryOptions = () => ({
+  queryKey: ["app-settings", "pix", "public"],
+  queryFn: async () => {
+    const { data, error } = await supabase
+      .from("app_settings")
+      .select("key, value")
+      .in("key", ["pix_key", "pix_merchant_name", "pix_merchant_city"]);
+    if (error) throw error;
+    const map: Record<string, string> = {};
+    (data ?? []).forEach((r: any) => {
+      if (r?.key) map[r.key] = r.value ?? "";
+    });
+    return {
+      pix_key: map.pix_key || PIX_KEY_FALLBACK,
+      pix_merchant_name: map.pix_merchant_name || PIX_MERCHANT_NAME_FALLBACK,
+      pix_merchant_city: map.pix_merchant_city || PIX_MERCHANT_CITY_FALLBACK,
+    };
   },
   staleTime: 5 * 60_000,
 });
@@ -57,6 +84,7 @@ function NovoPedidoPage() {
   const navigate = useNavigate();
   const menu = useQuery(menuQueryOptions());
   const feesQuery = useQuery(deliveryFeesQueryOptions());
+  const pixSettingsQuery = useQuery(pixSettingsQueryOptions());
   const create = useServerFn(createOrder);
   const mut = useMutation({
     mutationFn: create,
@@ -67,11 +95,17 @@ function NovoPedidoPage() {
         const url = number
           ? `https://wa.me/${number}?text=${encodeURIComponent(text)}`
           : `https://wa.me/?text=${encodeURIComponent(text)}`;
+        setWaUrl(url);
         window.open(url, "_blank", "noopener,noreferrer");
       } catch {
         // se falhar a abertura, apenas segue
       }
-      navigate({ to: "/admin/pedidos" });
+      if (payment === "pix") {
+        // Abre modal com QR code — admin fecha depois de enviar ao cliente
+        setPixOpen(true);
+      } else {
+        navigate({ to: "/admin/pedidos" });
+      }
     },
   });
 
@@ -92,6 +126,10 @@ function NovoPedidoPage() {
     productId: string;
     selected: Set<string>;
   } | null>(null);
+  const [pixOpen, setPixOpen] = useState(false);
+  const [pixQr, setPixQr] = useState<string>("");
+  const [pixCopied, setPixCopied] = useState(false);
+  const [waUrl, setWaUrl] = useState<string>("");
 
   const products = menu.data?.products ?? [];
   const addons = menu.data?.addons ?? [];
@@ -151,47 +189,61 @@ function NovoPedidoPage() {
   }, 0);
   const total = Math.max(0, subtotal - discount + fee);
 
+  const pixSettings = pixSettingsQuery.data ?? {
+    pix_key: PIX_KEY_FALLBACK,
+    pix_merchant_name: PIX_MERCHANT_NAME_FALLBACK,
+    pix_merchant_city: PIX_MERCHANT_CITY_FALLBACK,
+  };
+  const pixPayload = useMemo(() => {
+    if (payment !== "pix" || total <= 0) return "";
+    try {
+      return buildPixPayload({
+        key: pixSettings.pix_key,
+        amount: total,
+        merchantName: pixSettings.pix_merchant_name,
+        merchantCity: pixSettings.pix_merchant_city,
+      });
+    } catch {
+      return "";
+    }
+  }, [payment, total, pixSettings.pix_key, pixSettings.pix_merchant_name, pixSettings.pix_merchant_city]);
+
+  useEffect(() => {
+    if (!pixOpen || !pixPayload) {
+      setPixQr("");
+      return;
+    }
+    let cancelled = false;
+    import("qrcode")
+      .then(({ default: QRCode }) => QRCode.toDataURL(pixPayload, { margin: 1, width: 320 }))
+      .then((url) => {
+        if (!cancelled) setPixQr(url);
+      })
+      .catch(() => {
+        if (!cancelled) setPixQr("");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [pixOpen, pixPayload]);
+
+  async function copyPixCode() {
+    if (!pixPayload) return;
+    try {
+      await navigator.clipboard.writeText(pixPayload);
+      setPixCopied(true);
+      setTimeout(() => setPixCopied(false), 1800);
+    } catch {
+      // noop
+    }
+  }
+
+  function closePixDialog() {
+    setPixOpen(false);
+    navigate({ to: "/admin/pedidos" });
+  }
+
   function buildCustomerSummary(): string {
-    const lines: string[] = [];
-    lines.push("*Resumo do seu pedido — Marquinhos Lanches*");
-    lines.push("");
-    if (customer.trim()) lines.push(`*Cliente:* ${customer.trim()}`);
-    if (phone.trim()) lines.push(`*Telefone:* ${phone.trim()}`);
-    lines.push(`*Modo:* ${mode === "delivery" ? "Entrega" : "Retirada no local"}`);
-    if (mode === "delivery" && selectedFee) {
-      lines.push(`*Bairro:* ${selectedFee.neighborhood} (frete ${formatBRL(selectedFee.fee)})`);
-    }
-    if (mode === "delivery" && address.trim()) {
-      lines.push(`*Endereço:* ${address.trim()}`);
-    }
-    lines.push("");
-    lines.push("*Itens:*");
-    for (const it of items) {
-      const p = productMap.get(it.product_id);
-      if (!p) continue;
-      const addonsTotal = productAcceptsAddons(it.product_id)
-        ? it.addons.reduce((s, a) => {
-            const ad = addonMap.get(a.addon_id);
-            return s + (ad ? ad.price * a.quantity : 0);
-          }, 0)
-        : 0;
-      const lineTotal = (p.price + addonsTotal) * it.quantity;
-      lines.push(`• ${it.quantity} > ${p.name} — ${formatBRL(lineTotal)}`);
-      if (productAcceptsAddons(it.product_id) && it.addons.length) {
-        const names = it.addons
-          .map((a) => addonMap.get(a.addon_id)?.name)
-          .filter(Boolean)
-          .join(", ");
-        if (names) lines.push(`   Adicionais: ${names}`);
-      }
-    }
-    lines.push("");
-    if (fee > 0 || discount > 0) {
-      lines.push(`*Subtotal:* ${formatBRL(subtotal)}`);
-      if (discount > 0) lines.push(`*Desconto:* -${formatBRL(discount)}`);
-      if (fee > 0) lines.push(`*Frete:* ${formatBRL(fee)}`);
-    }
-    lines.push(`*Total: ${formatBRL(total)}*`);
     const payLabel: Record<OrderPaymentMethod, string> = {
       nao_informado: "A combinar",
       dinheiro: "Dinheiro",
@@ -199,7 +251,52 @@ function NovoPedidoPage() {
       cartao_debito: "Cartão de Débito",
       cartao_credito: "Cartão de Crédito",
     };
-    lines.push(`*Pagamento:* ${payLabel[payment]}`);
+    const lines: string[] = [];
+    const header = mode === "delivery"
+      ? "*Entrega - Marquinhos Lanches*"
+      : "*Retirada - Marquinhos Lanches*";
+    lines.push(header);
+    lines.push("");
+    lines.push(`*Cliente:* ${customer.trim() || "—"}`);
+    lines.push(`*Telefone:* ${phone.trim() || "—"}`);
+    if (mode === "delivery") {
+      lines.push(`*Endereço:* ${address.trim() || "—"}`);
+      lines.push(`*Bairro:* ${selectedFee?.neighborhood || "—"}`);
+      const mapUrl = address.trim()
+        ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+            [address.trim(), selectedFee?.neighborhood].filter(Boolean).join(", "),
+          )}`
+        : "";
+      lines.push(`*Localização:* ${mapUrl || "—"}`);
+    }
+    lines.push("");
+    lines.push("*Pedido:*");
+    items.forEach((it, idx) => {
+      const p = productMap.get(it.product_id);
+      if (!p) return;
+      const addonsTotal = productAcceptsAddons(it.product_id)
+        ? it.addons.reduce((s, a) => {
+            const ad = addonMap.get(a.addon_id);
+            return s + (ad ? ad.price * a.quantity : 0);
+          }, 0)
+        : 0;
+      const lineTotal = (p.price + addonsTotal) * it.quantity;
+      lines.push(`${idx + 1} - ${it.quantity}x ${p.name} — ${formatBRL(lineTotal)}`);
+      if (productAcceptsAddons(it.product_id) && it.addons.length) {
+        const names = it.addons
+          .map((a) => addonMap.get(a.addon_id)?.name)
+          .filter(Boolean)
+          .join(", ");
+        if (names) lines.push(`    Adicionais: ${names}`);
+      }
+    });
+    lines.push("");
+    lines.push(`*Subtotal:* ${formatBRL(subtotal)}`);
+    if (discount > 0) lines.push(`*Desconto:* -${formatBRL(discount)}`);
+    if (mode === "delivery") lines.push(`*Frete:* ${formatBRL(fee)}`);
+    lines.push(`*Total:* ${formatBRL(total)}`);
+    lines.push("");
+    lines.push(`*Forma de pagamento:* ${payLabel[payment]}`);
     if (payment === "dinheiro") {
       if (changeFor > total) {
         lines.push(`*Troco para:* ${formatBRL(changeFor)} (troco ${formatBRL(changeFor - total)})`);
@@ -768,6 +865,82 @@ function NovoPedidoPage() {
           </div>
         );
       })()}
+      {pixOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-4 sm:items-center"
+          onClick={closePixDialog}
+        >
+          <div
+            className="w-full max-w-md rounded-2xl border border-border bg-card p-4 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-3 flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">Pagamento PIX</p>
+                <h3 className="truncate text-base font-semibold">Envie ao cliente</h3>
+                <p className="text-xs text-muted-foreground">
+                  Valor: <span className="font-semibold text-foreground">{formatBRL(total)}</span>
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={closePixDialog}
+                className="rounded-full p-1 text-muted-foreground hover:bg-secondary hover:text-foreground"
+                aria-label="Fechar"
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <div className="flex flex-col items-center gap-3">
+              {pixQr ? (
+                <img
+                  src={pixQr}
+                  alt="QR Code PIX"
+                  width={240}
+                  height={240}
+                  className="h-60 w-60 rounded-lg border border-border bg-white p-2"
+                />
+              ) : (
+                <div className="grid h-60 w-60 place-items-center rounded-lg border border-dashed border-border text-xs text-muted-foreground">
+                  Gerando QR…
+                </div>
+              )}
+              <textarea
+                readOnly
+                value={pixPayload}
+                rows={3}
+                onFocus={(e) => e.currentTarget.select()}
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 font-mono text-[11px]"
+              />
+              <button
+                type="button"
+                onClick={copyPixCode}
+                className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90"
+              >
+                {pixCopied ? <Check size={16} /> : <Copy size={16} />}
+                {pixCopied ? "Copiado!" : "Copiar código PIX"}
+              </button>
+              {waUrl && (
+                <a
+                  href={waUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex w-full items-center justify-center rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground hover:border-primary/50"
+                >
+                  Abrir WhatsApp do cliente
+                </a>
+              )}
+              <button
+                type="button"
+                onClick={closePixDialog}
+                className="w-full rounded-lg px-3 py-2 text-xs text-muted-foreground hover:text-foreground"
+              >
+                Concluir e voltar aos pedidos
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </AdminShell>
   );
 }
