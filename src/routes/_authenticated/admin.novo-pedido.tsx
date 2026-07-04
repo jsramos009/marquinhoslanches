@@ -189,47 +189,61 @@ function NovoPedidoPage() {
   }, 0);
   const total = Math.max(0, subtotal - discount + fee);
 
+  const pixSettings = pixSettingsQuery.data ?? {
+    pix_key: PIX_KEY_FALLBACK,
+    pix_merchant_name: PIX_MERCHANT_NAME_FALLBACK,
+    pix_merchant_city: PIX_MERCHANT_CITY_FALLBACK,
+  };
+  const pixPayload = useMemo(() => {
+    if (payment !== "pix" || total <= 0) return "";
+    try {
+      return buildPixPayload({
+        key: pixSettings.pix_key,
+        amount: total,
+        merchantName: pixSettings.pix_merchant_name,
+        merchantCity: pixSettings.pix_merchant_city,
+      });
+    } catch {
+      return "";
+    }
+  }, [payment, total, pixSettings.pix_key, pixSettings.pix_merchant_name, pixSettings.pix_merchant_city]);
+
+  useEffect(() => {
+    if (!pixOpen || !pixPayload) {
+      setPixQr("");
+      return;
+    }
+    let cancelled = false;
+    import("qrcode")
+      .then(({ default: QRCode }) => QRCode.toDataURL(pixPayload, { margin: 1, width: 320 }))
+      .then((url) => {
+        if (!cancelled) setPixQr(url);
+      })
+      .catch(() => {
+        if (!cancelled) setPixQr("");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [pixOpen, pixPayload]);
+
+  async function copyPixCode() {
+    if (!pixPayload) return;
+    try {
+      await navigator.clipboard.writeText(pixPayload);
+      setPixCopied(true);
+      setTimeout(() => setPixCopied(false), 1800);
+    } catch {
+      // noop
+    }
+  }
+
+  function closePixDialog() {
+    setPixOpen(false);
+    navigate({ to: "/admin/pedidos" });
+  }
+
   function buildCustomerSummary(): string {
-    const lines: string[] = [];
-    lines.push("*Resumo do seu pedido — Marquinhos Lanches*");
-    lines.push("");
-    if (customer.trim()) lines.push(`*Cliente:* ${customer.trim()}`);
-    if (phone.trim()) lines.push(`*Telefone:* ${phone.trim()}`);
-    lines.push(`*Modo:* ${mode === "delivery" ? "Entrega" : "Retirada no local"}`);
-    if (mode === "delivery" && selectedFee) {
-      lines.push(`*Bairro:* ${selectedFee.neighborhood} (frete ${formatBRL(selectedFee.fee)})`);
-    }
-    if (mode === "delivery" && address.trim()) {
-      lines.push(`*Endereço:* ${address.trim()}`);
-    }
-    lines.push("");
-    lines.push("*Itens:*");
-    for (const it of items) {
-      const p = productMap.get(it.product_id);
-      if (!p) continue;
-      const addonsTotal = productAcceptsAddons(it.product_id)
-        ? it.addons.reduce((s, a) => {
-            const ad = addonMap.get(a.addon_id);
-            return s + (ad ? ad.price * a.quantity : 0);
-          }, 0)
-        : 0;
-      const lineTotal = (p.price + addonsTotal) * it.quantity;
-      lines.push(`• ${it.quantity} > ${p.name} — ${formatBRL(lineTotal)}`);
-      if (productAcceptsAddons(it.product_id) && it.addons.length) {
-        const names = it.addons
-          .map((a) => addonMap.get(a.addon_id)?.name)
-          .filter(Boolean)
-          .join(", ");
-        if (names) lines.push(`   Adicionais: ${names}`);
-      }
-    }
-    lines.push("");
-    if (fee > 0 || discount > 0) {
-      lines.push(`*Subtotal:* ${formatBRL(subtotal)}`);
-      if (discount > 0) lines.push(`*Desconto:* -${formatBRL(discount)}`);
-      if (fee > 0) lines.push(`*Frete:* ${formatBRL(fee)}`);
-    }
-    lines.push(`*Total: ${formatBRL(total)}*`);
     const payLabel: Record<OrderPaymentMethod, string> = {
       nao_informado: "A combinar",
       dinheiro: "Dinheiro",
@@ -237,7 +251,52 @@ function NovoPedidoPage() {
       cartao_debito: "Cartão de Débito",
       cartao_credito: "Cartão de Crédito",
     };
-    lines.push(`*Pagamento:* ${payLabel[payment]}`);
+    const lines: string[] = [];
+    const header = mode === "delivery"
+      ? "*Entrega - Marquinhos Lanches*"
+      : "*Retirada - Marquinhos Lanches*";
+    lines.push(header);
+    lines.push("");
+    lines.push(`*Cliente:* ${customer.trim() || "—"}`);
+    lines.push(`*Telefone:* ${phone.trim() || "—"}`);
+    if (mode === "delivery") {
+      lines.push(`*Endereço:* ${address.trim() || "—"}`);
+      lines.push(`*Bairro:* ${selectedFee?.neighborhood || "—"}`);
+      const mapUrl = address.trim()
+        ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+            [address.trim(), selectedFee?.neighborhood].filter(Boolean).join(", "),
+          )}`
+        : "";
+      lines.push(`*Localização:* ${mapUrl || "—"}`);
+    }
+    lines.push("");
+    lines.push("*Pedido:*");
+    items.forEach((it, idx) => {
+      const p = productMap.get(it.product_id);
+      if (!p) return;
+      const addonsTotal = productAcceptsAddons(it.product_id)
+        ? it.addons.reduce((s, a) => {
+            const ad = addonMap.get(a.addon_id);
+            return s + (ad ? ad.price * a.quantity : 0);
+          }, 0)
+        : 0;
+      const lineTotal = (p.price + addonsTotal) * it.quantity;
+      lines.push(`${idx + 1} - ${it.quantity}x ${p.name} — ${formatBRL(lineTotal)}`);
+      if (productAcceptsAddons(it.product_id) && it.addons.length) {
+        const names = it.addons
+          .map((a) => addonMap.get(a.addon_id)?.name)
+          .filter(Boolean)
+          .join(", ");
+        if (names) lines.push(`    Adicionais: ${names}`);
+      }
+    });
+    lines.push("");
+    lines.push(`*Subtotal:* ${formatBRL(subtotal)}`);
+    if (discount > 0) lines.push(`*Desconto:* -${formatBRL(discount)}`);
+    if (mode === "delivery") lines.push(`*Frete:* ${formatBRL(fee)}`);
+    lines.push(`*Total:* ${formatBRL(total)}`);
+    lines.push("");
+    lines.push(`*Forma de pagamento:* ${payLabel[payment]}`);
     if (payment === "dinheiro") {
       if (changeFor > total) {
         lines.push(`*Troco para:* ${formatBRL(changeFor)} (troco ${formatBRL(changeFor - total)})`);
