@@ -820,10 +820,14 @@ function NovoPedidoPage() {
             disabled={mut.isPending || items.length === 0}
             className="w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-60"
           >
-            {mut.isPending ? "Salvando…" : "Lançar e enviar WhatsApp"}
+            {mut.isPending
+              ? "Salvando…"
+              : isEditing
+                ? "Salvar alterações e enviar WhatsApp"
+                : "Lançar e enviar WhatsApp"}
           </button>
           <p className="text-[11px] text-muted-foreground">
-            Ao lançar, abrimos o WhatsApp do cliente com o resumo completo do pedido.
+            Ao {isEditing ? "salvar" : "lançar"}, abrimos o WhatsApp do cliente com o resumo completo do pedido.
           </p>
           {mut.error && (
             <p className="text-xs text-destructive">{(mut.error as Error).message}</p>
