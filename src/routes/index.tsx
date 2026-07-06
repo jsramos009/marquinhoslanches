@@ -816,6 +816,10 @@ function CartDialog({
   };
   const remove = (lineId: string) =>
     setCart((prev) => prev.filter((l) => l.lineId !== lineId));
+  const updateNotes = (lineId: string, notes: string) =>
+    setCart((prev) =>
+      prev.map((l) => (l.lineId === lineId ? { ...l, notes } : l)),
+    );
 
   const mapsLink = geo
     ? `https://www.google.com/maps?q=${geo.lat.toFixed(6)},${geo.lng.toFixed(6)}`
@@ -1211,11 +1215,6 @@ function CartDialog({
                         + {l.addons.map((a) => a.name).join(", ")}
                       </p>
                     )}
-                    {l.notes && (
-                      <p className="mt-1 text-xs italic text-muted-foreground">
-                        “{l.notes}”
-                      </p>
-                    )}
                   </div>
                   <button
                     onClick={() => remove(l.lineId)}
@@ -1224,6 +1223,15 @@ function CartDialog({
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>
+                </div>
+                <div className="mt-2">
+                  <input
+                    type="text"
+                    value={l.notes}
+                    onChange={(e) => updateNotes(l.lineId, e.target.value)}
+                    placeholder="Observação (ex: sem cebola, bem passado…)"
+                    className="w-full rounded-lg border border-border bg-background px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+                  />
                 </div>
                 <div className="mt-3 flex items-center justify-between">
                   <div className="flex items-center gap-1 rounded-full border border-border">

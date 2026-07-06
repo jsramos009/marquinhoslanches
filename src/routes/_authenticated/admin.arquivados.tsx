@@ -1,13 +1,24 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { zodValidator, fallback } from "@tanstack/zod-adapter";
 import { z } from "zod";
-import { ArrowLeft, ChevronRight, Calendar, TrendingUp, XCircle, Receipt } from "lucide-react";
+import {
+  ArrowLeft,
+  ChevronRight,
+  Calendar,
+  TrendingUp,
+  XCircle,
+  Receipt,
+  Truck,
+  Copy,
+  Check,
+} from "lucide-react";
 import { AdminShell, formatBRL } from "@/components/admin/AdminShell";
 import {
   listArchivedOrders,
+  listOrdersByDay,
   type OrderRow,
   type OrderStatus,
 } from "@/lib/orders.functions";
@@ -104,15 +115,27 @@ function ArquivadosPage() {
   const navigate = useNavigate({ from: "/admin/arquivados" });
 
   const fetchArchived = useServerFn(listArchivedOrders);
-  const q = useQuery<OrderRow[]>({
+  const fetchByDay = useServerFn(listOrdersByDay);
+
+  const listQuery = useQuery<OrderRow[]>({
     queryKey: ["orders-archived", 30],
     queryFn: () => fetchArchived({ data: { days: 30 } }),
     staleTime: 60_000,
+    enabled: !search.d,
+  });
+
+  // Ao selecionar uma data, sempre buscamos direto do servidor (permite
+  // datas fora dos últimos 30 dias e garante o dia atual também).
+  const dayQuery = useQuery<OrderRow[]>({
+    queryKey: ["orders-by-day", search.d],
+    queryFn: () => fetchByDay({ data: { day: search.d as string } }),
+    staleTime: 60_000,
+    enabled: Boolean(search.d),
   });
 
   const buckets = useMemo<DayBucket[]>(() => {
     const map = new Map<string, OrderRow[]>();
-    for (const o of q.data ?? []) {
+    for (const o of listQuery.data ?? []) {
       const k = dayKey(o.created_at);
       const list = map.get(k) ?? [];
       list.push(o);
@@ -121,11 +144,14 @@ function ArquivadosPage() {
     return [...map.entries()]
       .map(([key, orders]) => ({ key, orders }))
       .sort((a, b) => (a.key < b.key ? 1 : -1));
-  }, [q.data]);
+  }, [listQuery.data]);
 
-  const selected = search.d
-    ? buckets.find((b) => b.key === search.d) ?? null
+  const selected: DayBucket | null = search.d
+    ? { key: search.d, orders: dayQuery.data ?? [] }
     : null;
+
+  const isLoading = search.d ? dayQuery.isLoading : listQuery.isLoading;
+  const error = search.d ? dayQuery.error : listQuery.error;
 
   return (
     <AdminShell
@@ -141,27 +167,72 @@ function ArquivadosPage() {
         </Link>
       }
     >
-      {q.isLoading && (
-        <p className="text-sm text-muted-foreground">Carregando histórico…</p>
-      )}
-      {q.error && (
-        <p className="text-sm text-destructive">{(q.error as Error).message}</p>
+      {!selected && (
+        <CustomDayPicker onPick={(k) => navigate({ search: { d: k } })} />
       )}
 
-      {!q.isLoading && !selected && (
+      {isLoading && (
+        <p className="text-sm text-muted-foreground">Carregando histórico…</p>
+      )}
+      {error && (
+        <p className="text-sm text-destructive">{(error as Error).message}</p>
+      )}
+
+      {!isLoading && !selected && (
         <DayList
           buckets={buckets}
           onSelect={(k) => navigate({ search: { d: k } })}
         />
       )}
 
-      {selected && (
+      {selected && !isLoading && (
         <DayDetail
           bucket={selected}
           onBack={() => navigate({ search: { d: undefined } })}
         />
       )}
     </AdminShell>
+  );
+}
+
+function todayKey() {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${dd}`;
+}
+
+function CustomDayPicker({ onPick }: { onPick: (day: string) => void }) {
+  const [value, setValue] = useState("");
+  return (
+    <div className="mb-4 flex flex-wrap items-end gap-3 rounded-xl border border-border bg-card p-3">
+      <div className="flex flex-col gap-1">
+        <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          Relatório de um dia específico
+        </label>
+        <input
+          type="date"
+          value={value}
+          max={todayKey()}
+          onChange={(e) => setValue(e.target.value)}
+          className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none"
+        />
+      </div>
+      <button
+        onClick={() => value && onPick(value)}
+        disabled={!value}
+        className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50"
+      >
+        <Calendar size={14} /> Ver relatório
+      </button>
+      <button
+        onClick={() => onPick(todayKey())}
+        className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-2 text-sm text-muted-foreground hover:text-foreground"
+      >
+        Hoje
+      </button>
+    </div>
   );
 }
 
@@ -259,23 +330,107 @@ function DayDetail({
   const orders = [...bucket.orders].sort((a, b) =>
     a.created_at < b.created_at ? 1 : -1,
   );
+  const [copied, setCopied] = useState(false);
+
+  // Somente pedidos de entrega válidos (não cancelados)
+  const deliveries = orders.filter(
+    (o) => o.delivery_mode === "delivery" && o.status !== "cancelado",
+  );
+  const deliveryRevenue = deliveries.reduce((s, o) => s + Number(o.total || 0), 0);
+  const deliveryFees = deliveries.reduce(
+    (s, o) => s + Number(o.delivery_fee || 0),
+    0,
+  );
+  const deliveredCount = deliveries.filter((o) => o.status === "entregue").length;
+
+  const copyReport = async () => {
+    const lines: string[] = [];
+    lines.push(`📊 Relatório de entregas — ${formatDayLabel(bucket.key)}`);
+    lines.push("");
+    lines.push(`Entregas: ${deliveries.length}`);
+    lines.push(`Já entregues: ${deliveredCount}`);
+    lines.push(`Faturamento entregas: ${formatBRL(deliveryRevenue)}`);
+    lines.push(`Total em fretes: ${formatBRL(deliveryFees)}`);
+    lines.push("");
+    if (deliveries.length > 0) {
+      lines.push("— Pedidos —");
+      for (const o of deliveries) {
+        const time = new Date(o.created_at).toLocaleTimeString("pt-BR", {
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+        lines.push(
+          `• ${time} — ${o.customer_name || "Sem cliente"} — ${formatBRL(o.total)} (frete ${formatBRL(o.delivery_fee || 0)}) — ${FLOW_STATUS_LABEL[o.status]}`,
+        );
+        if (o.delivery_neighborhood) lines.push(`   Bairro: ${o.delivery_neighborhood}`);
+        if (o.delivery_address) lines.push(`   Endereço: ${o.delivery_address}`);
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(lines.join("\n"));
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      /* noop */
+    }
+  };
 
   return (
     <div>
-      <div className="mb-4 flex items-center gap-3">
+      <div className="mb-4 flex flex-wrap items-center gap-3">
         <button
           onClick={onBack}
           className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-sm text-muted-foreground hover:text-foreground"
         >
           <ArrowLeft size={14} /> Todas as datas
         </button>
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <p className="text-xs uppercase tracking-wide text-muted-foreground">
             {bucket.key}
           </p>
           <h2 className="truncate font-display text-lg capitalize text-primary">
             {formatDayLabel(bucket.key)}
           </h2>
+        </div>
+        <button
+          onClick={copyReport}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-sm text-muted-foreground hover:text-foreground"
+        >
+          {copied ? <Check size={14} /> : <Copy size={14} />}
+          {copied ? "Copiado!" : "Copiar relatório"}
+        </button>
+      </div>
+
+      {/* Relatório de entregas do dia */}
+      <div className="mb-6 rounded-xl border border-primary/30 bg-primary/5 p-4">
+        <div className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-primary">
+          <Truck size={16} /> Relatório de entregas
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <MetricCard
+            icon={<Truck size={16} />}
+            label="Entregas"
+            value={`${deliveries.length}`}
+            hint={`${deliveredCount} concluídas`}
+          />
+          <MetricCard
+            icon={<TrendingUp size={16} />}
+            label="Faturamento entregas"
+            value={formatBRL(deliveryRevenue)}
+            tone="success"
+          />
+          <MetricCard
+            icon={<Receipt size={16} />}
+            label="Total em fretes"
+            value={formatBRL(deliveryFees)}
+          />
+          <MetricCard
+            icon={<Receipt size={16} />}
+            label="Ticket entrega"
+            value={formatBRL(
+              deliveries.length ? deliveryRevenue / deliveries.length : 0,
+            )}
+          />
         </div>
       </div>
 
