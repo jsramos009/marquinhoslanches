@@ -1,13 +1,24 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { zodValidator, fallback } from "@tanstack/zod-adapter";
 import { z } from "zod";
-import { ArrowLeft, ChevronRight, Calendar, TrendingUp, XCircle, Receipt } from "lucide-react";
+import {
+  ArrowLeft,
+  ChevronRight,
+  Calendar,
+  TrendingUp,
+  XCircle,
+  Receipt,
+  Truck,
+  Copy,
+  Check,
+} from "lucide-react";
 import { AdminShell, formatBRL } from "@/components/admin/AdminShell";
 import {
   listArchivedOrders,
+  listOrdersByDay,
   type OrderRow,
   type OrderStatus,
 } from "@/lib/orders.functions";
@@ -104,15 +115,27 @@ function ArquivadosPage() {
   const navigate = useNavigate({ from: "/admin/arquivados" });
 
   const fetchArchived = useServerFn(listArchivedOrders);
-  const q = useQuery<OrderRow[]>({
+  const fetchByDay = useServerFn(listOrdersByDay);
+
+  const listQuery = useQuery<OrderRow[]>({
     queryKey: ["orders-archived", 30],
     queryFn: () => fetchArchived({ data: { days: 30 } }),
     staleTime: 60_000,
+    enabled: !search.d,
+  });
+
+  // Ao selecionar uma data, sempre buscamos direto do servidor (permite
+  // datas fora dos últimos 30 dias e garante o dia atual também).
+  const dayQuery = useQuery<OrderRow[]>({
+    queryKey: ["orders-by-day", search.d],
+    queryFn: () => fetchByDay({ data: { day: search.d as string } }),
+    staleTime: 60_000,
+    enabled: Boolean(search.d),
   });
 
   const buckets = useMemo<DayBucket[]>(() => {
     const map = new Map<string, OrderRow[]>();
-    for (const o of q.data ?? []) {
+    for (const o of listQuery.data ?? []) {
       const k = dayKey(o.created_at);
       const list = map.get(k) ?? [];
       list.push(o);
@@ -121,11 +144,14 @@ function ArquivadosPage() {
     return [...map.entries()]
       .map(([key, orders]) => ({ key, orders }))
       .sort((a, b) => (a.key < b.key ? 1 : -1));
-  }, [q.data]);
+  }, [listQuery.data]);
 
-  const selected = search.d
-    ? buckets.find((b) => b.key === search.d) ?? null
+  const selected: DayBucket | null = search.d
+    ? { key: search.d, orders: dayQuery.data ?? [] }
     : null;
+
+  const isLoading = search.d ? dayQuery.isLoading : listQuery.isLoading;
+  const error = search.d ? dayQuery.error : listQuery.error;
 
   return (
     <AdminShell
@@ -141,27 +167,72 @@ function ArquivadosPage() {
         </Link>
       }
     >
-      {q.isLoading && (
-        <p className="text-sm text-muted-foreground">Carregando histórico…</p>
-      )}
-      {q.error && (
-        <p className="text-sm text-destructive">{(q.error as Error).message}</p>
+      {!selected && (
+        <CustomDayPicker onPick={(k) => navigate({ search: { d: k } })} />
       )}
 
-      {!q.isLoading && !selected && (
+      {isLoading && (
+        <p className="text-sm text-muted-foreground">Carregando histórico…</p>
+      )}
+      {error && (
+        <p className="text-sm text-destructive">{(error as Error).message}</p>
+      )}
+
+      {!isLoading && !selected && (
         <DayList
           buckets={buckets}
           onSelect={(k) => navigate({ search: { d: k } })}
         />
       )}
 
-      {selected && (
+      {selected && !isLoading && (
         <DayDetail
           bucket={selected}
           onBack={() => navigate({ search: { d: undefined } })}
         />
       )}
     </AdminShell>
+  );
+}
+
+function todayKey() {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${dd}`;
+}
+
+function CustomDayPicker({ onPick }: { onPick: (day: string) => void }) {
+  const [value, setValue] = useState("");
+  return (
+    <div className="mb-4 flex flex-wrap items-end gap-3 rounded-xl border border-border bg-card p-3">
+      <div className="flex flex-col gap-1">
+        <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          Relatório de um dia específico
+        </label>
+        <input
+          type="date"
+          value={value}
+          max={todayKey()}
+          onChange={(e) => setValue(e.target.value)}
+          className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none"
+        />
+      </div>
+      <button
+        onClick={() => value && onPick(value)}
+        disabled={!value}
+        className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50"
+      >
+        <Calendar size={14} /> Ver relatório
+      </button>
+      <button
+        onClick={() => onPick(todayKey())}
+        className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-2 text-sm text-muted-foreground hover:text-foreground"
+      >
+        Hoje
+      </button>
+    </div>
   );
 }
 
