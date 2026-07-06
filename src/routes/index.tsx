@@ -816,6 +816,10 @@ function CartDialog({
   };
   const remove = (lineId: string) =>
     setCart((prev) => prev.filter((l) => l.lineId !== lineId));
+  const updateNotes = (lineId: string, notes: string) =>
+    setCart((prev) =>
+      prev.map((l) => (l.lineId === lineId ? { ...l, notes } : l)),
+    );
 
   const mapsLink = geo
     ? `https://www.google.com/maps?q=${geo.lat.toFixed(6)},${geo.lng.toFixed(6)}`
