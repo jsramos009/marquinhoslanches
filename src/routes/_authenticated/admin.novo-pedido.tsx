@@ -425,21 +425,6 @@ function NovoPedidoPage() {
     setItems((prev) => prev.filter((it) => it.key !== key));
   }
 
-  function toggleAddon(key: string, addonId: string) {
-    setItems((prev) =>
-      prev.map((it) => {
-        if (it.key !== key) return it;
-        const has = it.addons.find((a) => a.addon_id === addonId);
-        return {
-          ...it,
-          addons: has
-            ? it.addons.filter((a) => a.addon_id !== addonId)
-            : [...it.addons, { addon_id: addonId, quantity: 1 }],
-        };
-      }),
-    );
-  }
-
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (items.length === 0) return;
@@ -742,26 +727,14 @@ function NovoPedidoPage() {
                       {formatBRL(p.price * it.quantity)}
                     </span>
                   </div>
-                  {productAcceptsAddons(p.id) && addons.length > 0 && (
-                    <div className="mt-2 flex flex-wrap gap-1">
-                      {addons.map((a) => {
-                        const active = it.addons.some((x) => x.addon_id === a.id);
-                        return (
-                          <button
-                            key={a.id}
-                            type="button"
-                            onClick={() => toggleAddon(it.key, a.id)}
-                            className={`rounded-full px-2 py-0.5 text-[10px] ${
-                              active
-                                ? "bg-primary text-primary-foreground"
-                                : "border border-border bg-card text-muted-foreground hover:text-foreground"
-                            }`}
-                          >
-                            {a.name} {formatBRL(a.price)}
-                          </button>
-                        );
-                      })}
-                    </div>
+                  {productAcceptsAddons(p.id) && it.addons.length > 0 && (
+                    <p className="mt-2 text-[11px] text-muted-foreground">
+                      +{" "}
+                      {it.addons
+                        .map((x) => addonMap.get(x.addon_id)?.name)
+                        .filter(Boolean)
+                        .join(", ")}
+                    </p>
                   )}
                 </div>
               );
