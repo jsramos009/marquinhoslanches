@@ -223,15 +223,16 @@ export function MenuPage() {
         Number(product.price) +
         usableAddons.reduce((s, a) => s + Number(a.price), 0);
       // Aplica a observação do pedido na primeira linha (ordens guardam
-      // uma única observação por pedido), mantendo o mesmo formato de
-      // lineId usado pelo carrinho para preservar merges futuros.
+      // uma única observação por pedido). O lineId NÃO inclui notes, pois
+      // notes são editáveis no carrinho e mudar o id causaria perda de
+      // foco no input.
       const notes = idx === 0 ? orderNotes : "";
       const lineId =
         product.id +
         ":" +
         usableAddons.map((a) => a.id).sort().join(",") +
         ":" +
-        notes;
+        crypto.randomUUID();
       lines.push({
         lineId,
         product,
@@ -267,15 +268,34 @@ export function MenuPage() {
   ) => {
     const unitPrice =
       Number(product.price) + addons.reduce((s, a) => s + Number(a.price), 0);
-    const lineId =
+    // Chave de deduplicação (mesmo produto + mesmos adicionais + mesma
+    // observação) — usada só para MERGE, não como React key, para não
+    // desmontar o input de observação enquanto o cliente digita.
+    const mergeKey =
       product.id + ":" + addons.map((a) => a.id).sort().join(",") + ":" + notes;
+    const buildMergeKey = (l: CartLine) =>
+      l.product.id +
+      ":" +
+      l.addons.map((a) => a.id).sort().join(",") +
+      ":" +
+      l.notes;
     setCart((prev) => {
-      const existing = prev.find((l) => l.lineId === lineId);
+      const existing = prev.find((l) => buildMergeKey(l) === mergeKey);
       return existing
         ? prev.map((l) =>
-            l.lineId === lineId ? { ...l, qty: l.qty + qty } : l,
+            buildMergeKey(l) === mergeKey ? { ...l, qty: l.qty + qty } : l,
           )
-        : [...prev, { lineId, product, qty, addons, notes, unitPrice }];
+        : [
+            ...prev,
+            {
+              lineId: crypto.randomUUID(),
+              product,
+              qty,
+              addons,
+              notes,
+              unitPrice,
+            },
+          ];
     });
 
     // Cross-sell: suggest a beverage if a food (accepts_addons) was added
