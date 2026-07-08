@@ -425,21 +425,6 @@ function NovoPedidoPage() {
     setItems((prev) => prev.filter((it) => it.key !== key));
   }
 
-  function toggleAddon(key: string, addonId: string) {
-    setItems((prev) =>
-      prev.map((it) => {
-        if (it.key !== key) return it;
-        const has = it.addons.find((a) => a.addon_id === addonId);
-        return {
-          ...it,
-          addons: has
-            ? it.addons.filter((a) => a.addon_id !== addonId)
-            : [...it.addons, { addon_id: addonId, quantity: 1 }],
-        };
-      }),
-    );
-  }
-
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (items.length === 0) return;
