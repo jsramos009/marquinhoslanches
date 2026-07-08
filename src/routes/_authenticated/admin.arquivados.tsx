@@ -336,28 +336,99 @@ function DayDetail({
   );
   const [copied, setCopied] = useState(false);
 
-  // Somente pedidos de entrega válidos (não cancelados)
-  const deliveries = orders.filter(
-    (o) => o.delivery_mode === "delivery" && o.status !== "cancelado",
-  );
+  // Pedidos válidos (não cancelados)
+  const validOrders = orders.filter((o) => o.status !== "cancelado");
+
+  // Entregas x retiradas
+  const deliveries = validOrders.filter((o) => o.delivery_mode === "delivery");
+  const pickups = validOrders.filter((o) => o.delivery_mode === "pickup");
   const deliveryRevenue = deliveries.reduce((s, o) => s + Number(o.total || 0), 0);
+  const pickupRevenue = pickups.reduce((s, o) => s + Number(o.total || 0), 0);
   const deliveryFees = deliveries.reduce(
     (s, o) => s + Number(o.delivery_fee || 0),
     0,
   );
   const deliveredCount = deliveries.filter((o) => o.status === "entregue").length;
+  const netRevenue = m.revenue - deliveryFees; // faturamento sem os fretes
+
+  // Contagem de itens (lanches / produtos vendidos)
+  let totalItemsQty = 0;
+  let totalItemsRevenue = 0;
+  const productAgg = new Map<
+    string,
+    { name: string; qty: number; revenue: number }
+  >();
+  for (const o of validOrders) {
+    for (const it of o.items) {
+      totalItemsQty += it.quantity;
+      totalItemsRevenue += Number(it.line_total || 0);
+      const key = it.product_id || it.product_name_snapshot;
+      const cur = productAgg.get(key) ?? {
+        name: it.product_name_snapshot,
+        qty: 0,
+        revenue: 0,
+      };
+      cur.qty += it.quantity;
+      cur.revenue += Number(it.line_total || 0);
+      productAgg.set(key, cur);
+    }
+  }
+  const topProducts = [...productAgg.values()].sort(
+    (a, b) => b.qty - a.qty || b.revenue - a.revenue,
+  );
+
+  // Pagamentos
+  const payAgg = new Map<string, { count: number; revenue: number }>();
+  for (const o of validOrders) {
+    const key = o.payment_method || "nao_informado";
+    const cur = payAgg.get(key) ?? { count: 0, revenue: 0 };
+    cur.count += 1;
+    cur.revenue += Number(o.total || 0);
+    payAgg.set(key, cur);
+  }
+  const paymentRows = [...payAgg.entries()].sort(
+    (a, b) => b[1].revenue - a[1].revenue,
+  );
 
   const copyReport = async () => {
     const lines: string[] = [];
-    lines.push(`📊 Relatório de entregas — ${formatDayLabel(bucket.key)}`);
+    lines.push(`📊 *Relatório do dia — ${formatDayLabel(bucket.key)}*`);
     lines.push("");
-    lines.push(`Entregas: ${deliveries.length}`);
-    lines.push(`Já entregues: ${deliveredCount}`);
-    lines.push(`Faturamento entregas: ${formatBRL(deliveryRevenue)}`);
-    lines.push(`Total em fretes: ${formatBRL(deliveryFees)}`);
+    lines.push("*Resumo*");
+    lines.push(`• Pedidos válidos: ${m.total - m.cancelled} (de ${m.total})`);
+    lines.push(`• Cancelados: ${m.cancelled}`);
+    lines.push(`• Lanches / itens vendidos: ${totalItemsQty}`);
+    lines.push(`• Faturamento bruto: ${formatBRL(m.revenue)}`);
+    lines.push(`• Fretes recebidos: ${formatBRL(deliveryFees)}`);
+    lines.push(`• Faturamento líquido (sem frete): ${formatBRL(netRevenue)}`);
+    lines.push(`• Ticket médio: ${formatBRL(m.avgTicket)}`);
     lines.push("");
+    lines.push("*Entregas x Retiradas*");
+    lines.push(
+      `• Entregas: ${deliveries.length} — ${formatBRL(deliveryRevenue)} (${deliveredCount} concluídas)`,
+    );
+    lines.push(
+      `• Retiradas: ${pickups.length} — ${formatBRL(pickupRevenue)}`,
+    );
+    lines.push("");
+    if (topProducts.length > 0) {
+      lines.push("*Mais vendidos*");
+      for (const p of topProducts.slice(0, 10)) {
+        lines.push(`• ${p.qty}× ${p.name} — ${formatBRL(p.revenue)}`);
+      }
+      lines.push("");
+    }
+    if (paymentRows.length > 0) {
+      lines.push("*Pagamentos*");
+      for (const [k, v] of paymentRows) {
+        lines.push(
+          `• ${PAY_LABEL[k as keyof typeof PAY_LABEL] ?? k}: ${v.count} pedidos — ${formatBRL(v.revenue)}`,
+        );
+      }
+      lines.push("");
+    }
     if (deliveries.length > 0) {
-      lines.push("— Pedidos —");
+      lines.push("*Entregas do dia*");
       for (const o of deliveries) {
         const time = new Date(o.created_at).toLocaleTimeString("pt-BR", {
           hour: "2-digit",
@@ -366,7 +437,8 @@ function DayDetail({
         lines.push(
           `• ${time} — ${o.customer_name || "Sem cliente"} — ${formatBRL(o.total)} (frete ${formatBRL(o.delivery_fee || 0)}) — ${FLOW_STATUS_LABEL[o.status]}`,
         );
-        if (o.delivery_neighborhood) lines.push(`   Bairro: ${o.delivery_neighborhood}`);
+        if (o.delivery_neighborhood)
+          lines.push(`   Bairro: ${o.delivery_neighborhood}`);
         if (o.delivery_address) lines.push(`   Endereço: ${o.delivery_address}`);
       }
     }
@@ -405,45 +477,13 @@ function DayDetail({
         </button>
       </div>
 
-      {/* Relatório de entregas do dia */}
-      <div className="mb-6 rounded-xl border border-primary/30 bg-primary/5 p-4">
-        <div className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-primary">
-          <Truck size={16} /> Relatório de entregas
-        </div>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <MetricCard
-            icon={<Truck size={16} />}
-            label="Entregas"
-            value={`${deliveries.length}`}
-            hint={`${deliveredCount} concluídas`}
-          />
-          <MetricCard
-            icon={<TrendingUp size={16} />}
-            label="Faturamento entregas"
-            value={formatBRL(deliveryRevenue)}
-            tone="success"
-          />
-          <MetricCard
-            icon={<Receipt size={16} />}
-            label="Total em fretes"
-            value={formatBRL(deliveryFees)}
-          />
-          <MetricCard
-            icon={<Receipt size={16} />}
-            label="Ticket entrega"
-            value={formatBRL(
-              deliveries.length ? deliveryRevenue / deliveries.length : 0,
-            )}
-          />
-        </div>
-      </div>
-
-      {/* Cards de métricas */}
+      {/* Resumo geral do dia */}
       <div className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <MetricCard
           icon={<TrendingUp size={16} />}
-          label="Faturamento"
+          label="Faturamento bruto"
           value={formatBRL(m.revenue)}
+          hint={`Líquido (sem frete): ${formatBRL(netRevenue)}`}
           tone="success"
         />
         <MetricCard
@@ -453,9 +493,36 @@ function DayDetail({
           hint={`${m.total} no total`}
         />
         <MetricCard
+          icon={<ShoppingBag size={16} />}
+          label="Lanches / itens"
+          value={`${totalItemsQty}`}
+          hint={`${formatBRL(totalItemsRevenue)} em produtos`}
+        />
+        <MetricCard
           icon={<Receipt size={16} />}
           label="Ticket médio"
           value={formatBRL(m.avgTicket)}
+        />
+      </div>
+
+      {/* Entregas x Retiradas */}
+      <div className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <MetricCard
+          icon={<Truck size={16} />}
+          label="Entregas"
+          value={`${deliveries.length}`}
+          hint={`${deliveredCount} concluídas · ${formatBRL(deliveryRevenue)}`}
+        />
+        <MetricCard
+          icon={<Store size={16} />}
+          label="Retiradas"
+          value={`${pickups.length}`}
+          hint={formatBRL(pickupRevenue)}
+        />
+        <MetricCard
+          icon={<Receipt size={16} />}
+          label="Total em fretes"
+          value={formatBRL(deliveryFees)}
         />
         <MetricCard
           icon={<XCircle size={16} />}
@@ -464,6 +531,65 @@ function DayDetail({
           hint={`${cancelRate.toFixed(1)}% · ${formatBRL(m.cancelledRevenue)} perdidos`}
           tone="destructive"
         />
+      </div>
+
+      {/* Mais vendidos + Pagamentos */}
+      <div className="mb-6 grid gap-3 lg:grid-cols-2">
+        <div className="rounded-xl border border-border bg-card p-4">
+          <div className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-primary">
+            <Package size={16} /> Mais vendidos
+          </div>
+          {topProducts.length === 0 ? (
+            <p className="text-xs text-muted-foreground">Nenhum item vendido no dia.</p>
+          ) : (
+            <ul className="space-y-1.5 text-sm">
+              {topProducts.slice(0, 10).map((p) => (
+                <li
+                  key={p.name}
+                  className="flex items-center justify-between gap-2 border-b border-border/60 pb-1 last:border-none"
+                >
+                  <span className="min-w-0 truncate">
+                    <span className="mr-2 inline-block min-w-6 text-right font-mono font-semibold text-foreground">
+                      {p.qty}×
+                    </span>
+                    <span className="text-muted-foreground">{p.name}</span>
+                  </span>
+                  <span className="shrink-0 font-mono text-xs text-emerald-400">
+                    {formatBRL(p.revenue)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        <div className="rounded-xl border border-border bg-card p-4">
+          <div className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-primary">
+            <CreditCard size={16} /> Pagamentos
+          </div>
+          {paymentRows.length === 0 ? (
+            <p className="text-xs text-muted-foreground">Sem pagamentos registrados.</p>
+          ) : (
+            <ul className="space-y-1.5 text-sm">
+              {paymentRows.map(([k, v]) => (
+                <li
+                  key={k}
+                  className="flex items-center justify-between gap-2 border-b border-border/60 pb-1 last:border-none"
+                >
+                  <span className="text-muted-foreground">
+                    {PAY_LABEL[k as keyof typeof PAY_LABEL] ?? k}
+                    <span className="ml-2 text-xs text-muted-foreground/70">
+                      {v.count} pedido{v.count === 1 ? "" : "s"}
+                    </span>
+                  </span>
+                  <span className="shrink-0 font-mono text-xs text-emerald-400">
+                    {formatBRL(v.revenue)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       </div>
 
       {/* Distribuição por status */}
