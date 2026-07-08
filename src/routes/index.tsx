@@ -1369,11 +1369,9 @@ function CartDialog({
           >
             {submitting
               ? "Enviando…"
-              : payment === "pix"
-                ? "Prosseguir para o pagamento"
-                : alreadySent
-                  ? "Pedido já enviado"
-                  : "Enviar pedido pelo WhatsApp"}
+              : alreadySent
+                ? "Pedido já enviado"
+                : "Enviar pedido pelo WhatsApp"}
           </button>
           {submitError && (
             <p className="mt-2 text-center text-xs text-destructive">
