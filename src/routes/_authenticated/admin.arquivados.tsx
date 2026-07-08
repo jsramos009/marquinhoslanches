@@ -14,6 +14,10 @@ import {
   Truck,
   Copy,
   Check,
+  ShoppingBag,
+  Package,
+  CreditCard,
+  Store,
 } from "lucide-react";
 import { AdminShell, formatBRL } from "@/components/admin/AdminShell";
 import {
