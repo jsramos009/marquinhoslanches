@@ -1070,10 +1070,7 @@ function CartDialog({
         `🔑 Chave PIX: ${pixSettings.pix_key}`,
         `👤 Recebedor: ${pixSettings.pix_merchant_name}`,
         "",
-        "📋 *PIX copia e cola:*",
-        pixPayload,
-        "",
-        "👉 Copie o código acima, cole no app do seu banco e finalize o pagamento.",
+        "👉 Copie a chave PIX acima, cole no app do seu banco e finalize o pagamento.",
         "Depois é só me mandar o comprovante por aqui. 🙏",
       ].join("\n");
       sendWhatsapp(pixBlock);
