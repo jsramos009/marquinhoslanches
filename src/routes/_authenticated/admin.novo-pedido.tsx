@@ -80,6 +80,7 @@ type DraftItem = {
   product_id: string;
   quantity: number;
   addons: { addon_id: string; quantity: number }[];
+  notes?: string;
 };
 
 function NovoPedidoPage() {
@@ -347,6 +348,9 @@ function NovoPedidoPage() {
           .filter(Boolean)
           .join(", ");
         if (names) lines.push(`    Adicionais: ${names}`);
+      }
+      if (it.notes && it.notes.trim()) {
+        lines.push(`    Obs: ${it.notes.trim()}`);
       }
     });
     lines.push("");
@@ -736,6 +740,13 @@ function NovoPedidoPage() {
                         .join(", ")}
                     </p>
                   )}
+                  <textarea
+                    value={it.notes ?? ""}
+                    onChange={(e) => updateItem(it.key, { notes: e.target.value })}
+                    rows={2}
+                    placeholder="Observação deste lanche (ex: sem cebola, ponto da carne)"
+                    className="mt-2 w-full rounded-lg border border-border bg-background px-2 py-1.5 text-[11px]"
+                  />
                 </div>
               );
             })}
