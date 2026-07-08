@@ -707,9 +707,6 @@ function CartDialog({
   const [geoStatus, setGeoStatus] = useState<"idle" | "loading" | "error">("idle");
   const [geoError, setGeoError] = useState<string>("");
   const neighborhoodManualRef = useRef(false);
-  const [step, setStep] = useState<"form" | "pix">("form");
-  const [pixQr, setPixQr] = useState<string>("");
-  const [pixCopied, setPixCopied] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submittedFp, setSubmittedFp] = useState<string | null>(null);
   const [sentToast, setSentToast] = useState(false);
@@ -786,24 +783,6 @@ function CartDialog({
       }),
     [grandTotal, pixSettings.pix_key, pixSettings.pix_merchant_name, pixSettings.pix_merchant_city],
   );
-
-  useEffect(() => {
-    if (step !== "pix") return;
-    let active = true;
-    import("qrcode")
-      .then(({ default: QRCode }) =>
-        QRCode.toDataURL(pixPayload, { margin: 1, width: 320 }),
-      )
-      .then((url) => {
-        if (active) setPixQr(url);
-      })
-      .catch(() => {
-        if (active) setPixQr("");
-      });
-    return () => {
-      active = false;
-    };
-  }, [step, pixPayload]);
 
   const updateQty = (lineId: string, delta: number) => {
     setCart((prev) =>
@@ -1055,41 +1034,32 @@ function CartDialog({
   };
 
   const submit = async () => {
-    if (payment === "pix") {
-      // Para PIX, só registramos quando o cliente enviar o comprovante.
-      setStep("pix");
-      return;
-    }
     if (alreadySent) {
       setSentToast(true);
       setTimeout(() => setSentToast(false), 3500);
       return;
     }
     const ok = await persistOrder();
-    if (ok) sendWhatsapp();
-  };
-
-  const copyPixKey = async () => {
-    try {
-      await navigator.clipboard.writeText(pixSettings.pix_key);
-      setPixCopied(true);
-      setTimeout(() => setPixCopied(false), 1800);
-    } catch {
-      // ignore
-    }
-  };
-
-  const sendReceipt = async () => {
-    if (!alreadySent) {
-      const ok = await persistOrder();
-      if (!ok) return;
+    if (!ok) return;
+    if (payment === "pix") {
+      const pixBlock = [
+        "",
+        "———————————————",
+        "💠 *Pagamento via PIX*",
+        `💰 Valor: *${formatBRL(grandTotal)}*`,
+        `🔑 Chave PIX: ${pixSettings.pix_key}`,
+        `👤 Recebedor: ${pixSettings.pix_merchant_name}`,
+        "",
+        "📋 *PIX copia e cola:*",
+        pixPayload,
+        "",
+        "👉 Copie o código acima, cole no app do seu banco e finalize o pagamento.",
+        "Depois é só me mandar o comprovante por aqui. 🙏",
+      ].join("\n");
+      sendWhatsapp(pixBlock);
     } else {
-      setSentToast(true);
-      setTimeout(() => setSentToast(false), 3500);
+      sendWhatsapp();
     }
-    sendWhatsapp(
-      "✅ *Pagamento via PIX* — segue em anexo o comprovante. Aguardo confirmação do pedido!",
-    );
   };
 
   return (
