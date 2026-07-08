@@ -707,9 +707,6 @@ function CartDialog({
   const [geoStatus, setGeoStatus] = useState<"idle" | "loading" | "error">("idle");
   const [geoError, setGeoError] = useState<string>("");
   const neighborhoodManualRef = useRef(false);
-  const [step, setStep] = useState<"form" | "pix">("form");
-  const [pixQr, setPixQr] = useState<string>("");
-  const [pixCopied, setPixCopied] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submittedFp, setSubmittedFp] = useState<string | null>(null);
   const [sentToast, setSentToast] = useState(false);
@@ -786,24 +783,6 @@ function CartDialog({
       }),
     [grandTotal, pixSettings.pix_key, pixSettings.pix_merchant_name, pixSettings.pix_merchant_city],
   );
-
-  useEffect(() => {
-    if (step !== "pix") return;
-    let active = true;
-    import("qrcode")
-      .then(({ default: QRCode }) =>
-        QRCode.toDataURL(pixPayload, { margin: 1, width: 320 }),
-      )
-      .then((url) => {
-        if (active) setPixQr(url);
-      })
-      .catch(() => {
-        if (active) setPixQr("");
-      });
-    return () => {
-      active = false;
-    };
-  }, [step, pixPayload]);
 
   const updateQty = (lineId: string, delta: number) => {
     setCart((prev) =>
@@ -1055,41 +1034,32 @@ function CartDialog({
   };
 
   const submit = async () => {
-    if (payment === "pix") {
-      // Para PIX, só registramos quando o cliente enviar o comprovante.
-      setStep("pix");
-      return;
-    }
     if (alreadySent) {
       setSentToast(true);
       setTimeout(() => setSentToast(false), 3500);
       return;
     }
     const ok = await persistOrder();
-    if (ok) sendWhatsapp();
-  };
-
-  const copyPixKey = async () => {
-    try {
-      await navigator.clipboard.writeText(pixSettings.pix_key);
-      setPixCopied(true);
-      setTimeout(() => setPixCopied(false), 1800);
-    } catch {
-      // ignore
-    }
-  };
-
-  const sendReceipt = async () => {
-    if (!alreadySent) {
-      const ok = await persistOrder();
-      if (!ok) return;
+    if (!ok) return;
+    if (payment === "pix") {
+      const pixBlock = [
+        "",
+        "———————————————",
+        "💠 *Pagamento via PIX*",
+        `💰 Valor: *${formatBRL(grandTotal)}*`,
+        `🔑 Chave PIX: ${pixSettings.pix_key}`,
+        `👤 Recebedor: ${pixSettings.pix_merchant_name}`,
+        "",
+        "📋 *PIX copia e cola:*",
+        pixPayload,
+        "",
+        "👉 Copie o código acima, cole no app do seu banco e finalize o pagamento.",
+        "Depois é só me mandar o comprovante por aqui. 🙏",
+      ].join("\n");
+      sendWhatsapp(pixBlock);
     } else {
-      setSentToast(true);
-      setTimeout(() => setSentToast(false), 3500);
+      sendWhatsapp();
     }
-    sendWhatsapp(
-      "✅ *Pagamento via PIX* — segue em anexo o comprovante. Aguardo confirmação do pedido!",
-    );
   };
 
   return (
@@ -1101,98 +1071,6 @@ function CartDialog({
           </div>
         </div>
       )}
-      {step === "pix" ? (
-        <>
-          <div className="flex-1 overflow-y-auto px-5 py-4">
-            <div className="space-y-4 text-center">
-              <div>
-                <p className="text-sm text-muted-foreground">Valor a pagar</p>
-                <p className="font-display text-3xl text-primary">
-                  {formatBRL(grandTotal)}
-                </p>
-              </div>
-              <div className="mx-auto w-fit rounded-2xl border border-border bg-white p-3">
-                {pixQr ? (
-                  <img
-                    src={pixQr}
-                    alt="QR Code PIX"
-                    width={260}
-                    height={260}
-                    className="h-[260px] w-[260px]"
-                  />
-                ) : (
-                  <div className="grid h-[260px] w-[260px] place-items-center text-sm text-muted-foreground">
-                    Gerando QR...
-                  </div>
-                )}
-              </div>
-              <div className="space-y-2 text-left">
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                  Chave PIX (telefone)
-                </p>
-                <div className="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2">
-                  <span className="flex-1 truncate font-mono text-sm text-foreground">
-                    {pixSettings.pix_key}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={copyPixKey}
-                    className="rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-semibold hover:border-primary"
-                  >
-                    {pixCopied ? "Copiado!" : "Copiar"}
-                  </button>
-                </div>
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                  PIX copia e cola
-                </p>
-                <button
-                  type="button"
-                  onClick={async () => {
-                    try {
-                      await navigator.clipboard.writeText(pixPayload);
-                      setPixCopied(true);
-                      setTimeout(() => setPixCopied(false), 1800);
-                    } catch {}
-                  }}
-                  className="block w-full break-all rounded-xl border border-dashed border-border bg-background px-3 py-2 text-left font-mono text-[11px] text-muted-foreground hover:border-primary"
-                  title="Toque para copiar o código PIX"
-                >
-                  {pixPayload}
-                </button>
-              </div>
-              <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-left text-sm text-amber-200">
-                ⚠️ <strong>Seu pedido só será validado quando você enviar o
-                comprovante</strong> pelo WhatsApp.
-              </div>
-            </div>
-          </div>
-          <div className="border-t border-border bg-card px-5 py-4 space-y-2">
-            <button
-              onClick={sendReceipt}
-              disabled={submitting}
-              className="w-full rounded-xl bg-primary px-4 py-3 font-display text-lg uppercase tracking-wide text-primary-foreground transition-transform active:scale-[0.98]"
-            >
-              {submitting
-                ? "Enviando…"
-                : alreadySent
-                  ? "Comprovante já enviado"
-                  : "Enviar comprovante"}
-            </button>
-            {submitError && (
-              <p className="text-center text-xs text-destructive">
-                {submitError}
-              </p>
-            )}
-            <button
-              onClick={() => setStep("form")}
-              className="w-full rounded-xl border border-border bg-background px-4 py-2 text-sm text-muted-foreground hover:text-foreground"
-            >
-              Voltar
-            </button>
-          </div>
-        </>
-      ) : (
-      <>
       <div className="flex-1 overflow-y-auto px-5 py-4">
         {cart.length === 0 ? (
           <p className="py-10 text-center text-muted-foreground">
@@ -1491,11 +1369,9 @@ function CartDialog({
           >
             {submitting
               ? "Enviando…"
-              : payment === "pix"
-                ? "Prosseguir para o pagamento"
-                : alreadySent
-                  ? "Pedido já enviado"
-                  : "Enviar pedido pelo WhatsApp"}
+              : alreadySent
+                ? "Pedido já enviado"
+                : "Enviar pedido pelo WhatsApp"}
           </button>
           {submitError && (
             <p className="mt-2 text-center text-xs text-destructive">
@@ -1504,12 +1380,10 @@ function CartDialog({
           )}
           <p className="mt-2 text-center text-xs text-muted-foreground">
             {payment === "pix"
-              ? "Você verá o QR Code e a chave PIX na próxima etapa."
+              ? "Você será redirecionado para o WhatsApp. O código PIX vai junto na mensagem para você copiar e pagar."
               : "Você será redirecionado para o WhatsApp para confirmar com a loja."}
           </p>
         </div>
-      )}
-      </>
       )}
     </Sheet>
   );
