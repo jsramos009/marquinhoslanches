@@ -583,6 +583,9 @@ function NovoPedidoPage() {
                   inputMode="tel"
                   className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
                 />
+                {lookupHint && (
+                  <p className="mt-1 text-[11px] text-muted-foreground">{lookupHint}</p>
+                )}
               </Field>
               <Field label="Canal">
                 <select
