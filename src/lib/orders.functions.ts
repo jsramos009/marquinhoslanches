@@ -597,8 +597,8 @@ export const listArchivedOrders = createServerFn({ method: "GET" })
   .inputValidator((d: { days?: number } | undefined) => d ?? {})
   .handler(async ({ data, context }): Promise<OrderRow[]> => {
     const days = Math.min(90, Math.max(1, data.days ?? 30));
-    const startOfToday = new Date();
-    startOfToday.setHours(0, 0, 0, 0);
+    // Usa fuso do Brasil (UTC-3) para "hoje" — o servidor roda em UTC.
+    const startOfToday = brStartOfToday();
     const since = new Date(startOfToday.getTime() - days * 86_400_000);
     const { data: rows, error } = await context.supabase
       .from("orders")
