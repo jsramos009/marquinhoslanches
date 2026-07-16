@@ -510,7 +510,7 @@ function DayDetail({
         />
         <MetricCard
           icon={<ShoppingBag size={16} />}
-          label="Lanches / itens"
+          label="Lanches / itens (concluídos)"
           value={`${totalItemsQty}`}
           hint={`${formatBRL(totalItemsRevenue)} em produtos`}
         />
