@@ -108,6 +108,26 @@ function toISODateKey(date: Date) {
   return date.toISOString().slice(0, 10);
 }
 
+// Fuso do Brasil (sem horário de verão) — UTC-3.
+const BR_OFFSET_MS = 3 * 60 * 60 * 1000;
+
+// Início do dia (00:00 America/Sao_Paulo) para uma data YYYY-MM-DD.
+function brStartOfDay(day: string): Date {
+  const [y, m, d] = day.split("-").map(Number);
+  // 00:00 BRT == 03:00 UTC
+  return new Date(Date.UTC(y, m - 1, d, 3, 0, 0, 0));
+}
+
+// Início do dia atual em America/Sao_Paulo, como Date UTC.
+function brStartOfToday(): Date {
+  const now = new Date();
+  const brNow = new Date(now.getTime() - BR_OFFSET_MS); // "hora BR" mapeada em UTC
+  const y = brNow.getUTCFullYear();
+  const m = brNow.getUTCMonth();
+  const d = brNow.getUTCDate();
+  return new Date(Date.UTC(y, m, d, 3, 0, 0, 0));
+}
+
 export const createOrder = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: CreateOrderInput) => {
