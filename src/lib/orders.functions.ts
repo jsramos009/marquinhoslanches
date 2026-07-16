@@ -716,9 +716,9 @@ export const listOrdersByDay = createServerFn({ method: "GET" })
     return d;
   })
   .handler(async ({ data, context }): Promise<OrderRow[]> => {
-    const [y, m, dd] = data.day.split("-").map(Number);
-    const start = new Date(y, m - 1, dd, 0, 0, 0, 0);
-    const end = new Date(y, m - 1, dd + 1, 0, 0, 0, 0);
+    // Dia no fuso do Brasil (UTC-3); servidor roda em UTC.
+    const start = brStartOfDay(data.day);
+    const end = new Date(start.getTime() + 86_400_000);
     const { data: rows, error } = await context.supabase
       .from("orders")
       .select(
