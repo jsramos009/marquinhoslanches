@@ -672,11 +672,7 @@ function DayDetail({
                 </p>
                 <p className="text-xs text-muted-foreground">
                   {CHANNEL_LABEL[o.channel] ?? o.channel} ·{" "}
-                  {new Date(o.created_at).toLocaleTimeString("pt-BR", {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}{" "}
-                  · {FLOW_STATUS_LABEL[o.status]}
+                  {formatBRTime(o.created_at)} · {FLOW_STATUS_LABEL[o.status]}
                 </p>
               </div>
               <span className="shrink-0 rounded bg-secondary px-2 py-0.5 text-xs font-mono">
