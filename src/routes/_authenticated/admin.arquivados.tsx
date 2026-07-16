@@ -525,20 +525,21 @@ function DayDetail({
       <div className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <MetricCard
           icon={<Truck size={16} />}
-          label="Entregas"
-          value={`${deliveries.length}`}
-          hint={`${deliveredCount} concluídas · ${formatBRL(deliveryRevenue)}`}
+          label="Entregas concluídas"
+          value={`${deliveredCount}`}
+          hint={`de ${deliveries.length}${openDeliveries > 0 ? ` · ${openDeliveries} em aberto` : ""} · ${formatBRL(deliveryRevenue)}`}
         />
         <MetricCard
           icon={<Store size={16} />}
-          label="Retiradas"
-          value={`${pickups.length}`}
-          hint={formatBRL(pickupRevenue)}
+          label="Retiradas concluídas"
+          value={`${pickupsDoneCount}`}
+          hint={`de ${pickups.length}${openPickups > 0 ? ` · ${openPickups} em aberto` : ""} · ${formatBRL(pickupRevenue)}`}
         />
         <MetricCard
           icon={<Receipt size={16} />}
-          label="Total em fretes"
+          label="Fretes recebidos"
           value={formatBRL(deliveryFees)}
+          hint="apenas entregas concluídas"
         />
         <MetricCard
           icon={<XCircle size={16} />}
