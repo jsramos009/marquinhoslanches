@@ -50,25 +50,44 @@ const CHANNEL_LABEL: Record<string, string> = {
   outro: "Outro",
 };
 
+const BR_TZ = "America/Sao_Paulo";
+
 function dayKey(iso: string) {
-  const d = new Date(iso);
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
+  // Retorna YYYY-MM-DD no fuso do Brasil, independente do fuso do cliente.
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: BR_TZ,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date(iso));
+  const y = parts.find((p) => p.type === "year")?.value ?? "";
+  const m = parts.find((p) => p.type === "month")?.value ?? "";
+  const d = parts.find((p) => p.type === "day")?.value ?? "";
+  return `${y}-${m}-${d}`;
 }
 
 function formatDayLabel(key: string) {
-  // Build a local Date from the key to avoid TZ offset surprises
   const [y, m, d] = key.split("-").map(Number);
-  const date = new Date(y, m - 1, d);
+  // 12:00 BRT (15:00 UTC) — evita virar dia por diferença de fuso.
+  const date = new Date(Date.UTC(y, m - 1, d, 15, 0, 0, 0));
   return date.toLocaleDateString("pt-BR", {
     weekday: "long",
     day: "2-digit",
     month: "long",
     year: "numeric",
+    timeZone: BR_TZ,
   });
 }
+
+function formatBRTime(iso: string) {
+  return new Date(iso).toLocaleTimeString("pt-BR", {
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: BR_TZ,
+  });
+}
+
+
 
 type DayBucket = {
   key: string;
@@ -446,10 +465,7 @@ function DayDetail({
     if (deliveries.length > 0) {
       lines.push("*Entregas do dia*");
       for (const o of deliveries) {
-        const time = new Date(o.created_at).toLocaleTimeString("pt-BR", {
-          hour: "2-digit",
-          minute: "2-digit",
-        });
+        const time = formatBRTime(o.created_at);
         lines.push(
           `• ${time} — ${o.customer_name || "Sem cliente"} — ${formatBRL(o.total)} (frete ${formatBRL(o.delivery_fee || 0)}) — ${FLOW_STATUS_LABEL[o.status]}`,
         );
@@ -647,11 +663,7 @@ function DayDetail({
                 </p>
                 <p className="text-xs text-muted-foreground">
                   {CHANNEL_LABEL[o.channel] ?? o.channel} ·{" "}
-                  {new Date(o.created_at).toLocaleTimeString("pt-BR", {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}{" "}
-                  · {FLOW_STATUS_LABEL[o.status]}
+                  {formatBRTime(o.created_at)} · {FLOW_STATUS_LABEL[o.status]}
                 </p>
               </div>
               <span className="shrink-0 rounded bg-secondary px-2 py-0.5 text-xs font-mono">
