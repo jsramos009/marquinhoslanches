@@ -342,23 +342,39 @@ function DayDetail({
   // Entregas x retiradas
   const deliveries = validOrders.filter((o) => o.delivery_mode === "delivery");
   const pickups = validOrders.filter((o) => o.delivery_mode === "pickup");
-  const deliveryRevenue = deliveries.reduce((s, o) => s + Number(o.total || 0), 0);
-  const pickupRevenue = pickups.reduce((s, o) => s + Number(o.total || 0), 0);
-  const deliveryFees = deliveries.reduce(
+  // "Concluídas" só conta pedidos marcados como entregues — evita inflar
+  // a contagem com pedidos em produção/prontos que ainda não saíram.
+  const deliveredOrders = deliveries.filter((o) => o.status === "entregue");
+  const deliveredCount = deliveredOrders.length;
+  const openDeliveries = deliveries.length - deliveredCount;
+  const pickupsDone = pickups.filter((o) => o.status === "entregue");
+  const pickupsDoneCount = pickupsDone.length;
+  const openPickups = pickups.length - pickupsDoneCount;
+  // Faturamento por modalidade considera apenas concluídos (assertivo).
+  const deliveryRevenue = deliveredOrders.reduce(
+    (s, o) => s + Number(o.total || 0),
+    0,
+  );
+  const pickupRevenue = pickupsDone.reduce(
+    (s, o) => s + Number(o.total || 0),
+    0,
+  );
+  const deliveryFees = deliveredOrders.reduce(
     (s, o) => s + Number(o.delivery_fee || 0),
     0,
   );
-  const deliveredCount = deliveries.filter((o) => o.status === "entregue").length;
-  const netRevenue = m.revenue - deliveryFees; // faturamento sem os fretes
+  const netRevenue = m.revenue - deliveryFees; // faturamento sem os fretes concluídos
+  // Itens vendidos considerando apenas pedidos concluídos (entregues).
+  const doneOrders = [...deliveredOrders, ...pickupsDone];
 
-  // Contagem de itens (lanches / produtos vendidos)
+  // Contagem de itens (lanches / produtos vendidos) — apenas concluídos
   let totalItemsQty = 0;
   let totalItemsRevenue = 0;
   const productAgg = new Map<
     string,
     { name: string; qty: number; revenue: number }
   >();
-  for (const o of validOrders) {
+  for (const o of doneOrders) {
     for (const it of o.items) {
       totalItemsQty += it.quantity;
       totalItemsRevenue += Number(it.line_total || 0);
@@ -397,7 +413,7 @@ function DayDetail({
     lines.push("*Resumo*");
     lines.push(`• Pedidos válidos: ${m.total - m.cancelled} (de ${m.total})`);
     lines.push(`• Cancelados: ${m.cancelled}`);
-    lines.push(`• Lanches / itens vendidos: ${totalItemsQty}`);
+    lines.push(`• Lanches / itens vendidos (concluídos): ${totalItemsQty}`);
     lines.push(`• Faturamento bruto: ${formatBRL(m.revenue)}`);
     lines.push(`• Fretes recebidos: ${formatBRL(deliveryFees)}`);
     lines.push(`• Faturamento líquido (sem frete): ${formatBRL(netRevenue)}`);
@@ -405,10 +421,10 @@ function DayDetail({
     lines.push("");
     lines.push("*Entregas x Retiradas*");
     lines.push(
-      `• Entregas: ${deliveries.length} — ${formatBRL(deliveryRevenue)} (${deliveredCount} concluídas)`,
+      `• Entregas concluídas: ${deliveredCount} de ${deliveries.length} — ${formatBRL(deliveryRevenue)}${openDeliveries > 0 ? ` (${openDeliveries} em aberto)` : ""}`,
     );
     lines.push(
-      `• Retiradas: ${pickups.length} — ${formatBRL(pickupRevenue)}`,
+      `• Retiradas concluídas: ${pickupsDoneCount} de ${pickups.length} — ${formatBRL(pickupRevenue)}${openPickups > 0 ? ` (${openPickups} em aberto)` : ""}`,
     );
     lines.push("");
     if (topProducts.length > 0) {
@@ -494,7 +510,7 @@ function DayDetail({
         />
         <MetricCard
           icon={<ShoppingBag size={16} />}
-          label="Lanches / itens"
+          label="Lanches / itens (concluídos)"
           value={`${totalItemsQty}`}
           hint={`${formatBRL(totalItemsRevenue)} em produtos`}
         />
@@ -509,20 +525,21 @@ function DayDetail({
       <div className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <MetricCard
           icon={<Truck size={16} />}
-          label="Entregas"
-          value={`${deliveries.length}`}
-          hint={`${deliveredCount} concluídas · ${formatBRL(deliveryRevenue)}`}
+          label="Entregas concluídas"
+          value={`${deliveredCount}`}
+          hint={`de ${deliveries.length}${openDeliveries > 0 ? ` · ${openDeliveries} em aberto` : ""} · ${formatBRL(deliveryRevenue)}`}
         />
         <MetricCard
           icon={<Store size={16} />}
-          label="Retiradas"
-          value={`${pickups.length}`}
-          hint={formatBRL(pickupRevenue)}
+          label="Retiradas concluídas"
+          value={`${pickupsDoneCount}`}
+          hint={`de ${pickups.length}${openPickups > 0 ? ` · ${openPickups} em aberto` : ""} · ${formatBRL(pickupRevenue)}`}
         />
         <MetricCard
           icon={<Receipt size={16} />}
-          label="Total em fretes"
+          label="Fretes recebidos"
           value={formatBRL(deliveryFees)}
+          hint="apenas entregas concluídas"
         />
         <MetricCard
           icon={<XCircle size={16} />}

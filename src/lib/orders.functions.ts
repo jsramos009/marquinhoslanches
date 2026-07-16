@@ -884,3 +884,37 @@ export const getDashboardMetrics = createServerFn({ method: "GET" })
       avg_deliver_seconds: avgDeliver,
     };
   });
+
+// Busca cliente salvo pelo telefone (usado no lançamento manual para
+// prefill de nome, endereço e bairro sem precisar perguntar de novo).
+export const getCustomerByPhone = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { phone: string }) => d ?? { phone: "" })
+  .handler(async ({ data, context }) => {
+    const digits = (data.phone || "").replace(/\D+/g, "");
+    if (digits.length < 8) return null;
+    const tail = digits.slice(-8);
+    const { data: rows, error } = await context.supabase
+      .from("orders")
+      .select(
+        "customer_name, customer_phone, delivery_address, delivery_neighborhood, delivery_mode, created_at",
+      )
+      .ilike("customer_phone", `%${tail}%`)
+      .order("created_at", { ascending: false })
+      .limit(30);
+    if (error) throw new Error(error.message);
+    const list = (rows ?? []).filter((r) =>
+      (r.customer_phone || "").replace(/\D+/g, "").endsWith(tail),
+    );
+    if (list.length === 0) return null;
+    const latestName = list.find((r) => r.customer_name && r.customer_name.trim());
+    const lastDelivery = list.find(
+      (r) => r.delivery_mode === "delivery" && r.delivery_address,
+    );
+    return {
+      customer_name: latestName?.customer_name ?? list[0].customer_name ?? null,
+      customer_phone: list[0].customer_phone ?? null,
+      delivery_address: lastDelivery?.delivery_address ?? null,
+      delivery_neighborhood: lastDelivery?.delivery_neighborhood ?? null,
+    };
+  });

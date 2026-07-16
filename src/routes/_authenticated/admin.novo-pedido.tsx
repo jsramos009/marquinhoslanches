@@ -8,6 +8,7 @@ import {
   createOrder,
   updateOrder,
   getOrderById,
+  getCustomerByPhone,
   type OrderChannel,
   type OrderPaymentMethod,
 } from "@/lib/orders.functions";
@@ -100,6 +101,7 @@ function NovoPedidoPage() {
   const create = useServerFn(createOrder);
   const update = useServerFn(updateOrder);
   const fetchOrder = useServerFn(getOrderById);
+  const lookupCustomer = useServerFn(getCustomerByPhone);
   const orderQuery = useQuery({
     queryKey: ["order", editId],
     queryFn: () => fetchOrder({ data: { id: editId! } }),
@@ -154,6 +156,61 @@ function NovoPedidoPage() {
   const [pixCopied, setPixCopied] = useState(false);
   const [waUrl, setWaUrl] = useState<string>("");
   const [preloaded, setPreloaded] = useState(false);
+  const [lookupHint, setLookupHint] = useState<string>("");
+  const [lastLookupDigits, setLastLookupDigits] = useState<string>("");
+
+  // Busca cliente salvo pelo telefone (nome + endereço + bairro).
+  // Só sobrescreve campos vazios para não atrapalhar edição manual.
+  useEffect(() => {
+    const digits = phone.replace(/\D+/g, "");
+    if (digits.length < 8) {
+      setLookupHint("");
+      setLastLookupDigits("");
+      return;
+    }
+    if (digits === lastLookupDigits) return;
+    const handle = setTimeout(async () => {
+      try {
+        const found = await lookupCustomer({ data: { phone: digits } });
+        setLastLookupDigits(digits);
+        if (!found) {
+          setLookupHint("Cliente novo");
+          return;
+        }
+        let filled: string[] = [];
+        if (!customer.trim() && found.customer_name) {
+          setCustomer(found.customer_name);
+          filled.push("nome");
+        }
+        if (mode === "delivery") {
+          if (!address.trim() && found.delivery_address) {
+            setAddress(found.delivery_address);
+            filled.push("endereço");
+          }
+          if (!neighborhoodId && found.delivery_neighborhood) {
+            const match = (feesQuery.data ?? []).find(
+              (f) =>
+                f.neighborhood.toLowerCase() ===
+                found.delivery_neighborhood!.toLowerCase(),
+            );
+            if (match) {
+              setNeighborhoodId(match.id);
+              filled.push("bairro");
+            }
+          }
+        }
+        setLookupHint(
+          filled.length
+            ? `Cliente encontrado — preenchido: ${filled.join(", ")}`
+            : `Cliente encontrado${found.customer_name ? `: ${found.customer_name}` : ""}`,
+        );
+      } catch {
+        /* silencioso */
+      }
+    }, 500);
+    return () => clearTimeout(handle);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phone, mode, feesQuery.data]);
 
   // Preload state ao editar — só uma vez, depois de menu e fees carregarem
   useEffect(() => {
@@ -526,6 +583,9 @@ function NovoPedidoPage() {
                   inputMode="tel"
                   className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
                 />
+                {lookupHint && (
+                  <p className="mt-1 text-[11px] text-muted-foreground">{lookupHint}</p>
+                )}
               </Field>
               <Field label="Canal">
                 <select
