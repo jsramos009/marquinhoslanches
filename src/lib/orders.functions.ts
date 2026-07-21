@@ -35,6 +35,7 @@ export type OrderRow = {
   delivery_fee: number;
   delivery_address: string | null;
   delivery_neighborhood: string | null;
+  courier_id?: string | null;
   created_at: string;
   ready_at: string | null;
   delivered_at: string | null;
