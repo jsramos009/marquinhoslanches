@@ -21,6 +21,7 @@ import { useWhatsappTemplates } from "@/lib/wa-templates";
 import { buildMotoboyLink } from "@/lib/motoboy";
 import { Bike, Pencil } from "lucide-react";
 import { listCouriers, assignCourier } from "@/lib/couriers.functions";
+import type { Courier } from "@/lib/couriers.functions";
 
 
 export const Route = createFileRoute("/_authenticated/admin/pedidos")({
@@ -215,14 +216,19 @@ function OrderCard({
   onAdvance,
   onCancel,
   busy,
+  couriers,
+  onAssignCourier,
 }: {
   order: OrderRow;
   nextStatus?: OrderStatus;
   onAdvance: (status: OrderStatus) => void;
   onCancel: (reason: string) => void;
   busy: boolean;
+  couriers: Courier[];
+  onAssignCourier: (courierId: string | null) => void;
 }) {
   const templates = useWhatsappTemplates();
+  const currentCourier = (order as unknown as { courier_id?: string | null }).courier_id ?? null;
   return (
     <article className="rounded-xl border border-border bg-card p-3 shadow-sm">
       <div className="flex items-start justify-between gap-2">
@@ -254,6 +260,23 @@ function OrderCard({
         <p className="mt-2 rounded bg-secondary/60 px-2 py-1 text-xs italic text-muted-foreground">
           {order.notes}
         </p>
+      )}
+      {order.delivery_mode === "delivery" && order.status !== "cancelado" && (
+        <div className="mt-2 flex items-center gap-2">
+          <Bike className="h-3.5 w-3.5 text-muted-foreground" />
+          <select
+            value={currentCourier ?? ""}
+            onChange={(e) => onAssignCourier(e.target.value || null)}
+            className="flex-1 rounded-md border border-border bg-background px-2 py-1 text-xs"
+          >
+            <option value="">Sem entregador</option>
+            {couriers.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+        </div>
       )}
       <div className="mt-3 flex gap-2">
         {nextStatus && (
