@@ -20,6 +20,7 @@ import {
 import { useWhatsappTemplates } from "@/lib/wa-templates";
 import { buildMotoboyLink } from "@/lib/motoboy";
 import { Bike, Pencil } from "lucide-react";
+import { listCouriers, assignCourier } from "@/lib/couriers.functions";
 
 
 export const Route = createFileRoute("/_authenticated/admin/pedidos")({
@@ -63,6 +64,8 @@ function PedidosPage() {
   const list = useServerFn(listRecentOrders);
   const updateFn = useServerFn(updateOrderStatus);
   const cancelFn = useServerFn(cancelOrder);
+  const couriersFn = useServerFn(listCouriers);
+  const assignFn = useServerFn(assignCourier);
   const qc = useQueryClient();
 
   const q = useQuery<OrderRow[]>({
@@ -70,6 +73,11 @@ function PedidosPage() {
     queryFn: () => list({ data: { sinceHours: 36 } }),
     refetchInterval: 5_000,
     refetchIntervalInBackground: true,
+  });
+
+  const couriersQuery = useQuery({
+    queryKey: ["couriers-active"],
+    queryFn: () => couriersFn(),
   });
 
   useRealtimeOrders(() => qc.invalidateQueries({ queryKey: ["orders-recent"] }));
@@ -83,6 +91,10 @@ function PedidosPage() {
   });
   const cancel = useMutation({
     mutationFn: (v: { id: string; reason: string }) => cancelFn({ data: v }),
+    onSuccess: invalidate,
+  });
+  const assign = useMutation({
+    mutationFn: (v: { orderId: string; courierId: string | null }) => assignFn({ data: v }),
     onSuccess: invalidate,
   });
 
@@ -153,6 +165,10 @@ function PedidosPage() {
                     onAdvance={(status) => advance.mutate({ id: o.id, status })}
                     onCancel={(reason) => cancel.mutate({ id: o.id, reason })}
                     busy={advance.isPending || cancel.isPending}
+                    couriers={couriersQuery.data ?? []}
+                    onAssignCourier={(courierId) =>
+                      assign.mutate({ orderId: o.id, courierId })
+                    }
                   />
                 ))}
               </div>
