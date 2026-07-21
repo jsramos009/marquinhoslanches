@@ -22,8 +22,10 @@ import { Route as AuthenticatedAdminPedidosRouteImport } from './routes/_authent
 import { Route as AuthenticatedAdminNovoPedidoRouteImport } from './routes/_authenticated/admin.novo-pedido'
 import { Route as AuthenticatedAdminFreteRouteImport } from './routes/_authenticated/admin.frete'
 import { Route as AuthenticatedAdminEstoqueRouteImport } from './routes/_authenticated/admin.estoque'
+import { Route as AuthenticatedAdminEntregadoresRouteImport } from './routes/_authenticated/admin.entregadores'
 import { Route as AuthenticatedAdminDashboardRouteImport } from './routes/_authenticated/admin.dashboard'
 import { Route as AuthenticatedAdminConfiguracoesRouteImport } from './routes/_authenticated/admin.configuracoes'
+import { Route as AuthenticatedAdminClientesRouteImport } from './routes/_authenticated/admin.clientes'
 import { Route as AuthenticatedAdminCatalogoRouteImport } from './routes/_authenticated/admin.catalogo'
 import { Route as AuthenticatedAdminArquivadosRouteImport } from './routes/_authenticated/admin.arquivados'
 
@@ -96,6 +98,12 @@ const AuthenticatedAdminEstoqueRoute =
     path: '/admin/estoque',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedAdminEntregadoresRoute =
+  AuthenticatedAdminEntregadoresRouteImport.update({
+    id: '/admin/entregadores',
+    path: '/admin/entregadores',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedAdminDashboardRoute =
   AuthenticatedAdminDashboardRouteImport.update({
     id: '/admin/dashboard',
@@ -106,6 +114,12 @@ const AuthenticatedAdminConfiguracoesRoute =
   AuthenticatedAdminConfiguracoesRouteImport.update({
     id: '/admin/configuracoes',
     path: '/admin/configuracoes',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedAdminClientesRoute =
+  AuthenticatedAdminClientesRouteImport.update({
+    id: '/admin/clientes',
+    path: '/admin/clientes',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedAdminCatalogoRoute =
@@ -129,8 +143,10 @@ export interface FileRoutesByFullPath {
   '/refazer/$id': typeof RefazerIdRoute
   '/admin/arquivados': typeof AuthenticatedAdminArquivadosRoute
   '/admin/catalogo': typeof AuthenticatedAdminCatalogoRoute
+  '/admin/clientes': typeof AuthenticatedAdminClientesRoute
   '/admin/configuracoes': typeof AuthenticatedAdminConfiguracoesRoute
   '/admin/dashboard': typeof AuthenticatedAdminDashboardRoute
+  '/admin/entregadores': typeof AuthenticatedAdminEntregadoresRoute
   '/admin/estoque': typeof AuthenticatedAdminEstoqueRoute
   '/admin/frete': typeof AuthenticatedAdminFreteRoute
   '/admin/novo-pedido': typeof AuthenticatedAdminNovoPedidoRoute
@@ -147,8 +163,10 @@ export interface FileRoutesByTo {
   '/refazer/$id': typeof RefazerIdRoute
   '/admin/arquivados': typeof AuthenticatedAdminArquivadosRoute
   '/admin/catalogo': typeof AuthenticatedAdminCatalogoRoute
+  '/admin/clientes': typeof AuthenticatedAdminClientesRoute
   '/admin/configuracoes': typeof AuthenticatedAdminConfiguracoesRoute
   '/admin/dashboard': typeof AuthenticatedAdminDashboardRoute
+  '/admin/entregadores': typeof AuthenticatedAdminEntregadoresRoute
   '/admin/estoque': typeof AuthenticatedAdminEstoqueRoute
   '/admin/frete': typeof AuthenticatedAdminFreteRoute
   '/admin/novo-pedido': typeof AuthenticatedAdminNovoPedidoRoute
@@ -167,8 +185,10 @@ export interface FileRoutesById {
   '/refazer/$id': typeof RefazerIdRoute
   '/_authenticated/admin/arquivados': typeof AuthenticatedAdminArquivadosRoute
   '/_authenticated/admin/catalogo': typeof AuthenticatedAdminCatalogoRoute
+  '/_authenticated/admin/clientes': typeof AuthenticatedAdminClientesRoute
   '/_authenticated/admin/configuracoes': typeof AuthenticatedAdminConfiguracoesRoute
   '/_authenticated/admin/dashboard': typeof AuthenticatedAdminDashboardRoute
+  '/_authenticated/admin/entregadores': typeof AuthenticatedAdminEntregadoresRoute
   '/_authenticated/admin/estoque': typeof AuthenticatedAdminEstoqueRoute
   '/_authenticated/admin/frete': typeof AuthenticatedAdminFreteRoute
   '/_authenticated/admin/novo-pedido': typeof AuthenticatedAdminNovoPedidoRoute
@@ -187,8 +207,10 @@ export interface FileRouteTypes {
     | '/refazer/$id'
     | '/admin/arquivados'
     | '/admin/catalogo'
+    | '/admin/clientes'
     | '/admin/configuracoes'
     | '/admin/dashboard'
+    | '/admin/entregadores'
     | '/admin/estoque'
     | '/admin/frete'
     | '/admin/novo-pedido'
@@ -205,8 +227,10 @@ export interface FileRouteTypes {
     | '/refazer/$id'
     | '/admin/arquivados'
     | '/admin/catalogo'
+    | '/admin/clientes'
     | '/admin/configuracoes'
     | '/admin/dashboard'
+    | '/admin/entregadores'
     | '/admin/estoque'
     | '/admin/frete'
     | '/admin/novo-pedido'
@@ -224,8 +248,10 @@ export interface FileRouteTypes {
     | '/refazer/$id'
     | '/_authenticated/admin/arquivados'
     | '/_authenticated/admin/catalogo'
+    | '/_authenticated/admin/clientes'
     | '/_authenticated/admin/configuracoes'
     | '/_authenticated/admin/dashboard'
+    | '/_authenticated/admin/entregadores'
     | '/_authenticated/admin/estoque'
     | '/_authenticated/admin/frete'
     | '/_authenticated/admin/novo-pedido'
@@ -339,6 +365,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminEstoqueRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/admin/entregadores': {
+      id: '/_authenticated/admin/entregadores'
+      path: '/admin/entregadores'
+      fullPath: '/admin/entregadores'
+      preLoaderRoute: typeof AuthenticatedAdminEntregadoresRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/admin/dashboard': {
       id: '/_authenticated/admin/dashboard'
       path: '/admin/dashboard'
@@ -351,6 +384,13 @@ declare module '@tanstack/react-router' {
       path: '/admin/configuracoes'
       fullPath: '/admin/configuracoes'
       preLoaderRoute: typeof AuthenticatedAdminConfiguracoesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/admin/clientes': {
+      id: '/_authenticated/admin/clientes'
+      path: '/admin/clientes'
+      fullPath: '/admin/clientes'
+      preLoaderRoute: typeof AuthenticatedAdminClientesRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/admin/catalogo': {
@@ -373,8 +413,10 @@ declare module '@tanstack/react-router' {
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminArquivadosRoute: typeof AuthenticatedAdminArquivadosRoute
   AuthenticatedAdminCatalogoRoute: typeof AuthenticatedAdminCatalogoRoute
+  AuthenticatedAdminClientesRoute: typeof AuthenticatedAdminClientesRoute
   AuthenticatedAdminConfiguracoesRoute: typeof AuthenticatedAdminConfiguracoesRoute
   AuthenticatedAdminDashboardRoute: typeof AuthenticatedAdminDashboardRoute
+  AuthenticatedAdminEntregadoresRoute: typeof AuthenticatedAdminEntregadoresRoute
   AuthenticatedAdminEstoqueRoute: typeof AuthenticatedAdminEstoqueRoute
   AuthenticatedAdminFreteRoute: typeof AuthenticatedAdminFreteRoute
   AuthenticatedAdminNovoPedidoRoute: typeof AuthenticatedAdminNovoPedidoRoute
@@ -385,8 +427,10 @@ interface AuthenticatedRouteRouteChildren {
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminArquivadosRoute: AuthenticatedAdminArquivadosRoute,
   AuthenticatedAdminCatalogoRoute: AuthenticatedAdminCatalogoRoute,
+  AuthenticatedAdminClientesRoute: AuthenticatedAdminClientesRoute,
   AuthenticatedAdminConfiguracoesRoute: AuthenticatedAdminConfiguracoesRoute,
   AuthenticatedAdminDashboardRoute: AuthenticatedAdminDashboardRoute,
+  AuthenticatedAdminEntregadoresRoute: AuthenticatedAdminEntregadoresRoute,
   AuthenticatedAdminEstoqueRoute: AuthenticatedAdminEstoqueRoute,
   AuthenticatedAdminFreteRoute: AuthenticatedAdminFreteRoute,
   AuthenticatedAdminNovoPedidoRoute: AuthenticatedAdminNovoPedidoRoute,
@@ -410,13 +454,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

@@ -35,6 +35,7 @@ export type OrderRow = {
   delivery_fee: number;
   delivery_address: string | null;
   delivery_neighborhood: string | null;
+  courier_id?: string | null;
   created_at: string;
   ready_at: string | null;
   delivered_at: string | null;
@@ -462,7 +463,7 @@ export const getOrderById = createServerFn({ method: "GET" })
     const { data: row, error } = await context.supabase
       .from("orders")
       .select(
-        "id, customer_name, customer_phone, channel, status, subtotal, discount, total, notes, cancel_reason, payment_method, change_for, delivery_mode, delivery_fee, delivery_address, delivery_neighborhood, created_at, ready_at, delivered_at, order_items(id, product_id, product_name_snapshot, quantity, unit_price_snapshot, line_total, order_item_addons(id, addon_id, addon_name_snapshot, quantity, unit_price_snapshot))",
+        "id, customer_name, customer_phone, channel, status, subtotal, discount, total, notes, cancel_reason, payment_method, change_for, delivery_mode, delivery_fee, delivery_address, delivery_neighborhood, courier_id, created_at, ready_at, delivered_at, order_items(id, product_id, product_name_snapshot, quantity, unit_price_snapshot, line_total, order_item_addons(id, addon_id, addon_name_snapshot, quantity, unit_price_snapshot))",
       )
       .eq("id", data.id)
       .maybeSingle();
@@ -486,6 +487,7 @@ export const getOrderById = createServerFn({ method: "GET" })
       delivery_fee: Number(r.delivery_fee ?? 0),
       delivery_address: r.delivery_address ?? null,
       delivery_neighborhood: r.delivery_neighborhood ?? null,
+      courier_id: r.courier_id ?? null,
       created_at: r.created_at,
       ready_at: r.ready_at,
       delivered_at: r.delivered_at,
@@ -529,7 +531,7 @@ export const listRecentOrders = createServerFn({ method: "GET" })
     const { data: rows, error } = await context.supabase
       .from("orders")
       .select(
-        "id, customer_name, customer_phone, channel, status, subtotal, discount, total, notes, cancel_reason, payment_method, change_for, delivery_mode, delivery_fee, delivery_address, delivery_neighborhood, created_at, ready_at, delivered_at, order_items(id, product_id, product_name_snapshot, quantity, unit_price_snapshot, line_total, order_item_addons(id, addon_id, addon_name_snapshot, quantity, unit_price_snapshot))",
+        "id, customer_name, customer_phone, channel, status, subtotal, discount, total, notes, cancel_reason, payment_method, change_for, delivery_mode, delivery_fee, delivery_address, delivery_neighborhood, courier_id, created_at, ready_at, delivered_at, order_items(id, product_id, product_name_snapshot, quantity, unit_price_snapshot, line_total, order_item_addons(id, addon_id, addon_name_snapshot, quantity, unit_price_snapshot))",
       )
       .gte("created_at", since)
       .order("created_at", { ascending: false });
@@ -552,6 +554,7 @@ export const listRecentOrders = createServerFn({ method: "GET" })
         delivery_fee: number | null;
         delivery_address: string | null;
         delivery_neighborhood: string | null;
+        courier_id: string | null;
         created_at: string;
         ready_at: string | null;
         delivered_at: string | null;
@@ -588,6 +591,7 @@ export const listRecentOrders = createServerFn({ method: "GET" })
         delivery_fee: Number(row.delivery_fee ?? 0),
         delivery_address: row.delivery_address ?? null,
         delivery_neighborhood: row.delivery_neighborhood ?? null,
+        courier_id: row.courier_id ?? null,
         created_at: row.created_at,
         ready_at: row.ready_at,
         delivered_at: row.delivered_at,
@@ -623,7 +627,7 @@ export const listArchivedOrders = createServerFn({ method: "GET" })
     const { data: rows, error } = await context.supabase
       .from("orders")
       .select(
-        "id, customer_name, customer_phone, channel, status, subtotal, discount, total, notes, cancel_reason, payment_method, change_for, delivery_mode, delivery_fee, delivery_address, delivery_neighborhood, created_at, ready_at, delivered_at, order_items(id, product_id, product_name_snapshot, quantity, unit_price_snapshot, line_total, order_item_addons(id, addon_id, addon_name_snapshot, quantity, unit_price_snapshot))",
+        "id, customer_name, customer_phone, channel, status, subtotal, discount, total, notes, cancel_reason, payment_method, change_for, delivery_mode, delivery_fee, delivery_address, delivery_neighborhood, courier_id, created_at, ready_at, delivered_at, order_items(id, product_id, product_name_snapshot, quantity, unit_price_snapshot, line_total, order_item_addons(id, addon_id, addon_name_snapshot, quantity, unit_price_snapshot))",
       )
       .gte("created_at", since.toISOString())
       .lt("created_at", startOfToday.toISOString())
@@ -647,6 +651,7 @@ export const listArchivedOrders = createServerFn({ method: "GET" })
         delivery_fee: number | null;
         delivery_address: string | null;
         delivery_neighborhood: string | null;
+        courier_id: string | null;
         created_at: string;
         ready_at: string | null;
         delivered_at: string | null;
@@ -683,6 +688,7 @@ export const listArchivedOrders = createServerFn({ method: "GET" })
         delivery_fee: Number(row.delivery_fee ?? 0),
         delivery_address: row.delivery_address ?? null,
         delivery_neighborhood: row.delivery_neighborhood ?? null,
+        courier_id: row.courier_id ?? null,
         created_at: row.created_at,
         ready_at: row.ready_at,
         delivered_at: row.delivered_at,
@@ -722,7 +728,7 @@ export const listOrdersByDay = createServerFn({ method: "GET" })
     const { data: rows, error } = await context.supabase
       .from("orders")
       .select(
-        "id, customer_name, customer_phone, channel, status, subtotal, discount, total, notes, cancel_reason, payment_method, change_for, delivery_mode, delivery_fee, delivery_address, delivery_neighborhood, created_at, ready_at, delivered_at, order_items(id, product_id, product_name_snapshot, quantity, unit_price_snapshot, line_total, order_item_addons(id, addon_id, addon_name_snapshot, quantity, unit_price_snapshot))",
+        "id, customer_name, customer_phone, channel, status, subtotal, discount, total, notes, cancel_reason, payment_method, change_for, delivery_mode, delivery_fee, delivery_address, delivery_neighborhood, courier_id, created_at, ready_at, delivered_at, order_items(id, product_id, product_name_snapshot, quantity, unit_price_snapshot, line_total, order_item_addons(id, addon_id, addon_name_snapshot, quantity, unit_price_snapshot))",
       )
       .gte("created_at", start.toISOString())
       .lt("created_at", end.toISOString())
@@ -749,6 +755,7 @@ export const listOrdersByDay = createServerFn({ method: "GET" })
         delivery_fee: Number(row.delivery_fee ?? 0),
         delivery_address: row.delivery_address ?? null,
         delivery_neighborhood: row.delivery_neighborhood ?? null,
+        courier_id: row.courier_id ?? null,
         created_at: row.created_at,
         ready_at: row.ready_at,
         delivered_at: row.delivered_at,
