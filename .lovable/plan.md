@@ -1,51 +1,60 @@
-## Problema
+# Plano — 3 melhorias no painel
 
-Hoje, quando o cliente escolhe PIX no cardápio:
+## 1. Abrir/Fechar caixa manualmente
 
-1. Ele confirma o pedido → aparece uma tela com QR Code e chave PIX.
-2. O pedido **só** é registrado / enviado ao WhatsApp da loja quando o cliente aperta o botão "Já paguei / enviar comprovante".
-3. Muitos clientes pagam o PIX e fecham a página, então você nunca recebe o pedido no WhatsApp.
+Hoje o relatório usa o dia do calendário (America/Sao_Paulo), então um pedido às 00:01 já cai no dia seguinte. Vou criar o conceito de **sessão de caixa** para agrupar pedidos pelo período real de operação, não pela data.
 
-## Objetivo
+**Banco**
+- Nova tabela `cash_sessions` (`opened_at`, `closed_at`, `opened_by`, `closed_by`, `opening_note`, `closing_note`).
+- Coluna `cash_session_id` em `orders` (nullable, FK). Ao criar um pedido (público ou manual), se houver sessão aberta, vincula automaticamente.
+- RLS: staff/admin lê e escreve.
 
-Tratar PIX como as outras formas de pagamento: o cliente já é mandado direto para o WhatsApp com o pedido, e a mensagem do WhatsApp já traz o **código PIX copia e cola** (e o valor) para ele colar no banco e pagar.
+**Painel**
+- Novo botão no topo do Dashboard: **"Abrir caixa" / "Fechar caixa"** com badge do horário de abertura.
+- Ao fechar, mostra um resumo (pedidos, faturamento, fretes, entregas concluídas, canceladas) e pede confirmação.
+- Na tela de **Relatórios**, novo seletor: "Por dia" (comportamento atual) **ou** "Por sessão de caixa" (lista das sessões fechadas, cada uma vira um relatório completo). O relatório do caixa usa exatamente as mesmas métricas já existentes, filtradas por `cash_session_id`.
 
-## Mudanças
+## 2. Painel de Clientes (com autopreenchimento)
 
-**Arquivo:** `src/routes/index.tsx`
+Hoje já existe autofill via `localStorage` do próprio cliente. Vou centralizar no servidor para que **o admin** também aproveite ao lançar pedidos manuais.
 
-1. **Remover a etapa intermediária de PIX** no checkout:
-   - Não abrir mais a tela `step === "pix"` com QR Code / botão "já paguei".
-   - No fluxo do PIX, chamar o mesmo caminho das outras formas: registra o pedido no banco e abre o WhatsApp direto.
-   - Botão final passa a dizer sempre "Enviar pedido pelo WhatsApp" (inclusive quando `payment === "pix"`), e a legenda embaixo troca para algo como *"Você será redirecionado para o WhatsApp. O código PIX virá junto na mensagem."*
+**Banco**
+- Nova tabela `customers` (`phone` único, `name`, `last_address`, `last_neighborhood`, `orders_count`, `total_spent`, `last_order_at`).
+- Atualização automática (trigger ou dentro do `createOrder`/`createManualOrder`): a cada pedido novo, faz upsert por telefone, atualiza nome/endereço/bairro e incrementa contadores.
 
-2. **Incluir o código PIX na mensagem do WhatsApp** quando a forma escolhida for PIX. A mensagem atual do pedido ganha um bloco extra no final, mais ou menos assim:
+**Painel**
+- Novo item no menu lateral: **"Clientes"**.
+- Tabela com busca por nome ou telefone, mostrando: nome, telefone, último endereço + bairro, nº de pedidos, total gasto, último pedido.
+- Ações: ver histórico de pedidos daquele telefone; editar nome/endereço manualmente.
 
-   ```text
-   💳 Pagamento: PIX
-   Valor: R$ 45,00
+**Novo pedido manual**
+- No campo telefone (ou novo campo "Buscar cliente") — ao digitar 3+ dígitos ou letras, mostra sugestões da tabela `customers`. Ao selecionar, preenche nome, endereço, bairro e modo (entrega/retirada) do último pedido.
 
-   🔑 Chave PIX: +5594991032483
-   (nome: Marquinhos Lanches)
+## 3. Relatório de Entregadores
 
-   📋 PIX copia e cola:
-   00020126...6304ABCD
+Baseado no PDF enviado: métricas por entregador em um período.
 
-   Copie o código acima, cole no app do seu banco e finalize o pagamento.
-   Depois é só me mandar o comprovante por aqui. 🙏
-   ```
+**Banco**
+- Nova tabela `couriers` (`name`, `phone`, `active`).
+- Coluna `courier_id` em `orders` (nullable).
 
-   O código PIX (`buildPixPayload`) continua sendo gerado com o valor total do pedido, a chave e o nome já configurados em Configurações.
+**Painel**
+- Item no menu **"Entregadores"** (admin): CRUD simples (nome, telefone, ativo).
+- Na tela de **Pedidos**, no card de cada pedido de entrega: dropdown "Entregador" para atribuir/trocar (só aparece quando o status é "pronto" ou depois).
+- Nova aba dentro de **Relatórios** → **"Entregadores"**:
+  - Filtro de período com **datas inicial e final** (não só um dia).
+  - Cards no topo: **Faturamento dos fretes**, **Ticket médio de frete**, **Total de entregas**, **Entregadores ativos**.
+  - Tabela: Nº pedido, Valor do pedido, Pagamento, Valor do frete, Bairro, Entregador, Data/hora — mesmo layout do PDF.
+  - Botões: **Copiar** (texto pro WhatsApp) e **Exportar PDF** no mesmo padrão do arquivo enviado.
 
-3. **Limpeza:** remover estados que ficam sem uso (`step`, `pixQr`, `pixCopied`, geração do QR em `useEffect`, função `copyPixKey`, botão "Já paguei / anexar comprovante") ou mantê-los apenas se ainda forem usados em outra parte. Nada muda em admin, backend, tabelas ou formas de pagamento diferentes de PIX.
+## Ordem de implementação
+1. Migração (3 tabelas + colunas + RLS + GRANT).
+2. Painel de Clientes + autofill no novo pedido.
+3. Caixa manual (abrir/fechar + filtro no relatório).
+4. Entregadores (CRUD, atribuição, relatório + PDF).
 
-## O que **não** muda
+## Pontos que confirmo antes de codar
 
-- Nada no painel administrativo, nos pedidos manuais, nas outras formas de pagamento (cartão, dinheiro), no cálculo de frete, nas configurações de PIX (chave, nome, cidade continuam vindo de Configurações) ou no banco de dados.
-- O QR Code deixa de aparecer no cardápio do cliente (por escolha sua). Se quiser manter o QR também disponível, me avise antes de eu implementar.
-
-## Detalhes técnicos
-
-- `payment === "pix"` passa a cair no mesmo branch de `submitPublicOrder` + `sendWhatsapp()` das outras formas.
-- `sendWhatsapp` recebe um `extra` opcional com o bloco PIX (chave + copia e cola + valor) montado com `buildPixPayload({ key, amount: grandTotal, merchantName, merchantCity })`.
-- A tela `step === "pix"` e o `useEffect` que gera o QR são removidos; `useMemo` do `pixPayload` continua, pois agora ele é usado para montar a mensagem do WhatsApp.
+- **Caixa único?** Um caixa aberto por vez pra toda a loja (não por usuário). Ok?
+- **Pedidos antes da migração** ficam sem `cash_session_id` — no relatório por sessão eles não aparecem; continuam disponíveis no relatório por dia. Ok?
+- **Entregador único por pedido** (sem divisão), ok?
