@@ -59,6 +59,42 @@ export type Database = {
         }
         Relationships: []
       }
+      cash_sessions: {
+        Row: {
+          closed_at: string | null
+          closed_by: string | null
+          closing_note: string | null
+          created_at: string
+          id: string
+          opened_at: string
+          opened_by: string | null
+          opening_note: string | null
+          updated_at: string
+        }
+        Insert: {
+          closed_at?: string | null
+          closed_by?: string | null
+          closing_note?: string | null
+          created_at?: string
+          id?: string
+          opened_at?: string
+          opened_by?: string | null
+          opening_note?: string | null
+          updated_at?: string
+        }
+        Update: {
+          closed_at?: string | null
+          closed_by?: string | null
+          closing_note?: string | null
+          created_at?: string
+          id?: string
+          opened_at?: string
+          opened_by?: string | null
+          opening_note?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       categories: {
         Row: {
           created_at: string
@@ -83,6 +119,72 @@ export type Database = {
           name?: string
           slug?: string
           sort_order?: number
+        }
+        Relationships: []
+      }
+      couriers: {
+        Row: {
+          active: boolean
+          created_at: string
+          id: string
+          name: string
+          phone: string | null
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          name: string
+          phone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          name?: string
+          phone?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      customers: {
+        Row: {
+          created_at: string
+          id: string
+          last_address: string | null
+          last_neighborhood: string | null
+          last_order_at: string | null
+          name: string | null
+          orders_count: number
+          phone: string
+          total_spent: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          last_address?: string | null
+          last_neighborhood?: string | null
+          last_order_at?: string | null
+          name?: string | null
+          orders_count?: number
+          phone: string
+          total_spent?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          last_address?: string | null
+          last_neighborhood?: string | null
+          last_order_at?: string | null
+          name?: string | null
+          orders_count?: number
+          phone?: string
+          total_spent?: number
+          updated_at?: string
         }
         Relationships: []
       }
@@ -210,9 +312,11 @@ export type Database = {
         Row: {
           cancel_reason: string | null
           cancelled_at: string | null
+          cash_session_id: string | null
           change_for: number | null
           channel: Database["public"]["Enums"]["order_channel"]
           confirmed_at: string | null
+          courier_id: string | null
           created_at: string
           created_by: string | null
           customer_name: string | null
@@ -235,9 +339,11 @@ export type Database = {
         Insert: {
           cancel_reason?: string | null
           cancelled_at?: string | null
+          cash_session_id?: string | null
           change_for?: number | null
           channel?: Database["public"]["Enums"]["order_channel"]
           confirmed_at?: string | null
+          courier_id?: string | null
           created_at?: string
           created_by?: string | null
           customer_name?: string | null
@@ -260,9 +366,11 @@ export type Database = {
         Update: {
           cancel_reason?: string | null
           cancelled_at?: string | null
+          cash_session_id?: string | null
           change_for?: number | null
           channel?: Database["public"]["Enums"]["order_channel"]
           confirmed_at?: string | null
+          courier_id?: string | null
           created_at?: string
           created_by?: string | null
           customer_name?: string | null
@@ -282,7 +390,22 @@ export type Database = {
           total?: number
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "orders_cash_session_id_fkey"
+            columns: ["cash_session_id"]
+            isOneToOne: false
+            referencedRelation: "cash_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_courier_id_fkey"
+            columns: ["courier_id"]
+            isOneToOne: false
+            referencedRelation: "couriers"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       product_addons: {
         Row: {
@@ -408,6 +531,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      current_cash_session_id: { Args: never; Returns: string }
       dashboard_metrics: { Args: { _range?: string }; Returns: Json }
       has_role: {
         Args: {
