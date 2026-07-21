@@ -37,6 +37,7 @@ import {
 } from "@/lib/order-flow";
 import { useWhatsappTemplates } from "@/lib/wa-templates";
 import { buildMotoboyLink } from "@/lib/motoboy";
+import { CashSessionControl } from "@/components/admin/CashSessionControl";
 
 export const Route = createFileRoute("/_authenticated/admin/dashboard")({
   component: DashboardPage,
@@ -102,6 +103,7 @@ function DashboardPage() {
       title="Dashboard"
       actions={
         <div className="flex items-center gap-2">
+          <CashSessionControl />
           <Link
             to="/admin/novo-pedido"
             className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90"
