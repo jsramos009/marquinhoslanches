@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { brStartOfDay } from "@/lib/br-time";
 
 export type Courier = {
   id: string;
@@ -103,12 +104,8 @@ export const getCourierReport = createServerFn({ method: "GET" })
     return d;
   })
   .handler(async ({ data, context }): Promise<CourierReport> => {
-    const toStart = (day: string) => {
-      const [y, m, d] = day.split("-").map(Number);
-      return new Date(Date.UTC(y, m - 1, d, 3, 0, 0, 0));
-    };
-    const start = toStart(data.startDay);
-    const endExclusive = new Date(toStart(data.endDay).getTime() + 86_400_000);
+    const start = brStartOfDay(data.startDay);
+    const endExclusive = new Date(brStartOfDay(data.endDay).getTime() + 86_400_000);
 
     let q = context.supabase
       .from("orders")

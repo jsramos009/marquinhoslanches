@@ -23,14 +23,25 @@ export function CashSessionControl() {
 
   const openMut = useMutation({
     mutationFn: () => open({ data: {} }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["cash-session-current"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["cash-session-current"] });
+      qc.invalidateQueries({ queryKey: ["orders-recent"] });
+      qc.invalidateQueries({ queryKey: ["cash-sessions"] });
+      qc.invalidateQueries({ queryKey: ["dashboard-metrics"] });
+    },
   });
 
   const closeMut = useMutation({
-    mutationFn: () => close({ data: { id: q.data!.id, note } }),
+    mutationFn: () => {
+      if (!q.data?.id) throw new Error("Não há caixa aberto.");
+      return close({ data: { id: q.data.id, note } });
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["cash-session-current"] });
       qc.invalidateQueries({ queryKey: ["cash-sessions"] });
+      qc.invalidateQueries({ queryKey: ["orders-recent"] });
+      qc.invalidateQueries({ queryKey: ["orders-archived"] });
+      qc.invalidateQueries({ queryKey: ["dashboard-metrics"] });
       setShowClose(false);
       setNote("");
     },
