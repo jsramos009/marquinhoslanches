@@ -1,60 +1,34 @@
-# Plano — 3 melhorias no painel
+## Objetivo
+Usar a sessão de caixa — da abertura ao fechamento — como período oficial de trabalho, sem dividir pedidos à meia-noite.
 
-## 1. Abrir/Fechar caixa manualmente
+## Diagnóstico confirmado
+- A tela **Pedidos** filtra os cards pelo dia do calendário (`00:00`), por isso pedidos ainda abertos somem do quadro quando vira o dia, embora a atualização para “entregue” não tenha bloqueio no backend.
+- O relatório atual é organizado principalmente por `created_at` e data do calendário, não pela sessão do caixa.
+- A sessão atualmente aberta já atravessou mais de um dia e possui pedidos corretamente vinculados a ela; portanto, o vínculo existente pode ser usado como fonte confiável.
+- O Dashboard também possui um cálculo de “Hoje” baseado no fuso do servidor, diferente do horário de São Paulo.
 
-Hoje o relatório usa o dia do calendário (America/Sao_Paulo), então um pedido às 00:01 já cai no dia seguinte. Vou criar o conceito de **sessão de caixa** para agrupar pedidos pelo período real de operação, não pela data.
+## Implementação
+1. **Manter pedidos ativos após 00:00**
+   - Alterar a tela de Pedidos para carregar os pedidos da sessão de caixa aberta, independentemente da data de criação.
+   - Pedidos em produção ou prontos continuarão visíveis e poderão ser finalizados normalmente depois da meia-noite.
+   - Quando não houver caixa aberto, manter uma recuperação segura dos pedidos recentes ainda não concluídos para que nenhum pedido fique inacessível.
 
-**Banco**
-- Nova tabela `cash_sessions` (`opened_at`, `closed_at`, `opened_by`, `closed_by`, `opening_note`, `closing_note`).
-- Coluna `cash_session_id` em `orders` (nullable, FK). Ao criar um pedido (público ou manual), se houver sessão aberta, vincula automaticamente.
-- RLS: staff/admin lê e escreve.
+2. **Relatório oficial por sessão de caixa**
+   - Transformar a área de Relatórios para listar cada caixa com horário brasileiro de abertura e fechamento.
+   - Ao abrir uma sessão, mostrar todos os pedidos vinculados, totais, entregas, retiradas, cancelamentos, fretes, pagamentos e produtos vendidos.
+   - Sessão aberta será identificada como “Caixa em andamento” e usará o horário atual apenas para visualização; ao fechar, o período fica definitivamente delimitado por `opened_at` e `closed_at`.
+   - Manter o filtro por dia somente como consulta complementar, sem usá-lo como fechamento oficial.
 
-**Painel**
-- Novo botão no topo do Dashboard: **"Abrir caixa" / "Fechar caixa"** com badge do horário de abertura.
-- Ao fechar, mostra um resumo (pedidos, faturamento, fretes, entregas concluídas, canceladas) e pede confirmação.
-- Na tela de **Relatórios**, novo seletor: "Por dia" (comportamento atual) **ou** "Por sessão de caixa" (lista das sessões fechadas, cada uma vira um relatório completo). O relatório do caixa usa exatamente as mesmas métricas já existentes, filtradas por `cash_session_id`.
+3. **Unificar fuso horário**
+   - Centralizar os limites de data no fuso `America/Sao_Paulo`.
+   - Corrigir o cálculo “Hoje” do Dashboard e reutilizar a mesma regra nos relatórios por data e de entregadores, eliminando a diferença de três horas.
+   - Exibir todas as datas e horários no padrão brasileiro.
 
-## 2. Painel de Clientes (com autopreenchimento)
+4. **Atualização após fechar o caixa**
+   - Ao confirmar o fechamento, atualizar imediatamente relatório, pedidos e métricas do Dashboard.
+   - O próximo caixa aberto iniciará um novo relatório; pedidos novos serão vinculados apenas a essa nova sessão.
 
-Hoje já existe autofill via `localStorage` do próprio cliente. Vou centralizar no servidor para que **o admin** também aproveite ao lançar pedidos manuais.
-
-**Banco**
-- Nova tabela `customers` (`phone` único, `name`, `last_address`, `last_neighborhood`, `orders_count`, `total_spent`, `last_order_at`).
-- Atualização automática (trigger ou dentro do `createOrder`/`createManualOrder`): a cada pedido novo, faz upsert por telefone, atualiza nome/endereço/bairro e incrementa contadores.
-
-**Painel**
-- Novo item no menu lateral: **"Clientes"**.
-- Tabela com busca por nome ou telefone, mostrando: nome, telefone, último endereço + bairro, nº de pedidos, total gasto, último pedido.
-- Ações: ver histórico de pedidos daquele telefone; editar nome/endereço manualmente.
-
-**Novo pedido manual**
-- No campo telefone (ou novo campo "Buscar cliente") — ao digitar 3+ dígitos ou letras, mostra sugestões da tabela `customers`. Ao selecionar, preenche nome, endereço, bairro e modo (entrega/retirada) do último pedido.
-
-## 3. Relatório de Entregadores
-
-Baseado no PDF enviado: métricas por entregador em um período.
-
-**Banco**
-- Nova tabela `couriers` (`name`, `phone`, `active`).
-- Coluna `courier_id` em `orders` (nullable).
-
-**Painel**
-- Item no menu **"Entregadores"** (admin): CRUD simples (nome, telefone, ativo).
-- Na tela de **Pedidos**, no card de cada pedido de entrega: dropdown "Entregador" para atribuir/trocar (só aparece quando o status é "pronto" ou depois).
-- Nova aba dentro de **Relatórios** → **"Entregadores"**:
-  - Filtro de período com **datas inicial e final** (não só um dia).
-  - Cards no topo: **Faturamento dos fretes**, **Ticket médio de frete**, **Total de entregas**, **Entregadores ativos**.
-  - Tabela: Nº pedido, Valor do pedido, Pagamento, Valor do frete, Bairro, Entregador, Data/hora — mesmo layout do PDF.
-  - Botões: **Copiar** (texto pro WhatsApp) e **Exportar PDF** no mesmo padrão do arquivo enviado.
-
-## Ordem de implementação
-1. Migração (3 tabelas + colunas + RLS + GRANT).
-2. Painel de Clientes + autofill no novo pedido.
-3. Caixa manual (abrir/fechar + filtro no relatório).
-4. Entregadores (CRUD, atribuição, relatório + PDF).
-
-## Pontos que confirmo antes de codar
-
-- **Caixa único?** Um caixa aberto por vez pra toda a loja (não por usuário). Ok?
-- **Pedidos antes da migração** ficam sem `cash_session_id` — no relatório por sessão eles não aparecem; continuam disponíveis no relatório por dia. Ok?
-- **Entregador único por pedido** (sem divisão), ok?
+## Validação
+- Simular pedido criado antes de 00:00 e finalizado depois de 00:00, confirmando que ele permanece no quadro.
+- Confirmar que o pedido pertence ao mesmo caixa e aparece uma única vez no relatório dessa sessão.
+- Conferir abertura, fechamento, valores, fretes, status e horários em `pt-BR`/São Paulo.
