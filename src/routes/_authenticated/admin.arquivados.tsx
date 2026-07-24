@@ -272,6 +272,14 @@ function ArquivadosPage() {
               : "Relatório do caixa"
           }
           sessionMode
+          sessionInfo={
+            selectedSession
+              ? {
+                  openedAt: selectedSession.session.opened_at,
+                  closedAt: selectedSession.session.closed_at,
+                }
+              : undefined
+          }
         />
       )}
     </AdminShell>
