@@ -26,10 +26,17 @@ import {
   type OrderRow,
   type OrderStatus,
 } from "@/lib/orders.functions";
+import {
+  listCashSessions,
+  listOrdersByCashSession,
+  type CashSessionSummary,
+} from "@/lib/cash-sessions.functions";
+import { formatBRDateTime } from "@/lib/br-time";
 import { FLOW_STATUS_LABEL, PAY_LABEL } from "@/lib/order-flow";
 
 const searchSchema = z.object({
   d: fallback(z.string().regex(/^\d{4}-\d{2}-\d{2}$/), "").optional(),
+  s: fallback(z.string(), "").optional(),
 });
 
 export const Route = createFileRoute("/_authenticated/admin/arquivados")({
@@ -139,12 +146,27 @@ function ArquivadosPage() {
 
   const fetchArchived = useServerFn(listArchivedOrders);
   const fetchByDay = useServerFn(listOrdersByDay);
+  const fetchSessions = useServerFn(listCashSessions);
+  const fetchSessionOrders = useServerFn(listOrdersByCashSession);
+
+  const sessionsQuery = useQuery({
+    queryKey: ["cash-sessions", 30],
+    queryFn: () => fetchSessions({ data: { limit: 30 } }),
+    staleTime: 30_000,
+  });
+
+  const sessionOrdersQuery = useQuery<OrderRow[]>({
+    queryKey: ["orders-by-cash-session", search.s],
+    queryFn: () => fetchSessionOrders({ data: { sessionId: search.s as string } }),
+    staleTime: 30_000,
+    enabled: Boolean(search.s),
+  });
 
   const listQuery = useQuery<OrderRow[]>({
     queryKey: ["orders-archived", 30],
     queryFn: () => fetchArchived({ data: { days: 30 } }),
     staleTime: 60_000,
-    enabled: !search.d,
+    enabled: !search.d && !search.s,
   });
 
   // Ao selecionar uma data, sempre buscamos direto do servidor (permite
@@ -172,9 +194,24 @@ function ArquivadosPage() {
   const selected: DayBucket | null = search.d
     ? { key: search.d, orders: dayQuery.data ?? [] }
     : null;
+  const selectedSession = sessionsQuery.data?.find((item) => item.session.id === search.s);
+  const selectedSessionBucket: DayBucket | null = search.s
+    ? {
+        key: dayKey(selectedSession?.session.opened_at ?? new Date().toISOString()),
+        orders: sessionOrdersQuery.data ?? [],
+      }
+    : null;
 
-  const isLoading = search.d ? dayQuery.isLoading : listQuery.isLoading;
-  const error = search.d ? dayQuery.error : listQuery.error;
+  const isLoading = search.s
+    ? sessionOrdersQuery.isLoading
+    : search.d
+      ? dayQuery.isLoading
+      : listQuery.isLoading || sessionsQuery.isLoading;
+  const error = search.s
+    ? sessionOrdersQuery.error
+    : search.d
+      ? dayQuery.error
+      : listQuery.error || sessionsQuery.error;
 
   return (
     <AdminShell
@@ -190,7 +227,7 @@ function ArquivadosPage() {
         </Link>
       }
     >
-      {!selected && (
+      {!selected && !selectedSessionBucket && (
         <CustomDayPicker onPick={(k) => navigate({ search: { d: k } })} />
       )}
 
@@ -201,20 +238,96 @@ function ArquivadosPage() {
         <p className="text-sm text-destructive">{(error as Error).message}</p>
       )}
 
-      {!isLoading && !selected && (
-        <DayList
-          buckets={buckets}
-          onSelect={(k) => navigate({ search: { d: k } })}
-        />
+      {!isLoading && !selected && !selectedSessionBucket && (
+        <>
+          <CashSessionList
+            sessions={sessionsQuery.data ?? []}
+            onSelect={(id) => navigate({ search: { s: id } })}
+          />
+          <section className="mt-8 border-t border-border pt-5">
+            <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+              Consulta complementar por dia
+            </h2>
+            <DayList
+              buckets={buckets}
+              onSelect={(k) => navigate({ search: { d: k } })}
+            />
+          </section>
+        </>
       )}
 
       {selected && !isLoading && (
         <DayDetail
           bucket={selected}
-          onBack={() => navigate({ search: { d: undefined } })}
+          onBack={() => navigate({ search: { d: undefined, s: undefined } })}
+        />
+      )}
+      {selectedSessionBucket && !isLoading && (
+        <DayDetail
+          bucket={selectedSessionBucket}
+          onBack={() => navigate({ search: { d: undefined, s: undefined } })}
+          reportLabel={
+            selectedSession
+              ? `${selectedSession.session.closed_at ? "Caixa fechado" : "Caixa em andamento"} · ${formatBRDateTime(selectedSession.session.opened_at)} até ${selectedSession.session.closed_at ? formatBRDateTime(selectedSession.session.closed_at) : "agora"}`
+              : "Relatório do caixa"
+          }
+          sessionMode
         />
       )}
     </AdminShell>
+  );
+}
+
+function CashSessionList({
+  sessions,
+  onSelect,
+}: {
+  sessions: CashSessionSummary[];
+  onSelect: (id: string) => void;
+}) {
+  return (
+    <section>
+      <div className="mb-3">
+        <h2 className="text-base font-semibold text-foreground">Relatórios por caixa</h2>
+        <p className="text-xs text-muted-foreground">Período oficial entre a abertura e o fechamento manual.</p>
+      </div>
+      {sessions.length === 0 ? (
+        <p className="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+          Nenhum caixa registrado.
+        </p>
+      ) : (
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {sessions.map((summary) => (
+            <button
+              key={summary.session.id}
+              onClick={() => onSelect(summary.session.id)}
+              className="group rounded-xl border border-border bg-card p-4 text-left transition hover:border-primary"
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <p className="font-semibold text-foreground">
+                    {summary.session.closed_at ? "Caixa fechado" : "Caixa em andamento"}
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {formatBRDateTime(summary.session.opened_at)} até{" "}
+                    {summary.session.closed_at ? formatBRDateTime(summary.session.closed_at) : "agora"}
+                  </p>
+                </div>
+                <ChevronRight size={18} className="text-muted-foreground group-hover:text-primary" />
+              </div>
+              <div className="mt-3 flex items-end justify-between border-t border-border pt-3">
+                <span className="text-xs text-muted-foreground">
+                  {summary.orders} pedidos · {summary.deliveries} entregas · {summary.cancelled} cancelados
+                </span>
+                <span className="font-mono text-sm font-semibold text-emerald-400">
+                  {formatBRL(summary.revenue)}
+                </span>
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -344,9 +457,13 @@ function DayList({
 function DayDetail({
   bucket,
   onBack,
+  reportLabel,
+  sessionMode = false,
 }: {
   bucket: DayBucket;
   onBack: () => void;
+  reportLabel?: string;
+  sessionMode?: boolean;
 }) {
   const m = computeMetrics(bucket.orders);
   const cancelRate = m.total > 0 ? (m.cancelled / m.total) * 100 : 0;
@@ -427,7 +544,7 @@ function DayDetail({
 
   const copyReport = async () => {
     const lines: string[] = [];
-    lines.push(`📊 *Relatório do dia — ${formatDayLabel(bucket.key)}*`);
+    lines.push(`📊 *${sessionMode ? reportLabel ?? "Relatório do caixa" : `Relatório do dia — ${formatDayLabel(bucket.key)}`}*`);
     lines.push("");
     lines.push("*Resumo*");
     lines.push(`• Pedidos válidos: ${m.total - m.cancelled} (de ${m.total})`);
@@ -493,11 +610,11 @@ function DayDetail({
           <ArrowLeft size={14} /> Todas as datas
         </button>
         <div className="min-w-0 flex-1">
-          <p className="text-xs uppercase tracking-wide text-muted-foreground">
-            {bucket.key}
-          </p>
-          <h2 className="truncate font-display text-lg capitalize text-primary">
-            {formatDayLabel(bucket.key)}
+          {!sessionMode && (
+            <p className="text-xs uppercase tracking-wide text-muted-foreground">{bucket.key}</p>
+          )}
+          <h2 className="font-display text-lg capitalize text-primary">
+            {reportLabel ?? formatDayLabel(bucket.key)}
           </h2>
         </div>
         <button
@@ -644,7 +761,7 @@ function DayDetail({
 
       {/* Lista de pedidos do dia */}
       <h3 className="mb-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-        Pedidos do dia
+         {sessionMode ? "Pedidos do caixa" : "Pedidos do dia"}
       </h3>
       <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-3">
         {orders.map((o) => (
