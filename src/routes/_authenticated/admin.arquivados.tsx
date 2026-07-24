@@ -653,6 +653,34 @@ function DayDetail({
         </button>
       </div>
 
+      {sessionInfo && (
+        <div className="mb-4 rounded-xl border border-primary/40 bg-primary/5 p-4">
+          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-primary">
+            <Calendar size={14} /> Período do caixa (horário de São Paulo)
+          </div>
+          <div className="mt-2 grid gap-3 sm:grid-cols-3">
+            <div>
+              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Abertura</p>
+              <p className="font-mono text-sm font-semibold text-foreground">
+                {formatBRDateTime(sessionInfo.openedAt)}
+              </p>
+            </div>
+            <div>
+              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Fechamento</p>
+              <p className="font-mono text-sm font-semibold text-foreground">
+                {sessionInfo.closedAt ? formatBRDateTime(sessionInfo.closedAt) : "em andamento"}
+              </p>
+            </div>
+            <div>
+              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Duração</p>
+              <p className="font-mono text-sm font-semibold text-foreground">
+                {formatDurationBetween(sessionInfo.openedAt, sessionInfo.closedAt ?? new Date().toISOString())}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Resumo geral do dia */}
       <div className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <MetricCard
