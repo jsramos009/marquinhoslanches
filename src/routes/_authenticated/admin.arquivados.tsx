@@ -556,6 +556,14 @@ function DayDetail({
     const lines: string[] = [];
     lines.push(`📊 *${sessionMode ? reportLabel ?? "Relatório do caixa" : `Relatório do dia — ${formatDayLabel(bucket.key)}`}*`);
     lines.push("");
+    if (sessionInfo) {
+      const dur = formatDurationBetween(sessionInfo.openedAt, sessionInfo.closedAt ?? new Date().toISOString());
+      lines.push("*Período do caixa (horário de São Paulo)*");
+      lines.push(`• Abertura: ${formatBRDateTime(sessionInfo.openedAt)}`);
+      lines.push(`• Fechamento: ${sessionInfo.closedAt ? formatBRDateTime(sessionInfo.closedAt) : "em andamento"}`);
+      lines.push(`• Duração: ${dur}`);
+      lines.push("");
+    }
     lines.push("*Resumo*");
     lines.push(`• Pedidos válidos: ${m.total - m.cancelled} (de ${m.total})`);
     lines.push(`• Cancelados: ${m.cancelled}`);
