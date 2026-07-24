@@ -94,6 +94,15 @@ function formatBRTime(iso: string) {
   });
 }
 
+function formatDurationBetween(startIso: string, endIso: string) {
+  const ms = Math.max(0, new Date(endIso).getTime() - new Date(startIso).getTime());
+  const totalMinutes = Math.floor(ms / 60000);
+  const h = Math.floor(totalMinutes / 60);
+  const m = totalMinutes % 60;
+  if (h === 0) return `${m} min`;
+  return `${h}h ${String(m).padStart(2, "0")}min`;
+}
+
 
 
 type DayBucket = {
@@ -272,6 +281,14 @@ function ArquivadosPage() {
               : "Relatório do caixa"
           }
           sessionMode
+          sessionInfo={
+            selectedSession
+              ? {
+                  openedAt: selectedSession.session.opened_at,
+                  closedAt: selectedSession.session.closed_at,
+                }
+              : undefined
+          }
         />
       )}
     </AdminShell>
@@ -459,11 +476,13 @@ function DayDetail({
   onBack,
   reportLabel,
   sessionMode = false,
+  sessionInfo,
 }: {
   bucket: DayBucket;
   onBack: () => void;
   reportLabel?: string;
   sessionMode?: boolean;
+  sessionInfo?: { openedAt: string; closedAt: string | null };
 }) {
   const m = computeMetrics(bucket.orders);
   const cancelRate = m.total > 0 ? (m.cancelled / m.total) * 100 : 0;
@@ -546,6 +565,14 @@ function DayDetail({
     const lines: string[] = [];
     lines.push(`📊 *${sessionMode ? reportLabel ?? "Relatório do caixa" : `Relatório do dia — ${formatDayLabel(bucket.key)}`}*`);
     lines.push("");
+    if (sessionInfo) {
+      const dur = formatDurationBetween(sessionInfo.openedAt, sessionInfo.closedAt ?? new Date().toISOString());
+      lines.push("*Período do caixa (horário de São Paulo)*");
+      lines.push(`• Abertura: ${formatBRDateTime(sessionInfo.openedAt)}`);
+      lines.push(`• Fechamento: ${sessionInfo.closedAt ? formatBRDateTime(sessionInfo.closedAt) : "em andamento"}`);
+      lines.push(`• Duração: ${dur}`);
+      lines.push("");
+    }
     lines.push("*Resumo*");
     lines.push(`• Pedidos válidos: ${m.total - m.cancelled} (de ${m.total})`);
     lines.push(`• Cancelados: ${m.cancelled}`);
@@ -625,6 +652,34 @@ function DayDetail({
           {copied ? "Copiado!" : "Copiar relatório"}
         </button>
       </div>
+
+      {sessionInfo && (
+        <div className="mb-4 rounded-xl border border-primary/40 bg-primary/5 p-4">
+          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-primary">
+            <Calendar size={14} /> Período do caixa (horário de São Paulo)
+          </div>
+          <div className="mt-2 grid gap-3 sm:grid-cols-3">
+            <div>
+              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Abertura</p>
+              <p className="font-mono text-sm font-semibold text-foreground">
+                {formatBRDateTime(sessionInfo.openedAt)}
+              </p>
+            </div>
+            <div>
+              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Fechamento</p>
+              <p className="font-mono text-sm font-semibold text-foreground">
+                {sessionInfo.closedAt ? formatBRDateTime(sessionInfo.closedAt) : "em andamento"}
+              </p>
+            </div>
+            <div>
+              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Duração</p>
+              <p className="font-mono text-sm font-semibold text-foreground">
+                {formatDurationBetween(sessionInfo.openedAt, sessionInfo.closedAt ?? new Date().toISOString())}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Resumo geral do dia */}
       <div className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
