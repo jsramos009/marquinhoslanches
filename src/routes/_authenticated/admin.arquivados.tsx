@@ -94,6 +94,15 @@ function formatBRTime(iso: string) {
   });
 }
 
+function formatDurationBetween(startIso: string, endIso: string) {
+  const ms = Math.max(0, new Date(endIso).getTime() - new Date(startIso).getTime());
+  const totalMinutes = Math.floor(ms / 60000);
+  const h = Math.floor(totalMinutes / 60);
+  const m = totalMinutes % 60;
+  if (h === 0) return `${m} min`;
+  return `${h}h ${String(m).padStart(2, "0")}min`;
+}
+
 
 
 type DayBucket = {
