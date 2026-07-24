@@ -467,11 +467,13 @@ function DayDetail({
   onBack,
   reportLabel,
   sessionMode = false,
+  sessionInfo,
 }: {
   bucket: DayBucket;
   onBack: () => void;
   reportLabel?: string;
   sessionMode?: boolean;
+  sessionInfo?: { openedAt: string; closedAt: string | null };
 }) {
   const m = computeMetrics(bucket.orders);
   const cancelRate = m.total > 0 ? (m.cancelled / m.total) * 100 : 0;
