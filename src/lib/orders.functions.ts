@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { isHamburgerCategory } from "@/lib/menu-utils";
+import { brDateKey, brStartOfDay, brStartOfMonth, brStartOfToday } from "@/lib/br-time";
 
 export type OrderStatus =
   | "recebido"
@@ -103,30 +104,6 @@ async function assertStaffAccess(userId: string) {
     .maybeSingle();
   if (error) throw new Error(error.message);
   if (!data) throw new Error("Forbidden");
-}
-
-function toISODateKey(date: Date) {
-  return date.toISOString().slice(0, 10);
-}
-
-// Fuso do Brasil (sem horário de verão) — UTC-3.
-const BR_OFFSET_MS = 3 * 60 * 60 * 1000;
-
-// Início do dia (00:00 America/Sao_Paulo) para uma data YYYY-MM-DD.
-function brStartOfDay(day: string): Date {
-  const [y, m, d] = day.split("-").map(Number);
-  // 00:00 BRT == 03:00 UTC
-  return new Date(Date.UTC(y, m - 1, d, 3, 0, 0, 0));
-}
-
-// Início do dia atual em America/Sao_Paulo, como Date UTC.
-function brStartOfToday(): Date {
-  const now = new Date();
-  const brNow = new Date(now.getTime() - BR_OFFSET_MS); // "hora BR" mapeada em UTC
-  const y = brNow.getUTCFullYear();
-  const m = brNow.getUTCMonth();
-  const d = brNow.getUTCDate();
-  return new Date(Date.UTC(y, m, d, 3, 0, 0, 0));
 }
 
 export const createOrder = createServerFn({ method: "POST" })
@@ -526,15 +503,26 @@ export const listRecentOrders = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { sinceHours?: number } | undefined) => d ?? {})
   .handler(async ({ data, context }): Promise<OrderRow[]> => {
-    const hours = data.sinceHours ?? 36;
+    const { data: currentSession, error: sessionError } = await context.supabase
+      .from("cash_sessions")
+      .select("id")
+      .is("closed_at", null)
+      .order("opened_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (sessionError) throw new Error(sessionError.message);
+
+    const hours = currentSession ? data.sinceHours ?? 36 : 168;
     const since = new Date(Date.now() - hours * 3600_000).toISOString();
-    const { data: rows, error } = await context.supabase
+    let query = context.supabase
       .from("orders")
       .select(
         "id, customer_name, customer_phone, channel, status, subtotal, discount, total, notes, cancel_reason, payment_method, change_for, delivery_mode, delivery_fee, delivery_address, delivery_neighborhood, courier_id, created_at, ready_at, delivered_at, order_items(id, product_id, product_name_snapshot, quantity, unit_price_snapshot, line_total, order_item_addons(id, addon_id, addon_name_snapshot, quantity, unit_price_snapshot))",
-      )
-      .gte("created_at", since)
-      .order("created_at", { ascending: false });
+      );
+    query = currentSession
+      ? query.eq("cash_session_id", currentSession.id)
+      : query.gte("created_at", since).in("status", ["recebido", "em_producao", "pronto"]);
+    const { data: rows, error } = await query.order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
     return (rows ?? []).map((r) => {
       const row = r as unknown as {
@@ -787,16 +775,15 @@ export const getDashboardMetrics = createServerFn({ method: "GET" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const now = new Date();
     const end = now;
-    const start = new Date(now);
+    let start: Date;
     if (range === "today") {
-      start.setHours(0, 0, 0, 0);
+      start = brStartOfToday();
     } else if (range === "30d") {
-      start.setDate(start.getDate() - 30);
+      start = new Date(now.getTime() - 30 * 86_400_000);
     } else if (range === "mtd") {
-      start.setDate(1);
-      start.setHours(0, 0, 0, 0);
+      start = brStartOfMonth();
     } else {
-      start.setDate(start.getDate() - 7);
+      start = new Date(now.getTime() - 7 * 86_400_000);
     }
     const span = end.getTime() - start.getTime();
     const prevEnd = start;
@@ -827,7 +814,7 @@ export const getDashboardMetrics = createServerFn({ method: "GET" })
 
     const seriesMap = new Map<string, { day: string; revenue: number; orders: number }>();
     for (const o of validOrders) {
-      const day = toISODateKey(new Date(o.created_at));
+      const day = brDateKey(o.created_at);
       const item = seriesMap.get(day) ?? { day, revenue: 0, orders: 0 };
       item.revenue += Number(o.total || 0);
       item.orders += 1;

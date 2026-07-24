@@ -99,16 +99,9 @@ function PedidosPage() {
     onSuccess: invalidate,
   });
 
-  // Apenas pedidos de HOJE entram no quadro ativo / cancelados visíveis.
-  // Pedidos de dias anteriores migram automaticamente para "Arquivados".
-  const startOfToday = new Date();
-  startOfToday.setHours(0, 0, 0, 0);
-  const startOfTodayMs = startOfToday.getTime();
-
-  const allOrders = q.data ?? [];
-  const orders = allOrders.filter(
-    (o) => new Date(o.created_at).getTime() >= startOfTodayMs,
-  );
+  // A consulta acompanha o caixa aberto, mesmo quando ele atravessa a meia-noite.
+  // Sem caixa aberto, recupera pedidos recentes que ainda precisam ser concluídos.
+  const orders = q.data ?? [];
   const cancelled = orders.filter((o) => o.status === "cancelado");
   const [showCancelled, setShowCancelled] = useState(false);
 
