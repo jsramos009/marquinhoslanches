@@ -67,6 +67,7 @@ function ConfiguracoesPage() {
     estimated_delivery_minutes: "",
     wa_msg_accepted: "",
     wa_msg_on_way: "",
+    wa_msg_ready_pickup: "",
   });
   const [hours, setHours] = useState<OperatingHours>(() => defaultOperatingHours());
   const [copied, setCopied] = useState<string | null>(null);
