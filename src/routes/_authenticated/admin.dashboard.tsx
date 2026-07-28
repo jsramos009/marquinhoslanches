@@ -458,7 +458,7 @@ function OrderMiniCard({
     order.payment_method === "dinheiro" && order.change_for && order.change_for > 0;
   const change = showChange ? order.change_for! - order.total : 0;
   const action = nextActionFor(order.status);
-  const waTemplate = whatsappTemplateFor(order.status);
+  const waTemplate = whatsappTemplateFor(order.status, order.delivery_mode);
   // WhatsApp só libera após aceitar (status > recebido)
   const waEnabled = order.status !== "recebido" && order.status !== "cancelado";
   const waLink = waEnabled ? buildWhatsAppLink(order, waTemplate, templates) : "";
