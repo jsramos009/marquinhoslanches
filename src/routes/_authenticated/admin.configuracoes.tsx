@@ -348,6 +348,20 @@ function ConfiguracoesPage() {
                     className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
                   />
                 </label>
+                <label className="block">
+                  <span className="text-xs text-muted-foreground">
+                    Pronto para retirada (pedidos de retirada no local)
+                  </span>
+                  <textarea
+                    value={form.wa_msg_ready_pickup}
+                    onChange={(e) =>
+                      update("wa_msg_ready_pickup", e.target.value)
+                    }
+                    rows={4}
+                    placeholder="Olá {nome}! Seu pedido está pronto para retirada..."
+                    className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                  />
+                </label>
               </div>
             </section>
 
