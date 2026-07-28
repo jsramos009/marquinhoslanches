@@ -84,6 +84,8 @@ type CreateOrderInput = {
   discount?: number;
   payment_method?: OrderPaymentMethod;
   change_for?: number | null;
+  cash_amount?: number | null;
+  secondary_payment_method?: OrderPaymentMethod | null;
   delivery_mode?: "delivery" | "pickup";
   delivery_fee?: number;
   delivery_address?: string | null;
