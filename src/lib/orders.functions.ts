@@ -213,6 +213,14 @@ export const createOrder = createServerFn({ method: "POST" })
           data.payment_method === "dinheiro" && data.change_for && data.change_for > 0
             ? data.change_for
             : null,
+        cash_amount:
+          data.secondary_payment_method && data.cash_amount && data.cash_amount > 0
+            ? data.cash_amount
+            : null,
+        secondary_payment_method:
+          data.secondary_payment_method && data.cash_amount && data.cash_amount > 0
+            ? data.secondary_payment_method
+            : null,
         delivery_mode: deliveryMode,
         delivery_fee: effectiveFee,
         delivery_address:
@@ -375,6 +383,14 @@ export const updateOrder = createServerFn({ method: "POST" })
         change_for:
           data.payment_method === "dinheiro" && data.change_for && data.change_for > 0
             ? data.change_for
+            : null,
+        cash_amount:
+          data.secondary_payment_method && data.cash_amount && data.cash_amount > 0
+            ? data.cash_amount
+            : null,
+        secondary_payment_method:
+          data.secondary_payment_method && data.cash_amount && data.cash_amount > 0
+            ? data.secondary_payment_method
             : null,
         delivery_mode: deliveryMode,
         delivery_fee: effectiveFee,
