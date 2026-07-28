@@ -130,18 +130,22 @@ function orderSummaryLines(order: OrderRow): string {
     .join("\n");
 }
 
-export type WaTemplate = "aceito" | "a_caminho" | null;
+export type WaTemplate = "aceito" | "a_caminho" | "pronto_retirada" | null;
 
-export function whatsappTemplateFor(status: OrderStatus): WaTemplate {
+export function whatsappTemplateFor(
+  status: OrderStatus,
+  deliveryMode?: "delivery" | "pickup",
+): WaTemplate {
   if (status === "em_producao") return "aceito";
-  if (status === "pronto") return "a_caminho";
+  if (status === "pronto")
+    return deliveryMode === "pickup" ? "pronto_retirada" : "a_caminho";
   return null;
 }
 
 export function buildWhatsAppMessage(
   order: OrderRow,
   template: WaTemplate,
-  overrides?: { accepted?: string; on_way?: string },
+  overrides?: { accepted?: string; on_way?: string; ready_pickup?: string },
 ): string {
   const name = order.customer_name?.trim() || "cliente";
   const summary = orderSummaryLines(order);
@@ -170,12 +174,18 @@ export function buildWhatsAppMessage(
   if (template === "a_caminho" && overrides?.on_way?.trim()) {
     return render(overrides.on_way);
   }
+  if (template === "pronto_retirada" && overrides?.ready_pickup?.trim()) {
+    return render(overrides.ready_pickup);
+  }
 
   if (template === "aceito") {
     return `Olá ${name}! 👋\n\n✅ Seu pedido foi *aceito* e já está sendo preparado.\n⏱️ Tempo médio de preparo: *20 a 35 minutos*.${orderBlock}${repeatLine}\n\n— Marquinhos Lanches 🍔`;
   }
   if (template === "a_caminho") {
     return `Olá ${name}! 🛵\n\n🚀 Seu pedido *saiu para entrega*! Fique atento, já está a caminho.${orderBlock}${repeatLine}\n\n— Marquinhos Lanches 🍔`;
+  }
+  if (template === "pronto_retirada") {
+    return `Olá ${name}! 🎉\n\n✅ Seu pedido está *pronto para retirada*! Pode vir buscar quando quiser.${orderBlock}${repeatLine}\n\n— Marquinhos Lanches 🍔`;
   }
   return `Olá ${name}! Sobre seu pedido na Marquinhos Lanches.${orderBlock}${repeatLine}`;
 }
@@ -191,7 +201,7 @@ export function normalizeWhatsappNumber(phone: string | null | undefined): strin
 export function buildWhatsAppLink(
   order: OrderRow,
   template: WaTemplate,
-  overrides?: { accepted?: string; on_way?: string },
+  overrides?: { accepted?: string; on_way?: string; ready_pickup?: string },
 ): string {
   const text = encodeURIComponent(buildWhatsAppMessage(order, template, overrides));
   const number = normalizeWhatsappNumber(order.customer_phone);
