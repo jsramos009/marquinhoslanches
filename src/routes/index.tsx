@@ -1343,6 +1343,53 @@ function CartDialog({
               </div>
               {payment === "dinheiro" && (
                 <div className="mt-3">
+                  <label className="mb-2 flex items-center gap-2 text-sm text-muted-foreground">
+                    <input
+                      type="checkbox"
+                      checked={splitPay}
+                      onChange={(e) => setSplitPay(e.target.checked)}
+                      className="h-4 w-4 accent-primary"
+                    />
+                    Quero dividir: uma parte em dinheiro e outra no PIX/cartão
+                  </label>
+                  {splitPay ? (
+                    <div className="space-y-2">
+                      <input
+                        className="cart-input"
+                        value={cashPart}
+                        onChange={(e) => setCashPart(e.target.value)}
+                        placeholder="Quanto vai pagar em dinheiro? (ex.: 20,00)"
+                        inputMode="decimal"
+                      />
+                      <select
+                        className="cart-input"
+                        value={splitOther}
+                        onChange={(e) =>
+                          setSplitOther(e.target.value as typeof splitOther)
+                        }
+                      >
+                        <option value="pix">Restante no PIX</option>
+                        <option value="cartao_credito">Restante no Crédito</option>
+                        <option value="cartao_debito">Restante no Débito</option>
+                      </select>
+                      <p className="text-xs text-muted-foreground">
+                        Restante:{" "}
+                        {formatBRL(
+                          Math.max(
+                            0,
+                            grandTotal -
+                              Math.min(
+                                Math.max(
+                                  0,
+                                  Number(cashPart.replace(",", ".")) || 0,
+                                ),
+                                grandTotal,
+                              ),
+                          ),
+                        )}
+                      </p>
+                    </div>
+                  ) : (
                   <input
                     className="cart-input"
                     value={changeFor}
@@ -1350,6 +1397,7 @@ function CartDialog({
                     placeholder="Precisa de troco pra quanto? (deixe vazio se não precisar)"
                     inputMode="decimal"
                   />
+                  )}
                 </div>
               )}
             </Field>
