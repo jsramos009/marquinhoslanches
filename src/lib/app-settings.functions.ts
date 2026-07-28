@@ -17,6 +17,7 @@ export type AppSettings = {
   estimated_delivery_minutes: string;
   wa_msg_accepted: string;
   wa_msg_on_way: string;
+  wa_msg_ready_pickup: string;
 };
 
 const KEYS: (keyof AppSettings)[] = [
@@ -35,6 +36,7 @@ const KEYS: (keyof AppSettings)[] = [
   "estimated_delivery_minutes",
   "wa_msg_accepted",
   "wa_msg_on_way",
+  "wa_msg_ready_pickup",
 ];
 
 async function assertAdmin(supabase: any, userId: string) {
