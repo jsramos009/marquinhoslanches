@@ -16,6 +16,12 @@ export type PublicOrderInput = {
     | "dinheiro"
     | "nao_informado";
   change_for?: number | null;
+  cash_amount?: number | null;
+  secondary_payment_method?:
+    | "pix"
+    | "cartao_credito"
+    | "cartao_debito"
+    | null;
   items: {
     product_id: string;
     quantity: number;
@@ -195,6 +201,14 @@ export const submitPublicOrder = createServerFn({ method: "POST" })
           data.change_for &&
           data.change_for > 0
             ? data.change_for
+            : null,
+        cash_amount:
+          data.secondary_payment_method && data.cash_amount && data.cash_amount > 0
+            ? data.cash_amount
+            : null,
+        secondary_payment_method:
+          data.secondary_payment_method && data.cash_amount && data.cash_amount > 0
+            ? data.secondary_payment_method
             : null,
         delivery_mode: deliveryMode,
         delivery_fee: deliveryFee,
