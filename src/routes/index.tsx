@@ -1000,8 +1000,9 @@ function CartDialog({
       mode === "delivery" ? neighborhoodId : "",
       payment ?? "",
       payment === "dinheiro" ? changeFor : "",
+      splitPay ? `${cashPart}|${splitOther}` : "",
     ].join("§");
-  }, [cart, name, phone, mode, address, neighborhoodId, payment, changeFor]);
+  }, [cart, name, phone, mode, address, neighborhoodId, payment, changeFor, splitPay, cashPart, splitOther]);
 
   const alreadySent = submittedFp === orderFingerprint;
 
