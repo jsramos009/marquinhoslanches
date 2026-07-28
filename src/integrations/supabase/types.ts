@@ -312,6 +312,7 @@ export type Database = {
         Row: {
           cancel_reason: string | null
           cancelled_at: string | null
+          cash_amount: number | null
           cash_session_id: string | null
           change_for: number | null
           channel: Database["public"]["Enums"]["order_channel"]
@@ -331,6 +332,9 @@ export type Database = {
           notes: string | null
           payment_method: Database["public"]["Enums"]["order_payment_method"]
           ready_at: string | null
+          secondary_payment_method:
+            | Database["public"]["Enums"]["order_payment_method"]
+            | null
           status: Database["public"]["Enums"]["order_status"]
           subtotal: number
           total: number
@@ -339,6 +343,7 @@ export type Database = {
         Insert: {
           cancel_reason?: string | null
           cancelled_at?: string | null
+          cash_amount?: number | null
           cash_session_id?: string | null
           change_for?: number | null
           channel?: Database["public"]["Enums"]["order_channel"]
@@ -358,6 +363,9 @@ export type Database = {
           notes?: string | null
           payment_method?: Database["public"]["Enums"]["order_payment_method"]
           ready_at?: string | null
+          secondary_payment_method?:
+            | Database["public"]["Enums"]["order_payment_method"]
+            | null
           status?: Database["public"]["Enums"]["order_status"]
           subtotal?: number
           total?: number
@@ -366,6 +374,7 @@ export type Database = {
         Update: {
           cancel_reason?: string | null
           cancelled_at?: string | null
+          cash_amount?: number | null
           cash_session_id?: string | null
           change_for?: number | null
           channel?: Database["public"]["Enums"]["order_channel"]
@@ -385,6 +394,9 @@ export type Database = {
           notes?: string | null
           payment_method?: Database["public"]["Enums"]["order_payment_method"]
           ready_at?: string | null
+          secondary_payment_method?:
+            | Database["public"]["Enums"]["order_payment_method"]
+            | null
           status?: Database["public"]["Enums"]["order_status"]
           subtotal?: number
           total?: number

@@ -68,7 +68,20 @@ export function ThermalReceipt({ order }: { order: OrderRow }) {
         <span>Pagamento:</span>
         <span className="t-bold">{PAY_LABEL[order.payment_method]}</span>
       </div>
-      {order.payment_method === "dinheiro" && order.change_for && order.change_for > 0 && (
+      {order.cash_amount != null && order.secondary_payment_method && (
+        <>
+          <div className="t-row">
+            <span>Em dinheiro:</span>
+            <span>{brl(order.cash_amount)}</span>
+          </div>
+          <div className="t-row">
+            <span>{PAY_LABEL[order.secondary_payment_method]}:</span>
+            <span>{brl(Math.max(0, order.total - order.cash_amount))}</span>
+          </div>
+        </>
+      )}
+      {!order.secondary_payment_method &&
+        order.payment_method === "dinheiro" && order.change_for && order.change_for > 0 && (
         <>
           <div className="t-row">
             <span>Pagar com:</span>
@@ -80,7 +93,8 @@ export function ThermalReceipt({ order }: { order: OrderRow }) {
           </div>
         </>
       )}
-      {order.payment_method === "dinheiro" &&
+      {!order.secondary_payment_method &&
+        order.payment_method === "dinheiro" &&
         (!order.change_for || order.change_for <= 0) && (
           <div className="t-center t-bold">SEM TROCO</div>
         )}

@@ -714,6 +714,11 @@ function CartDialog({
   type PayMethod = "pix" | "cartao_credito" | "cartao_debito" | "dinheiro";
   const [payment, setPayment] = useState<PayMethod | null>(null);
   const [changeFor, setChangeFor] = useState<string>("");
+  const [splitPay, setSplitPay] = useState(false);
+  const [cashPart, setCashPart] = useState<string>("");
+  const [splitOther, setSplitOther] = useState<
+    "pix" | "cartao_credito" | "cartao_debito"
+  >("pix");
   const [saveProfile, setSaveProfile] = useState(true);
   const [prefillNotice, setPrefillNotice] = useState<string | null>(null);
   const [geo, setGeo] = useState<{
@@ -934,7 +939,15 @@ function CartDialog({
         dinheiro: "Dinheiro",
       };
       lines.push(`*Pagamento:* ${label[payment]}`);
-      if (payment === "dinheiro") {
+      if (payment === "dinheiro" && splitPay) {
+        const cash = Math.min(
+          Math.max(0, Number(cashPart.replace(",", ".")) || 0),
+          grandTotal,
+        );
+        lines.push(
+          `*Dividido:* ${formatBRL(cash)} em dinheiro + ${formatBRL(grandTotal - cash)} em ${label[splitOther]}`,
+        );
+      } else if (payment === "dinheiro") {
         const v = Number(changeFor.replace(",", "."));
         if (v > 0 && v >= totalPrice) {
           lines.push(`*Troco para:* ${formatBRL(v)} (troco ${formatBRL(v - totalPrice)})`);
@@ -987,8 +1000,9 @@ function CartDialog({
       mode === "delivery" ? neighborhoodId : "",
       payment ?? "",
       payment === "dinheiro" ? changeFor : "",
+      splitPay ? `${cashPart}|${splitOther}` : "",
     ].join("§");
-  }, [cart, name, phone, mode, address, neighborhoodId, payment, changeFor]);
+  }, [cart, name, phone, mode, address, neighborhoodId, payment, changeFor, splitPay, cashPart, splitOther]);
 
   const alreadySent = submittedFp === orderFingerprint;
 
@@ -1027,9 +1041,18 @@ function CartDialog({
               .join("\n") || null,
           payment_method: payment ?? "nao_informado",
           change_for:
-            payment === "dinheiro"
+            payment === "dinheiro" && !splitPay
               ? Number(changeFor.replace(",", ".")) || null
               : null,
+          cash_amount:
+            payment === "dinheiro" && splitPay
+              ? Math.min(
+                  Math.max(0, Number(cashPart.replace(",", ".")) || 0),
+                  grandTotal,
+                )
+              : null,
+          secondary_payment_method:
+            payment === "dinheiro" && splitPay ? splitOther : null,
           items: cart.map((l) => ({
             product_id: l.product.id,
             quantity: l.qty,
@@ -1321,6 +1344,53 @@ function CartDialog({
               </div>
               {payment === "dinheiro" && (
                 <div className="mt-3">
+                  <label className="mb-2 flex items-center gap-2 text-sm text-muted-foreground">
+                    <input
+                      type="checkbox"
+                      checked={splitPay}
+                      onChange={(e) => setSplitPay(e.target.checked)}
+                      className="h-4 w-4 accent-primary"
+                    />
+                    Quero dividir: uma parte em dinheiro e outra no PIX/cartão
+                  </label>
+                  {splitPay ? (
+                    <div className="space-y-2">
+                      <input
+                        className="cart-input"
+                        value={cashPart}
+                        onChange={(e) => setCashPart(e.target.value)}
+                        placeholder="Quanto vai pagar em dinheiro? (ex.: 20,00)"
+                        inputMode="decimal"
+                      />
+                      <select
+                        className="cart-input"
+                        value={splitOther}
+                        onChange={(e) =>
+                          setSplitOther(e.target.value as typeof splitOther)
+                        }
+                      >
+                        <option value="pix">Restante no PIX</option>
+                        <option value="cartao_credito">Restante no Crédito</option>
+                        <option value="cartao_debito">Restante no Débito</option>
+                      </select>
+                      <p className="text-xs text-muted-foreground">
+                        Restante:{" "}
+                        {formatBRL(
+                          Math.max(
+                            0,
+                            grandTotal -
+                              Math.min(
+                                Math.max(
+                                  0,
+                                  Number(cashPart.replace(",", ".")) || 0,
+                                ),
+                                grandTotal,
+                              ),
+                          ),
+                        )}
+                      </p>
+                    </div>
+                  ) : (
                   <input
                     className="cart-input"
                     value={changeFor}
@@ -1328,6 +1398,7 @@ function CartDialog({
                     placeholder="Precisa de troco pra quanto? (deixe vazio se não precisar)"
                     inputMode="decimal"
                   />
+                  )}
                 </div>
               )}
             </Field>

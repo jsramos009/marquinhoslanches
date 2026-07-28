@@ -67,6 +67,7 @@ function ConfiguracoesPage() {
     estimated_delivery_minutes: "",
     wa_msg_accepted: "",
     wa_msg_on_way: "",
+    wa_msg_ready_pickup: "",
   });
   const [hours, setHours] = useState<OperatingHours>(() => defaultOperatingHours());
   const [copied, setCopied] = useState<string | null>(null);
@@ -345,6 +346,20 @@ function ConfiguracoesPage() {
                     onChange={(e) => update("wa_msg_on_way", e.target.value)}
                     rows={4}
                     placeholder="Olá {nome}! Seu pedido saiu para entrega..."
+                    className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                  />
+                </label>
+                <label className="block">
+                  <span className="text-xs text-muted-foreground">
+                    Pronto para retirada (pedidos de retirada no local)
+                  </span>
+                  <textarea
+                    value={form.wa_msg_ready_pickup}
+                    onChange={(e) =>
+                      update("wa_msg_ready_pickup", e.target.value)
+                    }
+                    rows={4}
+                    placeholder="Olá {nome}! Seu pedido está pronto para retirada..."
                     className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
                   />
                 </label>

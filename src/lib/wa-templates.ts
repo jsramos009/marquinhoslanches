@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
-export type WaTemplates = { accepted: string; on_way: string };
+export type WaTemplates = { accepted: string; on_way: string; ready_pickup: string };
 
 export function useWhatsappTemplates(): WaTemplates {
   const q = useQuery({
@@ -10,7 +10,7 @@ export function useWhatsappTemplates(): WaTemplates {
       const { data, error } = await supabase
         .from("app_settings")
         .select("key, value")
-        .in("key", ["wa_msg_accepted", "wa_msg_on_way"]);
+        .in("key", ["wa_msg_accepted", "wa_msg_on_way", "wa_msg_ready_pickup"]);
       if (error) throw error;
       const map: Record<string, string> = {};
       (data ?? []).forEach((r: any) => {
@@ -19,9 +19,10 @@ export function useWhatsappTemplates(): WaTemplates {
       return {
         accepted: map.wa_msg_accepted ?? "",
         on_way: map.wa_msg_on_way ?? "",
+        ready_pickup: map.wa_msg_ready_pickup ?? "",
       };
     },
     staleTime: 5 * 60_000,
   });
-  return q.data ?? { accepted: "", on_way: "" };
+  return q.data ?? { accepted: "", on_way: "", ready_pickup: "" };
 }

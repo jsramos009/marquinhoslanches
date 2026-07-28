@@ -294,7 +294,7 @@ function OrderCard({
         )}
         {order.status !== "recebido" && order.status !== "cancelado" && (
           <a
-            href={buildWhatsAppLink(order, whatsappTemplateFor(order.status), templates)}
+            href={buildWhatsAppLink(order, whatsappTemplateFor(order.status, order.delivery_mode), templates)}
             target="_blank"
             rel="noopener noreferrer"
             className="rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-400 hover:bg-emerald-500/20"
