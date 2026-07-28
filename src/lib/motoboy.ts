@@ -70,7 +70,12 @@ export function buildMotoboyLink(order: OrderRow): string {
   lines.push(`*Total:* ${brl(order.total)}`);
   lines.push("");
   lines.push(`*Pagamento:* ${PAY_LABEL_FULL[order.payment_method]}`);
-  if (order.payment_method === "dinheiro") {
+  if (order.cash_amount != null && order.secondary_payment_method) {
+    const cash = Math.min(Math.max(0, order.cash_amount), order.total);
+    lines.push(
+      `*Dividido:* ${brl(cash)} em dinheiro + ${brl(order.total - cash)} em ${PAY_LABEL_FULL[order.secondary_payment_method]}`,
+    );
+  } else if (order.payment_method === "dinheiro") {
     if (order.change_for && order.change_for > order.total) {
       const troco = order.change_for - order.total;
       lines.push(`*Levar troco para:* ${brl(order.change_for)} (troco ${brl(troco)})`);
