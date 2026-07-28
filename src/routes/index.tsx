@@ -939,7 +939,15 @@ function CartDialog({
         dinheiro: "Dinheiro",
       };
       lines.push(`*Pagamento:* ${label[payment]}`);
-      if (payment === "dinheiro") {
+      if (payment === "dinheiro" && splitPay) {
+        const cash = Math.min(
+          Math.max(0, Number(cashPart.replace(",", ".")) || 0),
+          grandTotal,
+        );
+        lines.push(
+          `*Dividido:* ${formatBRL(cash)} em dinheiro + ${formatBRL(grandTotal - cash)} em ${label[splitOther]}`,
+        );
+      } else if (payment === "dinheiro") {
         const v = Number(changeFor.replace(",", "."));
         if (v > 0 && v >= totalPrice) {
           lines.push(`*Troco para:* ${formatBRL(v)} (troco ${formatBRL(v - totalPrice)})`);
