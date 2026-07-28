@@ -714,6 +714,11 @@ function CartDialog({
   type PayMethod = "pix" | "cartao_credito" | "cartao_debito" | "dinheiro";
   const [payment, setPayment] = useState<PayMethod | null>(null);
   const [changeFor, setChangeFor] = useState<string>("");
+  const [splitPay, setSplitPay] = useState(false);
+  const [cashPart, setCashPart] = useState<string>("");
+  const [splitOther, setSplitOther] = useState<
+    "pix" | "cartao_credito" | "cartao_debito"
+  >("pix");
   const [saveProfile, setSaveProfile] = useState(true);
   const [prefillNotice, setPrefillNotice] = useState<string | null>(null);
   const [geo, setGeo] = useState<{
