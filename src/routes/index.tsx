@@ -1040,9 +1040,18 @@ function CartDialog({
               .join("\n") || null,
           payment_method: payment ?? "nao_informado",
           change_for:
-            payment === "dinheiro"
+            payment === "dinheiro" && !splitPay
               ? Number(changeFor.replace(",", ".")) || null
               : null,
+          cash_amount:
+            payment === "dinheiro" && splitPay
+              ? Math.min(
+                  Math.max(0, Number(cashPart.replace(",", ".")) || 0),
+                  grandTotal,
+                )
+              : null,
+          secondary_payment_method:
+            payment === "dinheiro" && splitPay ? splitOther : null,
           items: cart.map((l) => ({
             product_id: l.product.id,
             quantity: l.qty,
