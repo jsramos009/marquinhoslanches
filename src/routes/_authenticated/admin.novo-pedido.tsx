@@ -147,6 +147,9 @@ function NovoPedidoPage() {
   const [address, setAddress] = useState("");
   const [payment, setPayment] = useState<OrderPaymentMethod>("nao_informado");
   const [changeFor, setChangeFor] = useState<number>(0);
+  const [splitPay, setSplitPay] = useState(false);
+  const [cashPart, setCashPart] = useState<number>(0);
+  const [splitOther, setSplitOther] = useState<OrderPaymentMethod>("pix");
   const [addonDialog, setAddonDialog] = useState<{
     productId: string;
     selected: Set<string>;
@@ -226,6 +229,11 @@ function NovoPedidoPage() {
     setAddress(o.delivery_address ?? "");
     setPayment(o.payment_method);
     setChangeFor(o.change_for != null ? Number(o.change_for) : 0);
+    if (o.cash_amount != null && o.secondary_payment_method) {
+      setSplitPay(true);
+      setCashPart(Number(o.cash_amount));
+      setSplitOther(o.secondary_payment_method);
+    }
     if (o.delivery_mode === "delivery" && o.delivery_neighborhood) {
       const match = (feesQuery.data ?? []).find(
         (f) => f.neighborhood.toLowerCase() === o.delivery_neighborhood!.toLowerCase(),
@@ -417,7 +425,12 @@ function NovoPedidoPage() {
     lines.push(`*Total:* ${formatBRL(total)}`);
     lines.push("");
     lines.push(`*Forma de pagamento:* ${payLabel[payment]}`);
-    if (payment === "dinheiro") {
+    if (payment === "dinheiro" && splitPay) {
+      const cash = Math.min(Math.max(0, cashPart), total);
+      lines.push(
+        `*Dividido:* ${formatBRL(cash)} em dinheiro + ${formatBRL(total - cash)} em ${payLabel[splitOther]}`,
+      );
+    } else if (payment === "dinheiro") {
       if (changeFor > total) {
         lines.push(`*Troco para:* ${formatBRL(changeFor)} (troco ${formatBRL(changeFor - total)})`);
       } else {
@@ -510,7 +523,13 @@ function NovoPedidoPage() {
           mode === "delivery" && selectedFee ? selectedFee.neighborhood : null,
         payment_method: payment,
         change_for:
-          payment === "dinheiro" && changeFor > total ? changeFor : null,
+          payment === "dinheiro" && !splitPay && changeFor > total ? changeFor : null,
+        cash_amount:
+          payment === "dinheiro" && splitPay
+            ? Math.min(Math.max(0, cashPart), total)
+            : null,
+        secondary_payment_method:
+          payment === "dinheiro" && splitPay ? splitOther : null,
         items: items.map((it) => ({
           product_id: it.product_id,
           quantity: it.quantity,
@@ -843,6 +862,54 @@ function NovoPedidoPage() {
           </div>
           {payment === "dinheiro" && (
             <div>
+              <label className="mb-2 flex items-center gap-2 text-xs text-muted-foreground">
+                <input
+                  type="checkbox"
+                  checked={splitPay}
+                  onChange={(e) => setSplitPay(e.target.checked)}
+                  className="h-4 w-4 accent-primary"
+                />
+                Dividir pagamento (parte em dinheiro)
+              </label>
+              {splitPay ? (
+                <div className="space-y-2">
+                  <div>
+                    <label className="text-xs text-muted-foreground">
+                      Valor em dinheiro (R$)
+                    </label>
+                    <input
+                      type="number"
+                      min={0}
+                      step={0.5}
+                      value={cashPart || ""}
+                      onChange={(e) =>
+                        setCashPart(Math.max(0, Number(e.target.value) || 0))
+                      }
+                      className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground">
+                      Restante em
+                    </label>
+                    <select
+                      value={splitOther}
+                      onChange={(e) =>
+                        setSplitOther(e.target.value as OrderPaymentMethod)
+                      }
+                      className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                    >
+                      <option value="pix">PIX</option>
+                      <option value="cartao_debito">Cartão débito</option>
+                      <option value="cartao_credito">Cartão crédito</option>
+                    </select>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Restante: {formatBRL(Math.max(0, total - Math.min(Math.max(0, cashPart), total)))}
+                  </p>
+                </div>
+              ) : (
+                <>
               <label className="text-xs text-muted-foreground">Troco para (R$)</label>
               <input
                 type="number"
@@ -855,6 +922,8 @@ function NovoPedidoPage() {
               />
               {changeFor > total && (
                 <p className="mt-1 text-xs text-muted-foreground">Troco: {formatBRL(changeFor - total)}</p>
+              )}
+                </>
               )}
             </div>
           )}
