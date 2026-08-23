@@ -22,6 +22,19 @@ import {
   type DiningTableView,
 } from "@/lib/dining-domain";
 import { formatBRL } from "@/components/admin/AdminShell";
+import type { QueryClient } from "@tanstack/react-query";
+
+function freeTableInCache(queryClient: QueryClient, tableId: string) {
+  const previous = queryClient.getQueryData<DiningTableView[]>(["dining-tables"]);
+  if (!previous) return;
+  queryClient.setQueryData<DiningTableView[]>(
+    ["dining-tables"],
+    previous.map((table) =>
+      table.id === tableId ? { ...table, state: "free", session: null } : table,
+    ),
+  );
+}
+
 
 const PAYMENT_LABELS: Record<DiningPaymentMethod, string> = {
   pix: "PIX",
