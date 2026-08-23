@@ -43,23 +43,79 @@ export function DiningTablesPanel() {
     queryKey: ["dining-tables"],
     queryFn: () => listFn(),
     refetchInterval: 5_000,
+    staleTime: 2_000,
+    placeholderData: (previous: DiningTableView[] | undefined) => previous,
   });
   const tables = tablesQuery.data ?? [];
   const activeCount = tables.filter((table) => table.is_active).length;
   const selectedTable = tables.find((table) => table.id === selectedTableId) ?? null;
 
+  // Pré-carrega o catálogo para o diálogo abrir instantaneamente.
+  const catalogPrefetchFn = useServerFn(getDiningCatalog);
+  useQuery({
+    queryKey: ["dining-catalog"],
+    queryFn: () => catalogPrefetchFn(),
+    staleTime: 5 * 60_000,
+  });
+
   const countMutation = useMutation({
     mutationFn: (count: number) => countFn({ data: { count } }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["dining-tables"] }),
-    onError: (error) => toast.error((error as Error).message),
+    onMutate: async (count: number) => {
+      await queryClient.cancelQueries({ queryKey: ["dining-tables"] });
+      const previous = queryClient.getQueryData<DiningTableView[]>(["dining-tables"]);
+      if (previous) {
+        queryClient.setQueryData<DiningTableView[]>(
+          ["dining-tables"],
+          previous.map((table, index) => ({ ...table, is_active: index < count })),
+        );
+      }
+      return { previous };
+    },
+    onError: (error, _count, context) => {
+      if (context?.previous) queryClient.setQueryData(["dining-tables"], context.previous);
+      toast.error((error as Error).message);
+    },
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: ["dining-tables"] });
+    },
   });
   const openMutation = useMutation({
     mutationFn: (tableId: string) => openFn({ data: { tableId } }),
-    onSuccess: async (_, tableId) => {
-      await queryClient.invalidateQueries({ queryKey: ["dining-tables"] });
+    onMutate: async (tableId: string) => {
+      await queryClient.cancelQueries({ queryKey: ["dining-tables"] });
+      const previous = queryClient.getQueryData<DiningTableView[]>(["dining-tables"]);
+      if (previous) {
+        queryClient.setQueryData<DiningTableView[]>(
+          ["dining-tables"],
+          previous.map((table) =>
+            table.id === tableId && !table.session
+              ? {
+                  ...table,
+                  state: "occupied",
+                  session: {
+                    id: `optimistic-${tableId}`,
+                    customer_name: null,
+                    notes: null,
+                    opened_at: new Date().toISOString(),
+                    subtotal: 0,
+                    items: [],
+                  },
+                }
+              : table,
+          ),
+        );
+      }
       setSelectedTableId(tableId);
+      return { previous };
     },
-    onError: (error) => toast.error((error as Error).message),
+    onError: (error, _tableId, context) => {
+      if (context?.previous) queryClient.setQueryData(["dining-tables"], context.previous);
+      setSelectedTableId(null);
+      toast.error((error as Error).message);
+    },
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: ["dining-tables"] });
+    },
   });
 
   function selectTable(table: DiningTableView) {
@@ -67,6 +123,7 @@ export function DiningTablesPanel() {
     if (table.session) setSelectedTableId(table.id);
     else openMutation.mutate(table.id);
   }
+
 
   const canReduce = activeCount > 1 && canReduceActiveTables(tables, activeCount - 1);
 
