@@ -38,6 +38,7 @@ import {
 import { useWhatsappTemplates } from "@/lib/wa-templates";
 import { buildMotoboyLink } from "@/lib/motoboy";
 import { CashSessionControl } from "@/components/admin/CashSessionControl";
+import { DiningTablesPanel } from "@/components/admin/DiningTablesPanel";
 
 export const Route = createFileRoute("/_authenticated/admin/dashboard")({
   component: DashboardPage,
@@ -106,6 +107,7 @@ function DashboardPage() {
           <CashSessionControl />
           <Link
             to="/admin/novo-pedido"
+            search={{ editId: undefined }}
             className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90"
           >
             + Lançar pedido
@@ -129,6 +131,7 @@ function DashboardPage() {
       }
     >
       <div className="space-y-6">
+        <DiningTablesPanel />
         {/* Pedidos do dia carregam imediatamente, sem esperar os gráficos. */}
         <TodayOrdersGrid />
 

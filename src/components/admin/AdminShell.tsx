@@ -14,6 +14,7 @@ import {
   BarChart3,
   Bike,
   UserRound,
+  Printer,
 } from "lucide-react";
 
 type Item = { to: string; label: string; icon: ReactNode; adminOnly?: boolean };
@@ -21,6 +22,7 @@ type Item = { to: string; label: string; icon: ReactNode; adminOnly?: boolean };
 const ITEMS: Item[] = [
   { to: "/admin/dashboard", label: "Dashboard", icon: <LayoutDashboard size={18} /> },
   { to: "/admin/pedidos", label: "Pedidos", icon: <ClipboardList size={18} /> },
+  { to: "/admin/impressao", label: "Impressão", icon: <Printer size={18} /> },
   { to: "/admin/arquivados", label: "Relatórios", icon: <BarChart3 size={18} /> },
   { to: "/admin/clientes", label: "Clientes", icon: <UserRound size={18} /> },
   { to: "/admin/entregadores", label: "Entregadores", icon: <Bike size={18} /> },

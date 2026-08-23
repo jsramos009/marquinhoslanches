@@ -126,6 +126,7 @@ function PedidosPage() {
           </Link>
           <Link
             to="/admin/novo-pedido"
+            search={{ editId: undefined }}
             className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90"
           >
             + Novo pedido
