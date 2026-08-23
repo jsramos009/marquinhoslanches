@@ -43,10 +43,7 @@ import { DiningTablesPanel } from "@/components/admin/DiningTablesPanel";
 export const Route = createFileRoute("/_authenticated/admin/dashboard")({
   component: DashboardPage,
   head: () => ({
-    meta: [
-      { title: "Dashboard — Marquinhos" },
-      { name: "robots", content: "noindex" },
-    ],
+    meta: [{ title: "Dashboard — Marquinhos" }, { name: "robots", content: "noindex" }],
   }),
 });
 
@@ -104,15 +101,17 @@ function DashboardPage() {
       title="Dashboard"
       actions={
         <div className="flex items-center gap-2">
-          <CashSessionControl />
+          <div className="hidden md:block">
+            <CashSessionControl />
+          </div>
           <Link
             to="/admin/novo-pedido"
             search={{ editId: undefined }}
-            className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90"
+            className="hidden rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90 md:inline-flex"
           >
             + Lançar pedido
           </Link>
-          <div className="flex gap-1 rounded-lg border border-border bg-card p-1">
+          <div className="flex shrink-0 gap-1 rounded-lg border border-border bg-card p-1">
             {RANGES.map((r) => (
               <button
                 key={r.id}
@@ -140,30 +139,26 @@ function DashboardPage() {
 
         {m && (
           <>
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-            <Kpi
-              label="Faturamento"
-              value={formatBRL(Number(m.revenue))}
-              delta={revDelta}
-              hint={`vs ${formatBRL(Number(m.prev_revenue))}`}
-            />
-            <Kpi
-              label="Pedidos"
-              value={String(m.orders)}
-              delta={ordDelta}
-              hint={`vs ${m.prev_orders}`}
-            />
-            <Kpi
-              label="Ticket médio"
-              value={formatBRL(Number(m.avg_ticket))}
-              hint=" "
-            />
-            <Kpi
-              label="Tempo médio de preparo"
-              value={fmtDuration(m.avg_prep_seconds)}
-              hint={`Entrega: ${fmtDuration(m.avg_deliver_seconds)}`}
-            />
-          </div>
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+              <Kpi
+                label="Faturamento"
+                value={formatBRL(Number(m.revenue))}
+                delta={revDelta}
+                hint={`vs ${formatBRL(Number(m.prev_revenue))}`}
+              />
+              <Kpi
+                label="Pedidos"
+                value={String(m.orders)}
+                delta={ordDelta}
+                hint={`vs ${m.prev_orders}`}
+              />
+              <Kpi label="Ticket médio" value={formatBRL(Number(m.avg_ticket))} hint=" " />
+              <Kpi
+                label="Tempo médio de preparo"
+                value={fmtDuration(m.avg_prep_seconds)}
+                hint={`Entrega: ${fmtDuration(m.avg_deliver_seconds)}`}
+              />
+            </div>
 
             <Card title="Faturamento por dia">
               <div className="h-64 w-full">
@@ -201,10 +196,7 @@ function DashboardPage() {
                 <div className="space-y-2">
                   {STATUS_ORDER.map((s) => {
                     const n = statusMap.get(s) ?? 0;
-                    const max = Math.max(
-                      1,
-                      ...STATUS_ORDER.map((x) => statusMap.get(x) ?? 0),
-                    );
+                    const max = Math.max(1, ...STATUS_ORDER.map((x) => statusMap.get(x) ?? 0));
                     const w = (n / max) * 100;
                     return (
                       <div key={s}>
@@ -237,7 +229,11 @@ function DashboardPage() {
                         layout="vertical"
                         margin={{ top: 0, right: 10, left: 8, bottom: 0 }}
                       >
-                        <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" horizontal={false} />
+                        <CartesianGrid
+                          stroke="var(--border)"
+                          strokeDasharray="3 3"
+                          horizontal={false}
+                        />
                         <XAxis type="number" stroke="var(--muted-foreground)" fontSize={11} />
                         <YAxis
                           type="category"
@@ -398,16 +394,11 @@ function TodayOrdersGrid() {
               Últimos 12 pedidos abertos hoje. Atualiza a cada 30s.
             </p>
           </div>
-          <Link
-            to="/admin/pedidos"
-            className="text-xs font-medium text-primary hover:underline"
-          >
+          <Link to="/admin/pedidos" className="text-xs font-medium text-primary hover:underline">
             Ver todos →
           </Link>
         </div>
-        {q.isLoading && (
-          <p className="text-sm text-muted-foreground">Carregando pedidos…</p>
-        )}
+        {q.isLoading && <p className="text-sm text-muted-foreground">Carregando pedidos…</p>}
         {!q.isLoading && todayOrders.length === 0 && (
           <p className="text-sm text-muted-foreground">Nenhum pedido hoje ainda.</p>
         )}
@@ -595,13 +586,7 @@ function OrderMiniCard({
   );
 }
 
-function OrderDetailsModal({
-  order,
-  onClose,
-}: {
-  order: OrderRow;
-  onClose: () => void;
-}) {
+function OrderDetailsModal({ order, onClose }: { order: OrderRow; onClose: () => void }) {
   const time = new Date(order.created_at).toLocaleString("pt-BR", {
     day: "2-digit",
     month: "2-digit",
@@ -625,7 +610,9 @@ function OrderDetailsModal({
             <p className="font-display text-lg text-foreground">
               {order.customer_name || "Sem nome"}
             </p>
-            <p className="text-xs text-muted-foreground">{time} · {order.channel}</p>
+            <p className="text-xs text-muted-foreground">
+              {time} · {order.channel}
+            </p>
           </div>
           <div className="flex items-center gap-2">
             <span
@@ -664,7 +651,9 @@ function OrderDetailsModal({
                         key={a.id}
                         className="flex items-center justify-between text-xs text-muted-foreground"
                       >
-                        <span>+ {a.quantity}× {a.addon_name_snapshot}</span>
+                        <span>
+                          + {a.quantity}× {a.addon_name_snapshot}
+                        </span>
                         <span className="font-mono">
                           {formatBRL(a.unit_price_snapshot * a.quantity)}
                         </span>
@@ -688,9 +677,7 @@ function OrderDetailsModal({
             )}
             <div className="flex items-center justify-between pt-1">
               <span className="text-muted-foreground">Total</span>
-              <span className="font-display text-xl text-primary">
-                {formatBRL(order.total)}
-              </span>
+              <span className="font-display text-xl text-primary">{formatBRL(order.total)}</span>
             </div>
             <div className="flex items-center justify-between pt-2 text-xs">
               <span className="text-muted-foreground">Pagamento</span>
@@ -703,9 +690,7 @@ function OrderDetailsModal({
               order.change_for > 0 && (
                 <div className="flex items-center justify-between text-xs">
                   <span className="text-muted-foreground">Troco para</span>
-                  <span className="font-mono text-amber-400">
-                    {formatBRL(order.change_for)}
-                  </span>
+                  <span className="font-mono text-amber-400">{formatBRL(order.change_for)}</span>
                 </div>
               )}
             {order.cancel_reason && (

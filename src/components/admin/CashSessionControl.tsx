@@ -6,8 +6,9 @@ import {
   openCashSession,
   closeCashSession,
 } from "@/lib/cash-sessions.functions";
+import { cn } from "@/lib/utils";
 
-export function CashSessionControl() {
+export function CashSessionControl({ className }: { className?: string } = {}) {
   const qc = useQueryClient();
   const current = useServerFn(getCurrentCashSession);
   const open = useServerFn(openCashSession);
@@ -57,7 +58,10 @@ export function CashSessionControl() {
       <button
         onClick={() => openMut.mutate()}
         disabled={openMut.isPending}
-        className="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
+        className={cn(
+          "rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60",
+          className,
+        )}
         title="Abrir caixa"
       >
         {openMut.isPending ? "Abrindo…" : "🟢 Abrir caixa"}
@@ -69,13 +73,16 @@ export function CashSessionControl() {
     <>
       <button
         onClick={() => setShowClose(true)}
-        className="rounded-lg bg-amber-500 px-3 py-2 text-sm font-semibold text-black hover:bg-amber-600"
+        className={cn(
+          "rounded-lg bg-amber-500 px-3 py-2 text-sm font-semibold text-black hover:bg-amber-600",
+          className,
+        )}
         title={`Aberto em ${openedAt}`}
       >
         🔒 Fechar caixa
       </button>
       {showClose && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-md rounded-xl bg-card p-5 shadow-lg">
             <h3 className="mb-2 text-lg font-semibold">Fechar caixa</h3>
             <p className="mb-3 text-sm text-muted-foreground">

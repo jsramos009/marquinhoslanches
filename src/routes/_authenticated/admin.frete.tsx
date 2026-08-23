@@ -14,10 +14,7 @@ import {
 export const Route = createFileRoute("/_authenticated/admin/frete")({
   component: FretePage,
   head: () => ({
-    meta: [
-      { title: "Frete — Marquinhos" },
-      { name: "robots", content: "noindex" },
-    ],
+    meta: [{ title: "Frete — Marquinhos" }, { name: "robots", content: "noindex" }],
   }),
 });
 
@@ -87,9 +84,9 @@ function FretePage() {
       }
     >
       <p className="mb-4 max-w-2xl text-sm text-muted-foreground">
-        Cadastre os bairros que vocês atendem e o valor do frete de cada um. No
-        cardápio, quando o cliente escolher "Entrega", ele vai selecionar o
-        bairro e o valor do frete entra automaticamente no total do pedido.
+        Cadastre os bairros que vocês atendem e o valor do frete de cada um. No cardápio, quando o
+        cliente escolher "Entrega", ele vai selecionar o bairro e o valor do frete entra
+        automaticamente no total do pedido.
       </p>
 
       {list.isLoading ? (
@@ -110,7 +107,7 @@ function FretePage() {
           </button>
         </div>
       ) : (
-        <div className="overflow-hidden rounded-xl border border-border bg-card">
+        <div className="overflow-x-auto rounded-xl border border-border bg-card">
           <table className="w-full text-sm">
             <thead className="bg-secondary/40 text-left text-xs uppercase tracking-wide text-muted-foreground">
               <tr>
@@ -167,9 +164,7 @@ function FretePage() {
         <EditDialog
           initial={editing}
           saving={upsertMut.isPending}
-          error={
-            upsertMut.error instanceof Error ? upsertMut.error.message : null
-          }
+          error={upsertMut.error instanceof Error ? upsertMut.error.message : null}
           onClose={() => {
             setEditing(null);
             setCreating(false);
@@ -201,9 +196,7 @@ function EditDialog({
   }) => void;
 }) {
   const [neighborhood, setNeighborhood] = useState(initial?.neighborhood ?? "");
-  const [fee, setFee] = useState<string>(
-    initial ? String(initial.fee).replace(".", ",") : "",
-  );
+  const [fee, setFee] = useState<string>(initial ? String(initial.fee).replace(".", ",") : "");
   const [isActive, setIsActive] = useState<boolean>(initial?.is_active ?? true);
 
   const submit = () => {
@@ -219,10 +212,7 @@ function EditDialog({
   };
 
   return (
-    <div
-      className="fixed inset-0 z-50 grid place-items-center bg-black/60 p-4"
-      onClick={onClose}
-    >
+    <div className="fixed inset-0 z-50 grid place-items-center bg-black/60 p-4" onClick={onClose}>
       <div
         className="w-full max-w-md rounded-2xl border border-border bg-card p-5 shadow-2xl"
         onClick={(e) => e.stopPropagation()}
@@ -231,10 +221,7 @@ function EditDialog({
           <h2 className="font-display text-xl text-primary">
             {initial ? "Editar bairro" : "Novo bairro"}
           </h2>
-          <button
-            onClick={onClose}
-            className="text-muted-foreground hover:text-foreground"
-          >
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
             <X size={20} />
           </button>
         </div>

@@ -202,9 +202,9 @@ function ConfiguracoesPage() {
                   return (
                     <div
                       key={day}
-                      className="grid grid-cols-[110px_auto_1fr_1fr] items-center gap-2 rounded-lg border border-border bg-background/50 px-3 py-2"
+                      className="grid grid-cols-2 items-center gap-2 rounded-lg border border-border bg-background/50 px-3 py-2 sm:grid-cols-[110px_auto_1fr_1fr]"
                     >
-                      <span className="text-sm font-semibold">
+                      <span className="text-sm font-semibold sm:col-span-1">
                         {DAY_LABELS[day]}
                       </span>
                       <label className="flex items-center gap-2 text-xs">
@@ -222,14 +222,14 @@ function ConfiguracoesPage() {
                         value={d.open}
                         onChange={(e) => updateDay(day, { open: e.target.value })}
                         disabled={!d.enabled}
-                        className="rounded-md border border-border bg-background px-2 py-1 text-sm disabled:opacity-40"
+                        className="min-w-0 rounded-md border border-border bg-background px-2 py-1 text-sm disabled:opacity-40"
                       />
                       <input
                         type="time"
                         value={d.close}
                         onChange={(e) => updateDay(day, { close: e.target.value })}
                         disabled={!d.enabled}
-                        className="rounded-md border border-border bg-background px-2 py-1 text-sm disabled:opacity-40"
+                        className="min-w-0 rounded-md border border-border bg-background px-2 py-1 text-sm disabled:opacity-40"
                       />
                     </div>
                   );

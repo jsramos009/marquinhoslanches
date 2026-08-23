@@ -15,7 +15,19 @@ import {
   Bike,
   UserRound,
   Printer,
+  Menu,
+  Plus,
 } from "lucide-react";
+import {
+  Sheet,
+  SheetClose,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+import { CashSessionControl } from "@/components/admin/CashSessionControl";
 
 type Item = { to: string; label: string; icon: ReactNode; adminOnly?: boolean };
 
@@ -29,7 +41,12 @@ const ITEMS: Item[] = [
   { to: "/admin/estoque", label: "Estoque", icon: <Package size={18} /> },
   { to: "/admin/catalogo", label: "Catálogo", icon: <BookOpen size={18} />, adminOnly: true },
   { to: "/admin/frete", label: "Frete", icon: <Truck size={18} />, adminOnly: true },
-  { to: "/admin/configuracoes", label: "Configurações", icon: <Settings size={18} />, adminOnly: true },
+  {
+    to: "/admin/configuracoes",
+    label: "Configurações",
+    icon: <Settings size={18} />,
+    adminOnly: true,
+  },
   { to: "/admin/usuarios", label: "Acessos", icon: <Users size={18} />, adminOnly: true },
 ];
 
@@ -103,41 +120,166 @@ export function AdminShell({
         </aside>
 
         <div className="flex min-w-0 flex-1 flex-col">
-          {/* Mobile top bar */}
-          <div className="flex items-center gap-2 overflow-x-auto border-b border-border bg-card/40 px-4 py-2 md:hidden">
-            {ITEMS.filter((i) => !i.adminOnly || isAdmin).map((i) => {
-              const active = pathname.startsWith(i.to);
-              return (
-                <Link
-                  key={i.to}
-                  to={i.to}
-                  preload="intent"
-                  className={`flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs ${
-                    active ? "bg-primary text-primary-foreground" : "bg-secondary text-foreground"
-                  }`}
-                >
-                  {i.icon}
-                  {i.label}
-                </Link>
-              );
-            })}
-            <button
-              onClick={signOut}
-              className="ml-auto shrink-0 rounded-full bg-secondary px-3 py-1.5 text-xs"
-            >
-              Sair
-            </button>
-          </div>
+          <MobileTopBar
+            isAdmin={isAdmin}
+            pathname={pathname}
+            signingOut={signingOut}
+            onSignOut={signOut}
+          />
 
-          <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-5">
-            <h1 className="font-display text-2xl text-primary">{title}</h1>
-            <div className="flex items-center gap-2">{actions}</div>
+          <header className="flex min-w-0 flex-col gap-3 border-b border-border px-3 py-4 sm:px-5 md:flex-row md:items-center md:justify-between md:py-5">
+            <h1 className="font-display text-xl text-primary sm:text-2xl">{title}</h1>
+            {actions && (
+              <div className="flex w-full min-w-0 items-center gap-2 overflow-x-auto pb-1 md:w-auto md:overflow-visible md:pb-0">
+                {actions}
+              </div>
+            )}
           </header>
 
-          <main className="flex-1 overflow-y-auto px-5 py-6">{children}</main>
+          <main className="flex-1 overflow-y-auto overflow-x-hidden px-3 pb-28 pt-4 sm:px-5 md:py-6">
+            {children}
+          </main>
+
+          <MobileActionDock isAdmin={isAdmin} pathname={pathname} />
         </div>
       </div>
     </div>
+  );
+}
+
+function MobileTopBar({
+  isAdmin,
+  pathname,
+  signingOut,
+  onSignOut,
+}: {
+  isAdmin: boolean;
+  pathname: string;
+  signingOut: boolean;
+  onSignOut: () => void;
+}) {
+  return (
+    <div className="flex h-14 items-center justify-between border-b border-border bg-card/60 px-3 md:hidden">
+      <div className="min-w-0">
+        <p className="truncate font-display text-base text-primary">Marquinhos</p>
+        <p className="text-[11px] text-muted-foreground">Painel administrativo</p>
+      </div>
+
+      <Sheet>
+        <SheetTrigger asChild>
+          <button
+            type="button"
+            className="inline-flex h-10 items-center gap-2 rounded-lg border border-border bg-background px-3 text-sm font-semibold"
+            aria-label="Abrir menu do painel"
+          >
+            <Menu size={18} /> Menu
+          </button>
+        </SheetTrigger>
+        <SheetContent side="right" className="w-[88vw] max-w-sm overflow-y-auto p-4">
+          <SheetHeader className="pr-8 text-left">
+            <SheetTitle className="font-display text-primary">Navegação</SheetTitle>
+            <SheetDescription>Acesse todas as áreas do sistema.</SheetDescription>
+          </SheetHeader>
+          <nav className="mt-5 grid gap-1.5">
+            {ITEMS.filter((i) => !i.adminOnly || isAdmin).map((item) => {
+              const active = pathname.startsWith(item.to);
+              return (
+                <SheetClose asChild key={item.to}>
+                  <Link
+                    to={item.to}
+                    preload="intent"
+                    className={`flex min-h-11 items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition ${
+                      active
+                        ? "bg-primary text-primary-foreground"
+                        : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                    }`}
+                  >
+                    {item.icon}
+                    <span>{item.label}</span>
+                  </Link>
+                </SheetClose>
+              );
+            })}
+          </nav>
+          <div className="mt-5 border-t border-border pt-4">
+            <button
+              type="button"
+              onClick={onSignOut}
+              disabled={signingOut}
+              className="flex min-h-11 w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-muted-foreground hover:bg-secondary hover:text-foreground disabled:opacity-60"
+            >
+              <LogOut size={18} /> {signingOut ? "Saindo…" : "Sair do painel"}
+            </button>
+          </div>
+        </SheetContent>
+      </Sheet>
+    </div>
+  );
+}
+
+function MobileActionDock({ isAdmin, pathname }: { isAdmin: boolean; pathname: string }) {
+  const quickItems = [ITEMS[0], ITEMS[1], ITEMS[2], isAdmin ? ITEMS[7] : ITEMS[4]];
+
+  return (
+    <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-card/95 px-1 pb-2 pt-1 shadow-[0_-12px_30px_rgba(0,0,0,0.18)] backdrop-blur md:hidden">
+      <div className="mx-auto grid max-w-md grid-cols-5 items-end">
+        {quickItems.slice(0, 2).map((item) => (
+          <QuickLink key={item.to} item={item} active={pathname.startsWith(item.to)} />
+        ))}
+
+        <Sheet>
+          <SheetTrigger asChild>
+            <button
+              type="button"
+              className="group mx-auto -mt-7 flex w-16 flex-col items-center gap-1 text-[10px] font-semibold text-primary"
+              aria-label="Abrir ações rápidas"
+            >
+              <span className="flex h-14 w-14 items-center justify-center rounded-full border-4 border-background bg-primary text-primary-foreground shadow-lg transition group-active:scale-95">
+                <Plus size={28} strokeWidth={2.5} />
+              </span>
+              Ações
+            </button>
+          </SheetTrigger>
+          <SheetContent side="bottom" className="rounded-t-2xl px-4 pb-7 pt-5">
+            <SheetHeader className="text-left">
+              <SheetTitle className="font-display text-primary">Ações rápidas</SheetTitle>
+              <SheetDescription>Registre um pedido ou controle o caixa.</SheetDescription>
+            </SheetHeader>
+            <div className="mt-5 grid gap-3">
+              <SheetClose asChild>
+                <Link
+                  to="/admin/novo-pedido"
+                  search={{ editId: undefined }}
+                  className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground"
+                >
+                  <ClipboardList size={19} /> Lançar pedido
+                </Link>
+              </SheetClose>
+              <CashSessionControl className="min-h-12 w-full rounded-xl" />
+            </div>
+          </SheetContent>
+        </Sheet>
+
+        {quickItems.slice(2).map((item) => (
+          <QuickLink key={item.to} item={item} active={pathname.startsWith(item.to)} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function QuickLink({ item, active }: { item: Item; active: boolean }) {
+  return (
+    <Link
+      to={item.to}
+      preload="intent"
+      className={`flex min-h-14 min-w-0 flex-col items-center justify-center gap-1 rounded-lg px-1 text-[10px] font-medium transition ${
+        active ? "text-primary" : "text-muted-foreground"
+      }`}
+    >
+      {item.icon}
+      <span className="max-w-full truncate">{item.label}</span>
+    </Link>
   );
 }
 
