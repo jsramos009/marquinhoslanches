@@ -1,6 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import {
+  canonicalManualPrintJobKey,
+  deduplicateLegacyPrintJobs,
   isCompleteOnlineOrder,
   onlineScanWindow,
   type PrintJob,
@@ -205,10 +207,8 @@ export const reconcileOnlinePrintJobs = createServerFn({ method: "POST" })
 
 export const enqueueOrderPrintJob = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: { orderId: string; requestKey: string }) => {
-    if (!data?.orderId || !/^[a-zA-Z0-9-]{8,80}$/.test(data.requestKey ?? "")) {
-      throw new Error("Pedido ou chave de impressão inválida.");
-    }
+  .inputValidator((data: { orderId: string }) => {
+    if (!data?.orderId) throw new Error("Pedido inválido.");
     return data;
   })
   .handler(async ({ data, context }): Promise<PrintJob> => {
@@ -228,28 +228,32 @@ export const enqueueOrderPrintJob = createServerFn({ method: "POST" })
     if (!payload) {
       throw new Error("O pedido precisa ter itens e totais completos antes da impressão.");
     }
-    const { data: job, error: insertError } = await db
-      .from("print_jobs")
-      .insert({
-        job_key: `manual-order:${data.orderId}:${data.requestKey}`,
+    const jobKey = canonicalManualPrintJobKey("online_order", data.orderId);
+    const { error: insertError } = await db.from("print_jobs").upsert(
+      {
+        job_key: jobKey,
         source_kind: "online_order",
         source_id: data.orderId,
         document_type: "kitchen_ticket",
         payload,
         auto_print: false,
-      })
-      .select("*")
-      .single();
+      },
+      { onConflict: "job_key", ignoreDuplicates: true },
+    );
     if (insertError) throw new Error(insertError.message);
+    const { data: job, error: jobError } = await db
+      .from("print_jobs")
+      .select("*")
+      .eq("job_key", jobKey)
+      .single();
+    if (jobError) throw new Error(jobError.message);
     return mapJob(job as PrintJobRow);
   });
 
 export const enqueueDiningPrintJob = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: { sessionId: string; requestKey: string }) => {
-    if (!data?.sessionId || !/^[a-zA-Z0-9-]{8,80}$/.test(data.requestKey ?? "")) {
-      throw new Error("Comanda ou chave de impressão inválida.");
-    }
+  .inputValidator((data: { sessionId: string }) => {
+    if (!data?.sessionId) throw new Error("Comanda inválida.");
     return data;
   })
   .handler(async ({ data, context }): Promise<PrintJob> => {
@@ -314,19 +318,25 @@ export const enqueueDiningPrintJob = createServerFn({ method: "POST" })
       non_fiscal_notice: "DOCUMENTO NÃO FISCAL",
       items,
     };
-    const { data: job, error: insertError } = await db
-      .from("print_jobs")
-      .insert({
-        job_key: `manual-dining:${data.sessionId}:${data.requestKey}`,
+    const jobKey = canonicalManualPrintJobKey("dining_receipt", data.sessionId);
+    const { error: insertError } = await db.from("print_jobs").upsert(
+      {
+        job_key: jobKey,
         source_kind: "dining_receipt",
         source_id: data.sessionId,
         document_type: "customer_receipt",
         payload,
         auto_print: false,
-      })
-      .select("*")
-      .single();
+      },
+      { onConflict: "job_key", ignoreDuplicates: true },
+    );
     if (insertError) throw new Error(insertError.message);
+    const { data: job, error: jobError } = await db
+      .from("print_jobs")
+      .select("*")
+      .eq("job_key", jobKey)
+      .single();
+    if (jobError) throw new Error(jobError.message);
     return mapJob(job as PrintJobRow);
   });
 
@@ -358,7 +368,7 @@ export const listPrintJobs = createServerFn({ method: "GET" })
 
     const recentRows = (recent ?? []) as PrintJobRow[];
     const byId = new Map([...actionable, ...recentRows].map((row) => [row.id, mapJob(row)]));
-    return [...byId.values()].sort((a, b) => b.created_at.localeCompare(a.created_at));
+    return deduplicateLegacyPrintJobs([...byId.values()]);
   });
 
 export const claimNextPrintJob = createServerFn({ method: "POST" })
@@ -367,10 +377,38 @@ export const claimNextPrintJob = createServerFn({ method: "POST" })
   .handler(async ({ data, context }): Promise<PrintJob | null> => {
     if (!data.stationId?.trim()) throw new Error("Estação inválida.");
     const db = await staffDatabase(context.userId);
-    const { data: rows, error } = await db.rpc("print_claim_next_job", {
+    const now = new Date().toISOString();
+    const { error: recoveryError } = await db
+      .from("print_jobs")
+      .update({
+        status: "failed",
+        station_id: null,
+        claimed_at: null,
+        lease_expires_at: null,
+        updated_at: now,
+        last_error: "Impressão interrompida. Confirme uma nova tentativa manualmente.",
+      })
+      .eq("status", "printing")
+      .lt("lease_expires_at", now);
+    if (recoveryError) throw new Error(recoveryError.message);
+
+    const { data: candidate, error: candidateError } = await db
+      .from("print_jobs")
+      .select("id")
+      .eq("auto_print", true)
+      .eq("status", "pending")
+      .lt("attempts", 3)
+      .order("created_at")
+      .limit(1)
+      .maybeSingle();
+    if (candidateError) throw new Error(candidateError.message);
+    if (!candidate) return null;
+
+    const { data: rows, error: claimError } = await db.rpc("print_claim_job", {
+      p_job_id: (candidate as { id: string }).id,
       p_station_id: data.stationId,
     });
-    if (error) throw new Error(error.message);
+    if (claimError) throw new Error(claimError.message);
     const claimedRows = (rows ?? []) as PrintJobRow[];
     return claimedRows[0] ? mapJob(claimedRows[0]) : null;
   });
@@ -427,12 +465,23 @@ export const failPrintJob = createServerFn({ method: "POST" })
   .inputValidator((data: { jobId: string; stationId: string; error: string }) => data)
   .handler(async ({ data, context }) => {
     const db = await staffDatabase(context.userId);
-    const { error } = await db.rpc("print_fail_job", {
-      p_job_id: data.jobId,
-      p_station_id: data.stationId,
-      p_error: data.error,
-    });
+    const { data: failed, error } = await db
+      .from("print_jobs")
+      .update({
+        status: "failed",
+        last_error: (data.error || "Falha de impressão.").slice(0, 1000),
+        station_id: null,
+        claimed_at: null,
+        lease_expires_at: null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", data.jobId)
+      .eq("status", "printing")
+      .eq("station_id", data.stationId)
+      .select("id")
+      .maybeSingle();
     if (error) throw new Error(error.message);
+    if (!failed) throw new Error("Trabalho não pertence a esta estação.");
     return { ok: true };
   });
 

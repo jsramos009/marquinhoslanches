@@ -71,6 +71,43 @@ export const PRINT_PAYMENT_LABEL: Record<string, string> = {
   nao_informado: "Não informado",
 };
 
+export function canonicalManualPrintJobKey(
+  source: "online_order" | "dining_receipt",
+  sourceId: string,
+) {
+  return source === "online_order" ? `online-order:${sourceId}` : `manual-dining:${sourceId}`;
+}
+
+export function deduplicateLegacyPrintJobs(jobs: PrintJob[]) {
+  const selected = new Map<string, PrintJob>();
+  const passthrough: PrintJob[] = [];
+
+  for (const job of jobs) {
+    const isOnlineTicket =
+      job.source_kind === "online_order" && job.document_type === "kitchen_ticket";
+    const isManualDiningReceipt =
+      job.source_kind === "dining_receipt" &&
+      job.document_type === "customer_receipt" &&
+      job.job_key.startsWith("manual-dining:");
+    if (!isOnlineTicket && !isManualDiningReceipt) {
+      passthrough.push(job);
+      continue;
+    }
+
+    const identity = `${job.source_kind}:${job.source_id}:${job.document_type}`;
+    const canonicalKey = canonicalManualPrintJobKey(
+      isOnlineTicket ? "online_order" : "dining_receipt",
+      job.source_id,
+    );
+    const current = selected.get(identity);
+    if (!current || job.job_key === canonicalKey) selected.set(identity, job);
+  }
+
+  return [...passthrough, ...selected.values()].sort((a, b) =>
+    b.created_at.localeCompare(a.created_at),
+  );
+}
+
 export function onlineScanWindow(
   activatedAt: string,
   lastScanAt: string | null,

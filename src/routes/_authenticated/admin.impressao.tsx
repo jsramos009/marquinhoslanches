@@ -30,6 +30,7 @@ export const Route = createFileRoute("/_authenticated/admin/impressao")({
 
 type QzApi = typeof import("qz-tray").default;
 type QzState = { api: QzApi; printers: string[]; selected: string } | null;
+const STATION_ENABLED_KEY = "marquinhos-print-station-enabled";
 
 function PrintStationPage() {
   const { user, roles } = Route.useRouteContext() as { user: { email?: string }; roles: string[] };
@@ -57,6 +58,16 @@ function PrintStationPage() {
   const [connecting, setConnecting] = useState(false);
   const [fallbackJob, setFallbackJob] = useState<PrintJob | null>(null);
   const busyRef = useRef(false);
+
+  useEffect(() => {
+    function restoreStationState() {
+      setStationEnabled(window.localStorage.getItem(STATION_ENABLED_KEY) === "true");
+    }
+
+    restoreStationState();
+    window.addEventListener("storage", restoreStationState);
+    return () => window.removeEventListener("storage", restoreStationState);
+  }, []);
 
   const jobsQuery = useQuery({
     queryKey: ["print-jobs"],
@@ -184,6 +195,14 @@ function PrintStationPage() {
     onError: (error) => toast.error((error as Error).message),
   });
 
+  function toggleStation() {
+    setStationEnabled((current) => {
+      const next = !current;
+      window.localStorage.setItem(STATION_ENABLED_KEY, String(next));
+      return next;
+    });
+  }
+
   async function manualPrint(job: PrintJob) {
     if (busyRef.current) return;
     busyRef.current = true;
@@ -217,7 +236,7 @@ function PrintStationPage() {
           <StatusCard
             label="Fila"
             value={`${pending.length} pendente(s)`}
-            detail={`${failed.length} falha(s) após 3 tentativas`}
+            detail={`${failed.length} falha(s) aguardando confirmação`}
             tone={failed.length ? "danger" : "ok"}
           />
         </section>
@@ -225,7 +244,7 @@ function PrintStationPage() {
         <section className="flex flex-wrap items-center gap-2 rounded-2xl border border-border bg-card/70 p-4">
           <button
             type="button"
-            onClick={() => setStationEnabled((value) => !value)}
+            onClick={toggleStation}
             className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold ${stationEnabled ? "bg-secondary text-foreground" : "bg-primary text-primary-foreground"}`}
           >
             <PlugZap className="h-4 w-4" /> {stationEnabled ? "Pausar estação" : "Ativar estação"}
@@ -289,7 +308,6 @@ function PrintStationPage() {
                     </p>
                     <p className="text-xs text-muted-foreground">
                       {new Date(job.created_at).toLocaleString("pt-BR")} · tentativa {job.attempts}
-                      /3
                     </p>
                     {job.last_error && (
                       <p className="mt-1 text-xs text-destructive">{job.last_error}</p>

@@ -13,6 +13,7 @@ export interface DynamicQuery extends PromiseLike<DynamicResult> {
   in(column: string, values: readonly unknown[]): DynamicQuery;
   gte(column: string, value: unknown): DynamicQuery;
   lte(column: string, value: unknown): DynamicQuery;
+  lt(column: string, value: unknown): DynamicQuery;
   order(column: string, options?: { ascending?: boolean }): DynamicQuery;
   range(from: number, to: number): DynamicQuery;
   limit(count: number): DynamicQuery;

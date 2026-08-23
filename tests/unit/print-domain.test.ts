@@ -1,5 +1,12 @@
 import { describe, expect, test } from "bun:test";
-import { isCompleteOnlineOrder, onlineScanWindow, thermalHtml } from "../../src/lib/print-domain";
+import {
+  canonicalManualPrintJobKey,
+  deduplicateLegacyPrintJobs,
+  isCompleteOnlineOrder,
+  onlineScanWindow,
+  thermalHtml,
+  type PrintJob,
+} from "../../src/lib/print-domain";
 
 describe("reconciliação de pedidos online", () => {
   test("aceita somente pedidos com itens e totais completos", () => {
@@ -104,4 +111,39 @@ test("impressão manual identifica uma comanda de mesa ainda aberta", () => {
   expect(html).toContain("COMANDA");
   expect(html).toContain("MESA 7");
   expect(html).toContain("X-Tudo");
+});
+
+test("impressão manual reutiliza uma única chave por pedido ou comanda", () => {
+  expect(canonicalManualPrintJobKey("online_order", "pedido-1")).toBe("online-order:pedido-1");
+  expect(canonicalManualPrintJobKey("online_order", "pedido-1")).toBe(
+    canonicalManualPrintJobKey("online_order", "pedido-1"),
+  );
+  expect(canonicalManualPrintJobKey("dining_receipt", "mesa-1")).toBe("manual-dining:mesa-1");
+});
+
+test("fila oculta jobs manuais legados duplicados e preserva o canônico", () => {
+  const makeJob = (id: string, jobKey: string, status: PrintJob["status"]): PrintJob => ({
+    id,
+    job_key: jobKey,
+    source_kind: "online_order",
+    source_id: "pedido-1",
+    document_type: "kitchen_ticket",
+    payload: { source: "online_order", order_id: "pedido-1", items: [] },
+    auto_print: jobKey === "online-order:pedido-1",
+    status,
+    attempts: 1,
+    station_id: null,
+    last_error: null,
+    created_at: `2026-08-23T20:00:0${id}.000Z`,
+    printed_at: status === "printed" ? "2026-08-23T20:01:00.000Z" : null,
+  });
+  const jobs = [
+    makeJob("1", "online-order:pedido-1", "printed"),
+    makeJob("2", "manual-order:pedido-1:chave-a", "pending"),
+    makeJob("3", "manual-order:pedido-1:chave-b", "pending"),
+  ];
+
+  expect(deduplicateLegacyPrintJobs(jobs).map((job) => job.job_key)).toEqual([
+    "online-order:pedido-1",
+  ]);
 });
