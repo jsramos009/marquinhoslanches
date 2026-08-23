@@ -38,6 +38,27 @@ type OnlineOrderRow = {
   created_at: string;
   order_items?: OnlineOrderItemRow[];
 };
+type DiningSessionItemRow = {
+  id: string;
+  product_name_snapshot: string;
+  quantity: number | string;
+  unit_price_snapshot: number | string;
+  line_total: number | string;
+  notes: string | null;
+  dining_session_item_addons?: {
+    addon_name_snapshot: string;
+    quantity: number | string;
+    unit_price_snapshot: number | string;
+  }[];
+};
+type DiningSessionRow = {
+  id: string;
+  dining_table_id: string;
+  customer_name: string | null;
+  notes: string | null;
+  opened_at: string;
+};
+type DiningTableNumberRow = { table_number: number | string };
 type PrintJobRow = Omit<PrintJob, "attempts" | "payload"> & {
   attempts: number | string;
   payload: ThermalPayload;
@@ -214,6 +235,92 @@ export const enqueueOrderPrintJob = createServerFn({ method: "POST" })
         source_kind: "online_order",
         source_id: data.orderId,
         document_type: "kitchen_ticket",
+        payload,
+        auto_print: false,
+      })
+      .select("*")
+      .single();
+    if (insertError) throw new Error(insertError.message);
+    return mapJob(job as PrintJobRow);
+  });
+
+export const enqueueDiningPrintJob = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: { sessionId: string; requestKey: string }) => {
+    if (!data?.sessionId || !/^[a-zA-Z0-9-]{8,80}$/.test(data.requestKey ?? "")) {
+      throw new Error("Comanda ou chave de impressão inválida.");
+    }
+    return data;
+  })
+  .handler(async ({ data, context }): Promise<PrintJob> => {
+    const db = await staffDatabase(context.userId);
+    const { data: session, error: sessionError } = await db
+      .from("dining_sessions")
+      .select("id, dining_table_id, customer_name, notes, opened_at")
+      .eq("id", data.sessionId)
+      .eq("status", "open")
+      .maybeSingle();
+    if (sessionError) throw new Error(sessionError.message);
+    if (!session) throw new Error("Comanda não encontrada ou já fechada.");
+    const diningSession = session as DiningSessionRow;
+
+    const [{ data: table, error: tableError }, { data: itemRows, error: itemsError }] =
+      await Promise.all([
+        db
+          .from("dining_tables")
+          .select("table_number")
+          .eq("id", diningSession.dining_table_id)
+          .single(),
+        db
+          .from("dining_session_items")
+          .select(
+            "id, product_name_snapshot, quantity, unit_price_snapshot, line_total, notes, dining_session_item_addons(addon_name_snapshot, quantity, unit_price_snapshot)",
+          )
+          .eq("dining_session_id", data.sessionId)
+          .order("created_at"),
+      ]);
+    if (tableError) throw new Error(tableError.message);
+    if (itemsError) throw new Error(itemsError.message);
+    const diningTable = table as DiningTableNumberRow;
+
+    const items = ((itemRows ?? []) as DiningSessionItemRow[]).map((item) => ({
+      id: item.id,
+      name: item.product_name_snapshot,
+      quantity: Number(item.quantity),
+      unit_price: Number(item.unit_price_snapshot),
+      line_total: Number(item.line_total),
+      notes: item.notes,
+      addons: (item.dining_session_item_addons ?? []).map((addon) => ({
+        name: addon.addon_name_snapshot,
+        quantity: Number(addon.quantity),
+        unit_price: Number(addon.unit_price_snapshot),
+      })),
+    }));
+    if (!items.length) throw new Error("Adicione produtos à mesa antes de imprimir a comanda.");
+
+    const subtotal = items.reduce((sum, item) => sum + Number(item.line_total), 0);
+    const payload: ThermalPayload = {
+      source: "dining_receipt",
+      session_id: diningSession.id,
+      table_number: Number(diningTable.table_number),
+      customer_name: diningSession.customer_name,
+      opened_at: diningSession.opened_at,
+      notes: diningSession.notes,
+      subtotal,
+      service_charge_percent: 0,
+      service_charge_amount: 0,
+      total: subtotal,
+      payment_method: "nao_informado",
+      non_fiscal_notice: "DOCUMENTO NÃO FISCAL",
+      items,
+    };
+    const { data: job, error: insertError } = await db
+      .from("print_jobs")
+      .insert({
+        job_key: `manual-dining:${data.sessionId}:${data.requestKey}`,
+        source_kind: "dining_receipt",
+        source_id: data.sessionId,
+        document_type: "customer_receipt",
         payload,
         auto_print: false,
       })

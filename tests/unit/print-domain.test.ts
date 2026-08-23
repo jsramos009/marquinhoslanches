@@ -86,3 +86,22 @@ test("recibo térmico detalha pagamento misto", () => {
   expect(html).toContain("PIX");
   expect(html).toContain("35,00");
 });
+
+test("impressão manual identifica uma comanda de mesa ainda aberta", () => {
+  const html = thermalHtml(
+    {
+      source: "dining_receipt",
+      session_id: "sessao-aberta",
+      table_number: 7,
+      opened_at: "2026-08-23T20:00:00.000Z",
+      subtotal: 28,
+      total: 28,
+      payment_method: "nao_informado",
+      items: [{ name: "X-Tudo", quantity: 1, line_total: 28, addons: [] }],
+    },
+    "customer_receipt",
+  );
+  expect(html).toContain("COMANDA");
+  expect(html).toContain("MESA 7");
+  expect(html).toContain("X-Tudo");
+});

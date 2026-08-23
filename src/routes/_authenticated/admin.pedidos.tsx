@@ -20,6 +20,8 @@ import { listCouriers, assignCourier } from "@/lib/couriers.functions";
 import type { Courier } from "@/lib/couriers.functions";
 import { DiningTablesPanel } from "@/components/admin/DiningTablesPanel";
 import { OrderPrintButton } from "@/components/admin/OrderPrintButton";
+import { DiningPrintButton } from "@/components/admin/DiningPrintButton";
+import { DiningQuickCloseButton } from "@/components/admin/DiningQuickCloseButton";
 import { listDiningTables } from "@/lib/dining.functions";
 import { DINING_TABLE_OPEN_EVENT, type DiningTableView } from "@/lib/dining-domain";
 
@@ -280,13 +282,19 @@ function DiningOrderCard({ table }: { table: DiningTableView }) {
         </p>
       )}
 
-      <button
-        type="button"
-        onClick={openDiningOrder}
-        className="mt-3 w-full rounded-lg border border-primary/40 bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary hover:bg-primary/15"
-      >
-        Abrir comanda
-      </button>
+      <div className="mt-3 flex items-end justify-between gap-2 border-t border-border/60 pt-2.5">
+        <button
+          type="button"
+          onClick={openDiningOrder}
+          className="rounded-lg px-2 py-1.5 text-xs font-semibold text-primary transition hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+        >
+          Abrir comanda
+        </button>
+        <div className="flex items-center gap-1.5">
+          <DiningQuickCloseButton table={table} />
+          <DiningPrintButton sessionId={session.id} />
+        </div>
+      </div>
     </article>
   );
 }

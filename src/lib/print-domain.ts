@@ -119,7 +119,11 @@ function money(value: number | undefined) {
 
 export function thermalHtml(payload: ThermalPayload, documentType: PrintDocumentType) {
   const isKitchen = documentType === "kitchen_ticket";
-  const title = isKitchen ? "COZINHA" : "RECIBO";
+  const title = isKitchen
+    ? "COZINHA"
+    : payload.source === "dining_receipt" && !payload.closed_at
+      ? "COMANDA"
+      : "RECIBO";
   const reference = payload.table_number
     ? `MESA ${payload.table_number}${payload.batch_number ? ` · LOTE ${payload.batch_number}` : ""}`
     : `PEDIDO #${escapeHtml(payload.order_id?.slice(0, 8).toUpperCase())}`;
