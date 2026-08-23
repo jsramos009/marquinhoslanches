@@ -215,6 +215,228 @@ export type Database = {
         }
         Relationships: []
       }
+      dining_consumption_batches: {
+        Row: {
+          batch_number: number
+          created_at: string
+          created_by: string | null
+          dining_session_id: string
+          id: string
+          notes: string | null
+          request_key: string
+        }
+        Insert: {
+          batch_number: number
+          created_at?: string
+          created_by?: string | null
+          dining_session_id: string
+          id?: string
+          notes?: string | null
+          request_key: string
+        }
+        Update: {
+          batch_number?: number
+          created_at?: string
+          created_by?: string | null
+          dining_session_id?: string
+          id?: string
+          notes?: string | null
+          request_key?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dining_consumption_batches_dining_session_id_fkey"
+            columns: ["dining_session_id"]
+            isOneToOne: false
+            referencedRelation: "dining_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dining_session_item_addons: {
+        Row: {
+          addon_id: string | null
+          addon_name_snapshot: string
+          created_at: string
+          dining_session_item_id: string
+          id: string
+          quantity: number
+          unit_price_snapshot: number
+        }
+        Insert: {
+          addon_id?: string | null
+          addon_name_snapshot: string
+          created_at?: string
+          dining_session_item_id: string
+          id?: string
+          quantity: number
+          unit_price_snapshot: number
+        }
+        Update: {
+          addon_id?: string | null
+          addon_name_snapshot?: string
+          created_at?: string
+          dining_session_item_id?: string
+          id?: string
+          quantity?: number
+          unit_price_snapshot?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dining_session_item_addons_dining_session_item_id_fkey"
+            columns: ["dining_session_item_id"]
+            isOneToOne: false
+            referencedRelation: "dining_session_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dining_session_items: {
+        Row: {
+          created_at: string
+          dining_consumption_batch_id: string
+          dining_session_id: string
+          id: string
+          line_total: number
+          notes: string | null
+          product_id: string | null
+          product_name_snapshot: string
+          quantity: number
+          unit_price_snapshot: number
+        }
+        Insert: {
+          created_at?: string
+          dining_consumption_batch_id: string
+          dining_session_id: string
+          id?: string
+          line_total: number
+          notes?: string | null
+          product_id?: string | null
+          product_name_snapshot: string
+          quantity: number
+          unit_price_snapshot: number
+        }
+        Update: {
+          created_at?: string
+          dining_consumption_batch_id?: string
+          dining_session_id?: string
+          id?: string
+          line_total?: number
+          notes?: string | null
+          product_id?: string | null
+          product_name_snapshot?: string
+          quantity?: number
+          unit_price_snapshot?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dining_session_items_dining_consumption_batch_id_fkey"
+            columns: ["dining_consumption_batch_id"]
+            isOneToOne: false
+            referencedRelation: "dining_consumption_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dining_session_items_dining_session_id_fkey"
+            columns: ["dining_session_id"]
+            isOneToOne: false
+            referencedRelation: "dining_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dining_sessions: {
+        Row: {
+          cash_amount: number | null
+          change_for: number | null
+          closed_at: string | null
+          closed_by: string | null
+          customer_name: string | null
+          dining_table_id: string
+          id: string
+          notes: string | null
+          opened_at: string
+          opened_by: string | null
+          payment_method: string | null
+          secondary_payment_method: string | null
+          service_charge_amount: number
+          service_charge_percent: number
+          status: string
+          subtotal: number
+          total: number
+          updated_at: string
+        }
+        Insert: {
+          cash_amount?: number | null
+          change_for?: number | null
+          closed_at?: string | null
+          closed_by?: string | null
+          customer_name?: string | null
+          dining_table_id: string
+          id?: string
+          notes?: string | null
+          opened_at?: string
+          opened_by?: string | null
+          payment_method?: string | null
+          secondary_payment_method?: string | null
+          service_charge_amount?: number
+          service_charge_percent?: number
+          status?: string
+          subtotal?: number
+          total?: number
+          updated_at?: string
+        }
+        Update: {
+          cash_amount?: number | null
+          change_for?: number | null
+          closed_at?: string | null
+          closed_by?: string | null
+          customer_name?: string | null
+          dining_table_id?: string
+          id?: string
+          notes?: string | null
+          opened_at?: string
+          opened_by?: string | null
+          payment_method?: string | null
+          secondary_payment_method?: string | null
+          service_charge_amount?: number
+          service_charge_percent?: number
+          status?: string
+          subtotal?: number
+          total?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dining_sessions_dining_table_id_fkey"
+            columns: ["dining_table_id"]
+            isOneToOne: false
+            referencedRelation: "dining_tables"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dining_tables: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          table_number: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          table_number: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          table_number?: number
+        }
+        Relationships: []
+      }
       order_item_addons: {
         Row: {
           addon_id: string | null
@@ -419,6 +641,87 @@ export type Database = {
           },
         ]
       }
+      print_jobs: {
+        Row: {
+          attempts: number
+          auto_print: boolean
+          claimed_at: string | null
+          created_at: string
+          document_type: string
+          id: string
+          job_key: string
+          last_error: string | null
+          lease_expires_at: string | null
+          payload: Json
+          printed_at: string | null
+          source_id: string
+          source_kind: string
+          station_id: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          attempts?: number
+          auto_print?: boolean
+          claimed_at?: string | null
+          created_at?: string
+          document_type: string
+          id?: string
+          job_key: string
+          last_error?: string | null
+          lease_expires_at?: string | null
+          payload: Json
+          printed_at?: string | null
+          source_id: string
+          source_kind: string
+          station_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          attempts?: number
+          auto_print?: boolean
+          claimed_at?: string | null
+          created_at?: string
+          document_type?: string
+          id?: string
+          job_key?: string
+          last_error?: string | null
+          lease_expires_at?: string | null
+          payload?: Json
+          printed_at?: string | null
+          source_id?: string
+          source_kind?: string
+          station_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      print_system_state: {
+        Row: {
+          activated_at: string
+          created_at: string
+          last_online_scan_at: string | null
+          singleton: boolean
+          updated_at: string
+        }
+        Insert: {
+          activated_at?: string
+          created_at?: string
+          last_online_scan_at?: string | null
+          singleton?: boolean
+          updated_at?: string
+        }
+        Update: {
+          activated_at?: string
+          created_at?: string
+          last_online_scan_at?: string | null
+          singleton?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
       product_addons: {
         Row: {
           addon_id: string
@@ -545,6 +848,45 @@ export type Database = {
     Functions: {
       current_cash_session_id: { Args: never; Returns: string }
       dashboard_metrics: { Args: { _range?: string }; Returns: Json }
+      dining_add_consumption: {
+        Args: {
+          p_created_by: string
+          p_items: Json
+          p_notes?: string
+          p_request_key: string
+          p_session_id: string
+        }
+        Returns: string
+      }
+      dining_cancel_empty_session: {
+        Args: { p_cancelled_by: string; p_session_id: string }
+        Returns: undefined
+      }
+      dining_close_session: {
+        Args: {
+          p_cash_amount?: number
+          p_change_for?: number
+          p_closed_by: string
+          p_notes?: string
+          p_payment_method: string
+          p_secondary_payment_method?: string
+          p_service_charge_percent: number
+          p_session_id: string
+        }
+        Returns: string
+      }
+      dining_open_session: {
+        Args: {
+          p_customer_name?: string
+          p_opened_by: string
+          p_table_id: string
+        }
+        Returns: string
+      }
+      dining_set_active_count: {
+        Args: { p_active_count: number }
+        Returns: undefined
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -553,6 +895,77 @@ export type Database = {
         Returns: boolean
       }
       has_staff_access: { Args: { _user_id: string }; Returns: boolean }
+      print_claim_job: {
+        Args: { p_job_id: string; p_station_id: string }
+        Returns: {
+          attempts: number
+          auto_print: boolean
+          claimed_at: string | null
+          created_at: string
+          document_type: string
+          id: string
+          job_key: string
+          last_error: string | null
+          lease_expires_at: string | null
+          payload: Json
+          printed_at: string | null
+          source_id: string
+          source_kind: string
+          station_id: string | null
+          status: string
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "print_jobs"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      print_claim_next_job: {
+        Args: { p_station_id: string }
+        Returns: {
+          attempts: number
+          auto_print: boolean
+          claimed_at: string | null
+          created_at: string
+          document_type: string
+          id: string
+          job_key: string
+          last_error: string | null
+          lease_expires_at: string | null
+          payload: Json
+          printed_at: string | null
+          source_id: string
+          source_kind: string
+          station_id: string | null
+          status: string
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "print_jobs"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      print_complete_job: {
+        Args: { p_job_id: string; p_station_id: string }
+        Returns: undefined
+      }
+      print_fail_job: {
+        Args: { p_error: string; p_job_id: string; p_station_id: string }
+        Returns: undefined
+      }
+      print_renew_job_claim: {
+        Args: {
+          p_hold_seconds?: number
+          p_job_id: string
+          p_station_id: string
+        }
+        Returns: undefined
+      }
+      print_retry_job: { Args: { p_job_id: string }; Returns: undefined }
     }
     Enums: {
       app_role: "admin" | "staff" | "balcao"

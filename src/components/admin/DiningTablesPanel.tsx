@@ -458,7 +458,7 @@ function DiningSessionDialog({
             )}
           </div>
 
-          <div className="space-y-4">
+          <div className="sticky top-4 h-fit space-y-4 self-start">
             <div className="rounded-xl border border-border bg-background/50 p-4">
               <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 Consumo da mesa
