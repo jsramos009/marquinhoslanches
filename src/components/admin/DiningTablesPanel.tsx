@@ -533,7 +533,7 @@ function DiningSessionDialog({
                 </div>
                 <button
                   type="button"
-                  disabled={addMutation.isPending}
+                  disabled={addMutation.isPending || pendingSession}
                   onClick={() => addMutation.mutate()}
                   className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-50"
                 >
