@@ -280,9 +280,10 @@ function DiningSessionDialog({
   const catalogQuery = useQuery({
     queryKey: ["dining-catalog"],
     queryFn: () => catalogFn(),
-    enabled: open,
-    staleTime: 60_000,
+    staleTime: 5 * 60_000,
+    gcTime: 30 * 60_000,
   });
+
   const [cart, setCart] = useState<DiningCartItem[]>([]);
   const [batchRequestKey, setBatchRequestKey] = useState(() => crypto.randomUUID());
   const [serviceEnabled, setServiceEnabled] = useState(false);
