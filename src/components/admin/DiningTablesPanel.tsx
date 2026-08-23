@@ -323,11 +323,11 @@ function DiningSessionDialog({
       addFn({
         data: { sessionId: table!.session!.id, requestKey: batchRequestKey, items: cart },
       }),
-    onSuccess: async () => {
+    onSuccess: () => {
       setCart([]);
       setBatchRequestKey(crypto.randomUUID());
       toast.success("Novo lote enviado para a cozinha.");
-      await queryClient.invalidateQueries({ queryKey: ["dining-tables"] });
+      void queryClient.invalidateQueries({ queryKey: ["dining-tables"] });
     },
     onError: (error) => toast.error((error as Error).message),
   });
@@ -345,27 +345,42 @@ function DiningSessionDialog({
             paymentMethod === "dinheiro" && Number(changeFor) > 0 ? Number(changeFor) : null,
         },
       }),
-    onSuccess: async () => {
-      toast.success("Comanda fechada. Recibo disponível na estação de impressão.");
+    onMutate: () => {
+      const tableId = table?.id;
+      if (tableId) freeTableInCache(queryClient, tableId);
       onOpenChange(false);
-      await queryClient.invalidateQueries({ queryKey: ["dining-tables"] });
-      await queryClient.invalidateQueries({ queryKey: ["print-jobs"] });
+      return { tableId };
+    },
+    onSuccess: () => {
+      toast.success("Comanda fechada. Recibo disponível na estação de impressão.");
+      void queryClient.invalidateQueries({ queryKey: ["print-jobs"] });
     },
     onError: (error) => toast.error((error as Error).message),
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: ["dining-tables"] });
+    },
   });
   const cancelMutation = useMutation({
     mutationFn: () => cancelFn({ data: { sessionId: table!.session!.id } }),
-    onSuccess: async () => {
-      toast.success("Mesa liberada.");
+    onMutate: () => {
+      const tableId = table?.id;
+      if (tableId) freeTableInCache(queryClient, tableId);
       onOpenChange(false);
-      await queryClient.invalidateQueries({ queryKey: ["dining-tables"] });
+    },
+    onSuccess: () => {
+      toast.success("Mesa liberada.");
     },
     onError: (error) => toast.error((error as Error).message),
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: ["dining-tables"] });
+    },
   });
 
   if (!table?.session) return null;
+  const pendingSession = table.session.id.startsWith("optimistic-");
   const subtotal = table.session.subtotal;
   const totals = calculateServiceCharge(subtotal, serviceEnabled ? servicePercent : 0);
+
 
   function addProduct(productId: string) {
     setCart((current) => {
