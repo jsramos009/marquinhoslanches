@@ -8,6 +8,7 @@ export type DynamicResult = {
 export interface DynamicQuery extends PromiseLike<DynamicResult> {
   select(columns?: string): DynamicQuery;
   eq(column: string, value: unknown): DynamicQuery;
+  is(column: string, value: unknown): DynamicQuery;
   neq(column: string, value: unknown): DynamicQuery;
   in(column: string, values: readonly unknown[]): DynamicQuery;
   gte(column: string, value: unknown): DynamicQuery;

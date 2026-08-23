@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
   calculateServiceCharge,
   canReduceActiveTables,
+  getOpenDiningSessionId,
   type DiningTableView,
 } from "../../src/lib/dining-domain";
 
@@ -47,5 +48,39 @@ describe("redução de mesas", () => {
   test("preserva os limites 1–30", () => {
     expect(canReduceActiveTables([], 0)).toBe(false);
     expect(canReduceActiveTables([], 31)).toBe(false);
+  });
+});
+
+describe("sessão de mesa", () => {
+  test("trata mesa ou sessão nula sem lançar erro", () => {
+    expect(getOpenDiningSessionId(null)).toBeNull();
+    expect(
+      getOpenDiningSessionId({
+        id: "1",
+        table_number: 1,
+        is_active: true,
+        state: "free",
+        session: null,
+      }),
+    ).toBeNull();
+  });
+
+  test("retorna o identificador somente para comanda aberta", () => {
+    expect(
+      getOpenDiningSessionId({
+        id: "1",
+        table_number: 1,
+        is_active: true,
+        state: "occupied",
+        session: {
+          id: "session-1",
+          customer_name: null,
+          notes: null,
+          opened_at: "2026-08-23T00:00:00Z",
+          subtotal: 0,
+          items: [],
+        },
+      }),
+    ).toBe("session-1");
   });
 });

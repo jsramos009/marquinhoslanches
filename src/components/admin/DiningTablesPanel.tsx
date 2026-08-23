@@ -14,9 +14,11 @@ import {
   openDiningSession,
   setDiningTableCount,
 } from "@/lib/dining.functions";
+import { getCurrentCashSession } from "@/lib/cash-sessions.functions";
 import {
   calculateServiceCharge,
   canReduceActiveTables,
+  getOpenDiningSessionId,
   type DiningCartItem,
   type DiningPaymentMethod,
   type DiningTableView,
@@ -35,7 +37,6 @@ function freeTableInCache(queryClient: QueryClient, tableId: string) {
   );
 }
 
-
 const PAYMENT_LABELS: Record<DiningPaymentMethod, string> = {
   pix: "PIX",
   cartao_credito: "Crédito",
@@ -50,6 +51,7 @@ export function DiningTablesPanel() {
   const listFn = useServerFn(listDiningTables);
   const openFn = useServerFn(openDiningSession);
   const countFn = useServerFn(setDiningTableCount);
+  const currentCashSessionFn = useServerFn(getCurrentCashSession);
   const [selectedTableId, setSelectedTableId] = useState<string | null>(null);
 
   const tablesQuery = useQuery({
@@ -59,7 +61,13 @@ export function DiningTablesPanel() {
     staleTime: 2_000,
     placeholderData: (previous: DiningTableView[] | undefined) => previous,
   });
+  const cashSessionQuery = useQuery({
+    queryKey: ["cash-session-current"],
+    queryFn: () => currentCashSessionFn(),
+    refetchInterval: 60_000,
+  });
   const tables = tablesQuery.data ?? [];
+  const cashOpen = Boolean(cashSessionQuery.data?.id);
   const activeCount = tables.filter((table) => table.is_active).length;
   const selectedTable = tables.find((table) => table.id === selectedTableId) ?? null;
 
@@ -134,9 +142,9 @@ export function DiningTablesPanel() {
   function selectTable(table: DiningTableView) {
     if (!table.is_active) return;
     if (table.session) setSelectedTableId(table.id);
+    else if (!cashOpen) toast.error("Abra o caixa antes de iniciar o consumo de uma mesa.");
     else openMutation.mutate(table.id);
   }
-
 
   const canReduce = activeCount > 1 && canReduceActiveTables(tables, activeCount - 1);
 
@@ -178,6 +186,13 @@ export function DiningTablesPanel() {
         </div>
       </div>
 
+      {!cashSessionQuery.isLoading && !cashOpen && (
+        <div className="mb-4 rounded-xl border border-amber-400/30 bg-amber-400/10 px-3 py-2 text-sm text-amber-300">
+          Abra o caixa para ocupar mesas e adicionar produtos. Mesas já ocupadas continuam
+          disponíveis para consulta e fechamento.
+        </div>
+      )}
+
       {tablesQuery.isLoading && (
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-5 xl:grid-cols-10">
           {Array.from({ length: 30 }, (_, index) => (
@@ -197,6 +212,7 @@ export function DiningTablesPanel() {
               key={table.id}
               table={table}
               busy={openMutation.isPending && openMutation.variables === table.id}
+              blocked={!cashOpen && !table.session}
               onClick={() => selectTable(table)}
             />
           ))}
@@ -213,6 +229,7 @@ export function DiningTablesPanel() {
       <DiningSessionDialog
         table={selectedTable}
         open={Boolean(selectedTable)}
+        cashOpen={cashOpen}
         onOpenChange={(open) => !open && setSelectedTableId(null)}
       />
     </section>
@@ -222,10 +239,12 @@ export function DiningTablesPanel() {
 function TableButton({
   table,
   busy,
+  blocked,
   onClick,
 }: {
   table: DiningTableView;
   busy: boolean;
+  blocked: boolean;
   onClick: () => void;
 }) {
   const classes = !table.is_active
@@ -238,7 +257,8 @@ function TableButton({
   return (
     <button
       type="button"
-      disabled={!table.is_active || busy}
+      disabled={!table.is_active || busy || blocked}
+      title={blocked ? "Abra o caixa para ocupar esta mesa" : undefined}
       onClick={onClick}
       className={`relative flex min-h-24 flex-col items-start justify-between rounded-xl border p-3 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed ${classes}`}
     >
@@ -279,10 +299,12 @@ function Legend({ color, label }: { color: string; label: string }) {
 function DiningSessionDialog({
   table,
   open,
+  cashOpen,
   onOpenChange,
 }: {
   table: DiningTableView | null;
   open: boolean;
+  cashOpen: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
   const queryClient = useQueryClient();
@@ -306,6 +328,8 @@ function DiningSessionDialog({
   const [cashAmount, setCashAmount] = useState("");
   const [secondaryPaymentMethod, setSecondaryPaymentMethod] =
     useState<Exclude<DiningPaymentMethod, "misto" | "nao_informado" | "dinheiro">>("pix");
+  const currentSession = table?.session ?? null;
+  const sessionId = getOpenDiningSessionId(table);
 
   useEffect(() => {
     setCart([]);
@@ -316,7 +340,7 @@ function DiningSessionDialog({
     setChangeFor("");
     setCashAmount("");
     setSecondaryPaymentMethod("pix");
-  }, [table?.session?.id]);
+  }, [sessionId]);
 
   const catalog = catalogQuery.data;
   const cartTotal = useMemo(() => {
@@ -332,9 +356,13 @@ function DiningSessionDialog({
   }, [cart, catalog]);
 
   const addMutation = useMutation({
-    mutationFn: () =>
+    mutationFn: (input: { sessionId: string; requestKey: string; items: DiningCartItem[] }) =>
       addFn({
-        data: { sessionId: table!.session!.id, requestKey: batchRequestKey, items: cart },
+        data: {
+          sessionId: input.sessionId,
+          requestKey: input.requestKey,
+          items: input.items,
+        },
       }),
     onSuccess: () => {
       setCart([]);
@@ -345,10 +373,10 @@ function DiningSessionDialog({
     onError: (error) => toast.error((error as Error).message),
   });
   const closeMutation = useMutation({
-    mutationFn: () =>
+    mutationFn: (targetSessionId: string) =>
       closeFn({
         data: {
-          sessionId: table!.session!.id,
+          sessionId: targetSessionId,
           serviceChargePercent: serviceEnabled ? servicePercent : 0,
           paymentMethod,
           secondaryPaymentMethod: paymentMethod === "misto" ? secondaryPaymentMethod : null,
@@ -374,7 +402,7 @@ function DiningSessionDialog({
     },
   });
   const cancelMutation = useMutation({
-    mutationFn: () => cancelFn({ data: { sessionId: table!.session!.id } }),
+    mutationFn: (targetSessionId: string) => cancelFn({ data: { sessionId: targetSessionId } }),
     onMutate: () => {
       const tableId = table?.id;
       if (tableId) freeTableInCache(queryClient, tableId);
@@ -389,11 +417,10 @@ function DiningSessionDialog({
     },
   });
 
-  if (!table?.session) return null;
-  const pendingSession = table.session.id.startsWith("optimistic-");
-  const subtotal = table.session.subtotal;
+  if (!table || !currentSession) return null;
+  const pendingSession = sessionId?.startsWith("optimistic-") ?? false;
+  const subtotal = currentSession.subtotal;
   const totals = calculateServiceCharge(subtotal, serviceEnabled ? servicePercent : 0);
-
 
   function addProduct(productId: string) {
     setCart((current) => {
@@ -435,14 +462,14 @@ function DiningSessionDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[92vh] max-w-5xl overflow-y-auto">
+      <DialogContent className="flex max-h-[92vh] max-w-5xl flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle className="font-display text-2xl">
             Mesa {table.table_number} · {formatBRL(subtotal)}
           </DialogTitle>
         </DialogHeader>
-        <div className="grid gap-5 lg:grid-cols-[1.4fr_1fr]">
-          <div className="space-y-4">
+        <div className="grid min-h-0 flex-1 gap-5 overflow-y-auto lg:grid-cols-[1.4fr_1fr] lg:overflow-hidden">
+          <div className="space-y-4 lg:min-h-0 lg:overflow-y-auto lg:pr-2">
             <div>
               <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 Catálogo
@@ -450,13 +477,34 @@ function DiningSessionDialog({
               {catalogQuery.isLoading && (
                 <p className="text-sm text-muted-foreground">Carregando…</p>
               )}
+              {catalogQuery.error && (
+                <p className="mb-2 rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+                  Não foi possível carregar os produtos: {(catalogQuery.error as Error).message}
+                </p>
+              )}
+              {!catalogQuery.isLoading && !catalogQuery.error && catalog?.products.length === 0 && (
+                <p className="rounded-lg border border-border bg-background/50 p-3 text-sm text-muted-foreground">
+                  Nenhum produto ativo disponível no catálogo.
+                </p>
+              )}
+              {!cashOpen && (
+                <p className="mb-2 rounded-lg border border-amber-400/30 bg-amber-400/10 p-3 text-sm text-amber-300">
+                  O catálogo será liberado automaticamente quando o caixa for aberto.
+                </p>
+              )}
+              {pendingSession && (
+                <p className="mb-2 rounded-lg border border-primary/30 bg-primary/10 p-3 text-sm text-primary">
+                  Abrindo a comanda da mesa… Os produtos serão liberados em instantes.
+                </p>
+              )}
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                 {(catalog?.products ?? []).map((product) => (
                   <button
                     key={product.id}
                     type="button"
+                    disabled={!cashOpen || pendingSession}
                     onClick={() => addProduct(product.id)}
-                    className="rounded-xl border border-border bg-background/60 p-3 text-left transition hover:border-primary/60"
+                    className="rounded-xl border border-border bg-background/60 p-3 text-left transition hover:border-primary/60 disabled:cursor-not-allowed disabled:opacity-45"
                   >
                     <span className="block text-sm font-semibold text-foreground">
                       {product.name}
@@ -533,8 +581,28 @@ function DiningSessionDialog({
                 </div>
                 <button
                   type="button"
-                  disabled={addMutation.isPending || pendingSession}
-                  onClick={() => addMutation.mutate()}
+                  disabled={
+                    addMutation.isPending ||
+                    pendingSession ||
+                    !cashOpen ||
+                    !sessionId ||
+                    cart.length === 0
+                  }
+                  onClick={() => {
+                    if (!cashOpen) {
+                      toast.error("Abra o caixa antes de adicionar produtos à mesa.");
+                      return;
+                    }
+                    if (!sessionId) {
+                      toast.error("A comanda desta mesa não está mais aberta. Atualize a grade.");
+                      return;
+                    }
+                    addMutation.mutate({
+                      sessionId,
+                      requestKey: batchRequestKey,
+                      items: [...cart],
+                    });
+                  }}
                   className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-50"
                 >
                   <Send className="h-4 w-4" />
@@ -544,16 +612,16 @@ function DiningSessionDialog({
             )}
           </div>
 
-          <div className="sticky top-4 h-fit space-y-4 self-start">
+          <div className="space-y-4 lg:sticky lg:top-0 lg:h-fit lg:self-start">
             <div className="rounded-xl border border-border bg-background/50 p-4">
               <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 Consumo da mesa
               </p>
-              {table.session.items.length === 0 ? (
+              {currentSession.items.length === 0 ? (
                 <p className="text-sm text-muted-foreground">Nenhum item lançado.</p>
               ) : (
                 <ul className="space-y-2">
-                  {table.session.items.map((item) => (
+                  {currentSession.items.map((item) => (
                     <li
                       key={item.id}
                       className="border-b border-border/60 pb-2 text-sm last:border-0"
@@ -676,12 +744,18 @@ function DiningSessionDialog({
                 type="button"
                 disabled={
                   closeMutation.isPending ||
-                  table.session.items.length === 0 ||
+                  currentSession.items.length === 0 ||
                   cart.length > 0 ||
                   (paymentMethod === "misto" &&
                     !(Number(cashAmount) > 0 && Number(cashAmount) < totals.total))
                 }
-                onClick={() => closeMutation.mutate()}
+                onClick={() => {
+                  if (!sessionId) {
+                    toast.error("A comanda desta mesa não está mais aberta. Atualize a grade.");
+                    return;
+                  }
+                  closeMutation.mutate(sessionId);
+                }}
                 className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg border border-primary bg-primary/10 px-4 py-2.5 text-sm font-semibold text-primary disabled:cursor-not-allowed disabled:opacity-40"
               >
                 <ReceiptText className="h-4 w-4" />
@@ -692,11 +766,17 @@ function DiningSessionDialog({
                   Envie o novo lote antes de fechar.
                 </p>
               )}
-              {table.session.items.length === 0 && cart.length === 0 && (
+              {currentSession.items.length === 0 && cart.length === 0 && (
                 <button
                   type="button"
                   disabled={cancelMutation.isPending}
-                  onClick={() => cancelMutation.mutate()}
+                  onClick={() => {
+                    if (!sessionId) {
+                      toast.error("A comanda desta mesa não está mais aberta. Atualize a grade.");
+                      return;
+                    }
+                    cancelMutation.mutate(sessionId);
+                  }}
                   className="mt-2 w-full rounded-lg border border-border px-4 py-2 text-sm text-muted-foreground hover:text-foreground disabled:opacity-50"
                 >
                   {cancelMutation.isPending ? "Liberando…" : "Liberar mesa sem consumo"}

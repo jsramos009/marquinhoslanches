@@ -6,7 +6,7 @@ import type {
   DiningPaymentMethod,
   DiningTableView,
 } from "@/lib/dining-domain";
-import { asDynamicDatabase } from "@/lib/supabase-dynamic";
+import { asDynamicDatabase, type DynamicDatabase } from "@/lib/supabase-dynamic";
 
 type TableRow = { id: string; table_number: number; is_active: boolean };
 type SessionRow = {
@@ -59,6 +59,18 @@ async function staffDatabase(userId: string) {
   if (error) throw new Error(error.message);
   if (!data) throw new Error("Forbidden");
   return asDynamicDatabase(supabaseAdmin);
+}
+
+async function requireOpenCashSession(db: DynamicDatabase) {
+  const { data, error } = await db
+    .from("cash_sessions")
+    .select("id")
+    .is("closed_at", null)
+    .order("opened_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!data) throw new Error("Abra o caixa antes de iniciar ou adicionar consumo às mesas.");
 }
 
 export const listDiningTables = createServerFn({ method: "GET" })
@@ -212,6 +224,7 @@ export const openDiningSession = createServerFn({ method: "POST" })
   })
   .handler(async ({ data, context }) => {
     const db = await staffDatabase(context.userId);
+    await requireOpenCashSession(db);
     const { data: sessionId, error } = await db.rpc("dining_open_session", {
       p_table_id: data.tableId,
       p_opened_by: context.userId,
@@ -258,6 +271,7 @@ export const addDiningConsumption = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const db = await staffDatabase(context.userId);
+    await requireOpenCashSession(db);
     const { data: batchId, error } = await db.rpc("dining_add_consumption", {
       p_session_id: data.sessionId,
       p_request_key: data.requestKey,

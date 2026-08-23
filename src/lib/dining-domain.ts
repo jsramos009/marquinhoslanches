@@ -63,6 +63,10 @@ export type DiningCartItem = {
   addons?: { addon_id: string; quantity: number }[];
 };
 
+export function getOpenDiningSessionId(table: DiningTableView | null | undefined) {
+  return table?.session?.id ?? null;
+}
+
 export function roundCurrency(value: number) {
   return Math.round((value + Number.EPSILON) * 100) / 100;
 }
