@@ -6,6 +6,8 @@ export type DiningPaymentMethod =
   | "misto"
   | "nao_informado";
 
+export const DINING_TABLE_OPEN_EVENT = "marquinhos:open-dining-table";
+
 export type DiningAddonSnapshot = {
   id: string;
   addon_id: string | null;

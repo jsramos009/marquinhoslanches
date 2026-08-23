@@ -18,6 +18,7 @@ import { getCurrentCashSession } from "@/lib/cash-sessions.functions";
 import {
   calculateServiceCharge,
   canReduceActiveTables,
+  DINING_TABLE_OPEN_EVENT,
   getOpenDiningSessionId,
   type DiningCartItem,
   type DiningPaymentMethod,
@@ -66,10 +67,22 @@ export function DiningTablesPanel() {
     queryFn: () => currentCashSessionFn(),
     refetchInterval: 60_000,
   });
-  const tables = tablesQuery.data ?? [];
+  const tables = useMemo(() => tablesQuery.data ?? [], [tablesQuery.data]);
   const cashOpen = Boolean(cashSessionQuery.data?.id);
   const activeCount = tables.filter((table) => table.is_active).length;
   const selectedTable = tables.find((table) => table.id === selectedTableId) ?? null;
+
+  useEffect(() => {
+    function openTableFromKanban(event: Event) {
+      const tableId = (event as CustomEvent<string>).detail;
+      if (tables.some((table) => table.id === tableId && table.is_active && table.session)) {
+        setSelectedTableId(tableId);
+      }
+    }
+
+    window.addEventListener(DINING_TABLE_OPEN_EVENT, openTableFromKanban);
+    return () => window.removeEventListener(DINING_TABLE_OPEN_EVENT, openTableFromKanban);
+  }, [tables]);
 
   // Pré-carrega o catálogo para o diálogo abrir instantaneamente.
   const catalogPrefetchFn = useServerFn(getDiningCatalog);
@@ -149,7 +162,10 @@ export function DiningTablesPanel() {
   const canReduce = activeCount > 1 && canReduceActiveTables(tables, activeCount - 1);
 
   return (
-    <section className="rounded-2xl border border-border bg-card/70 p-4 shadow-sm md:p-5">
+    <section
+      id="dining-tables-panel"
+      className="scroll-mt-4 rounded-2xl border border-border bg-card/70 p-4 shadow-sm md:p-5"
+    >
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">

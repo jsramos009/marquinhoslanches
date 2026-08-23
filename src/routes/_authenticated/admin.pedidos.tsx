@@ -15,11 +15,13 @@ import { useRealtimeOrders } from "@/hooks/use-realtime-orders";
 import { FLOW_STATUS_LABEL, buildWhatsAppLink, whatsappTemplateFor } from "@/lib/order-flow";
 import { useWhatsappTemplates } from "@/lib/wa-templates";
 import { buildMotoboyLink } from "@/lib/motoboy";
-import { Bike, Pencil } from "lucide-react";
+import { Bike, Pencil, ReceiptText } from "lucide-react";
 import { listCouriers, assignCourier } from "@/lib/couriers.functions";
 import type { Courier } from "@/lib/couriers.functions";
 import { DiningTablesPanel } from "@/components/admin/DiningTablesPanel";
 import { OrderPrintButton } from "@/components/admin/OrderPrintButton";
+import { listDiningTables } from "@/lib/dining.functions";
+import { DINING_TABLE_OPEN_EVENT, type DiningTableView } from "@/lib/dining-domain";
 
 export const Route = createFileRoute("/_authenticated/admin/pedidos")({
   component: PedidosPage,
@@ -29,7 +31,7 @@ export const Route = createFileRoute("/_authenticated/admin/pedidos")({
 });
 
 const COLUMNS: { id: OrderStatus; label: string; next?: OrderStatus }[] = [
-  { id: "recebido", label: FLOW_STATUS_LABEL.recebido, next: "em_producao" },
+  { id: "recebido", label: "Entrada", next: "em_producao" },
   { id: "em_producao", label: FLOW_STATUS_LABEL.em_producao, next: "pronto" },
   { id: "pronto", label: FLOW_STATUS_LABEL.pronto, next: "entregue" },
   { id: "entregue", label: FLOW_STATUS_LABEL.entregue },
@@ -61,6 +63,7 @@ function PedidosPage() {
   const cancelFn = useServerFn(cancelOrder);
   const couriersFn = useServerFn(listCouriers);
   const assignFn = useServerFn(assignCourier);
+  const listTablesFn = useServerFn(listDiningTables);
   const qc = useQueryClient();
 
   const q = useQuery<OrderRow[]>({
@@ -73,6 +76,14 @@ function PedidosPage() {
   const couriersQuery = useQuery({
     queryKey: ["couriers-active"],
     queryFn: () => couriersFn(),
+  });
+
+  const tablesQuery = useQuery<DiningTableView[]>({
+    queryKey: ["dining-tables"],
+    queryFn: () => listTablesFn(),
+    refetchInterval: 5_000,
+    staleTime: 2_000,
+    placeholderData: (previous) => previous,
   });
 
   useRealtimeOrders(() => qc.invalidateQueries({ queryKey: ["orders-recent"] }));
@@ -96,6 +107,9 @@ function PedidosPage() {
   // A consulta acompanha o caixa aberto, mesmo quando ele atravessa a meia-noite.
   // Sem caixa aberto, recupera pedidos recentes que ainda precisam ser concluídos.
   const orders = q.data ?? [];
+  const tableOrders = (tablesQuery.data ?? []).filter(
+    (table) => table.is_active && table.session && table.session.items.length > 0,
+  );
   const cancelled = orders.filter((o) => o.status === "cancelado");
   const [showCancelled, setShowCancelled] = useState(false);
 
@@ -136,7 +150,7 @@ function PedidosPage() {
             Fluxo de pedidos
           </h2>
           <p className="text-xs text-muted-foreground">
-            Acompanhe delivery, balcão e telefone da confirmação até a entrega.
+            Acompanhe delivery, balcão, telefone e salão desde a entrada até a entrega.
           </p>
         </div>
         {q.isLoading && <p className="text-sm text-muted-foreground">Carregando…</p>}
@@ -145,6 +159,8 @@ function PedidosPage() {
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           {COLUMNS.map((col) => {
             const items = orders.filter((o) => o.status === col.id);
+            const diningItems = col.id === "recebido" ? tableOrders : [];
+            const totalItems = items.length + diningItems.length;
             return (
               <div
                 key={col.id}
@@ -153,11 +169,11 @@ function PedidosPage() {
                 <header className="mb-3 flex items-center justify-between">
                   <h3 className="text-sm font-semibold text-foreground">{col.label}</h3>
                   <span className="rounded-full bg-secondary px-2 py-0.5 text-xs">
-                    {items.length}
+                    {totalItems}
                   </span>
                 </header>
                 <div className="space-y-2">
-                  {items.length === 0 && (
+                  {totalItems === 0 && (
                     <p className="rounded-lg border border-dashed border-border p-3 text-center text-xs text-muted-foreground">
                       Vazio
                     </p>
@@ -173,6 +189,9 @@ function PedidosPage() {
                       couriers={couriersQuery.data ?? []}
                       onAssignCourier={(courierId) => assign.mutate({ orderId: o.id, courierId })}
                     />
+                  ))}
+                  {diningItems.map((table) => (
+                    <DiningOrderCard key={table.id} table={table} />
                   ))}
                 </div>
               </div>
@@ -210,6 +229,65 @@ function PedidosPage() {
         </section>
       )}
     </AdminShell>
+  );
+}
+
+function DiningOrderCard({ table }: { table: DiningTableView }) {
+  const session = table.session;
+  if (!session) return null;
+
+  function openDiningOrder() {
+    window.dispatchEvent(new CustomEvent(DINING_TABLE_OPEN_EVENT, { detail: table.id }));
+    document
+      .getElementById("dining-tables-panel")
+      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  return (
+    <article className="rounded-xl border border-primary/35 bg-card p-3 shadow-sm">
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <div className="flex items-center gap-1.5">
+            <ReceiptText className="h-3.5 w-3.5 shrink-0 text-primary" />
+            <p className="truncate text-sm font-semibold text-foreground">
+              Mesa {String(table.table_number).padStart(2, "0")}
+            </p>
+          </div>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            Salão · há {timeAgo(session.opened_at)}
+          </p>
+        </div>
+        <span className="shrink-0 rounded bg-primary/10 px-2 py-0.5 font-mono text-xs text-primary">
+          {formatBRL(session.subtotal)}
+        </span>
+      </div>
+
+      <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
+        {session.items.map((item) => (
+          <li key={item.id}>
+            <span className="text-foreground">{item.quantity}×</span> {item.product_name_snapshot}
+            {item.addons.length > 0 && (
+              <span> + {item.addons.map((addon) => addon.addon_name_snapshot).join(", ")}</span>
+            )}
+            {item.notes && <span className="block pl-4 italic">Obs.: {item.notes}</span>}
+          </li>
+        ))}
+      </ul>
+
+      {session.notes && (
+        <p className="mt-2 rounded bg-secondary/60 px-2 py-1 text-xs italic text-muted-foreground">
+          {session.notes}
+        </p>
+      )}
+
+      <button
+        type="button"
+        onClick={openDiningOrder}
+        className="mt-3 w-full rounded-lg border border-primary/40 bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary hover:bg-primary/15"
+      >
+        Abrir comanda
+      </button>
+    </article>
   );
 }
 
