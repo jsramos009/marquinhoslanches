@@ -18,6 +18,7 @@ export interface DynamicQuery extends PromiseLike<DynamicResult> {
   limit(count: number): DynamicQuery;
   single(): DynamicQuery;
   maybeSingle(): DynamicQuery;
+  insert(values: Record<string, unknown> | Record<string, unknown>[]): DynamicQuery;
   update(values: Record<string, unknown>): DynamicQuery;
   upsert(
     values: Record<string, unknown> | Record<string, unknown>[],

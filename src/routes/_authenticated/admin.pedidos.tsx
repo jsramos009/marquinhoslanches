@@ -12,25 +12,19 @@ import {
 } from "@/lib/orders.functions";
 import { useNewOrderAlert } from "@/hooks/use-new-order-alert";
 import { useRealtimeOrders } from "@/hooks/use-realtime-orders";
-import {
-  FLOW_STATUS_LABEL,
-  buildWhatsAppLink,
-  whatsappTemplateFor,
-} from "@/lib/order-flow";
+import { FLOW_STATUS_LABEL, buildWhatsAppLink, whatsappTemplateFor } from "@/lib/order-flow";
 import { useWhatsappTemplates } from "@/lib/wa-templates";
 import { buildMotoboyLink } from "@/lib/motoboy";
 import { Bike, Pencil } from "lucide-react";
 import { listCouriers, assignCourier } from "@/lib/couriers.functions";
 import type { Courier } from "@/lib/couriers.functions";
-
+import { DiningTablesPanel } from "@/components/admin/DiningTablesPanel";
+import { OrderPrintButton } from "@/components/admin/OrderPrintButton";
 
 export const Route = createFileRoute("/_authenticated/admin/pedidos")({
   component: PedidosPage,
   head: () => ({
-    meta: [
-      { title: "Pedidos — Marquinhos" },
-      { name: "robots", content: "noindex" },
-    ],
+    meta: [{ title: "Pedidos — Marquinhos" }, { name: "robots", content: "noindex" }],
   }),
 });
 
@@ -134,43 +128,58 @@ function PedidosPage() {
         </>
       }
     >
-      {q.isLoading && <p className="text-sm text-muted-foreground">Carregando…</p>}
-      {q.error && <p className="text-sm text-destructive">{(q.error as Error).message}</p>}
+      <DiningTablesPanel />
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {COLUMNS.map((col) => {
-          const items = orders.filter((o) => o.status === col.id);
-          return (
-            <div key={col.id} className="flex flex-col rounded-xl border border-border bg-card/40 p-3">
-              <header className="mb-3 flex items-center justify-between">
-                <h2 className="text-sm font-semibold text-foreground">{col.label}</h2>
-                <span className="rounded-full bg-secondary px-2 py-0.5 text-xs">{items.length}</span>
-              </header>
-              <div className="space-y-2">
-                {items.length === 0 && (
-                  <p className="rounded-lg border border-dashed border-border p-3 text-center text-xs text-muted-foreground">
-                    Vazio
-                  </p>
-                )}
-                {items.map((o) => (
-                  <OrderCard
-                    key={o.id}
-                    order={o}
-                    nextStatus={col.next}
-                    onAdvance={(status) => advance.mutate({ id: o.id, status })}
-                    onCancel={(reason) => cancel.mutate({ id: o.id, reason })}
-                    busy={advance.isPending || cancel.isPending}
-                    couriers={couriersQuery.data ?? []}
-                    onAssignCourier={(courierId) =>
-                      assign.mutate({ orderId: o.id, courierId })
-                    }
-                  />
-                ))}
+      <section className="mt-6" aria-labelledby="orders-kanban-title">
+        <div className="mb-3">
+          <h2 id="orders-kanban-title" className="font-display text-xl text-foreground">
+            Fluxo de pedidos
+          </h2>
+          <p className="text-xs text-muted-foreground">
+            Acompanhe delivery, balcão e telefone da confirmação até a entrega.
+          </p>
+        </div>
+        {q.isLoading && <p className="text-sm text-muted-foreground">Carregando…</p>}
+        {q.error && <p className="text-sm text-destructive">{(q.error as Error).message}</p>}
+
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {COLUMNS.map((col) => {
+            const items = orders.filter((o) => o.status === col.id);
+            return (
+              <div
+                key={col.id}
+                className="flex flex-col rounded-xl border border-border bg-card/40 p-3"
+              >
+                <header className="mb-3 flex items-center justify-between">
+                  <h3 className="text-sm font-semibold text-foreground">{col.label}</h3>
+                  <span className="rounded-full bg-secondary px-2 py-0.5 text-xs">
+                    {items.length}
+                  </span>
+                </header>
+                <div className="space-y-2">
+                  {items.length === 0 && (
+                    <p className="rounded-lg border border-dashed border-border p-3 text-center text-xs text-muted-foreground">
+                      Vazio
+                    </p>
+                  )}
+                  {items.map((o) => (
+                    <OrderCard
+                      key={o.id}
+                      order={o}
+                      nextStatus={col.next}
+                      onAdvance={(status) => advance.mutate({ id: o.id, status })}
+                      onCancel={(reason) => cancel.mutate({ id: o.id, reason })}
+                      busy={advance.isPending || cancel.isPending}
+                      couriers={couriersQuery.data ?? []}
+                      onAssignCourier={(courierId) => assign.mutate({ orderId: o.id, courierId })}
+                    />
+                  ))}
+                </div>
               </div>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      </section>
 
       {showCancelled && (
         <section className="mt-6">
@@ -182,7 +191,10 @@ function PedidosPage() {
               <p className="text-sm text-muted-foreground">Nenhum cancelamento recente.</p>
             )}
             {cancelled.map((o) => (
-              <div key={o.id} className="rounded-xl border border-destructive/40 bg-card p-3 opacity-80">
+              <div
+                key={o.id}
+                className="rounded-xl border border-destructive/40 bg-card p-3 opacity-80"
+              >
                 <p className="text-sm font-medium text-foreground">
                   {o.customer_name || "Sem cliente"} · {formatBRL(o.total)}
                 </p>
@@ -190,16 +202,13 @@ function PedidosPage() {
                   {CHANNEL_LABEL[o.channel]} · {timeAgo(o.created_at)} atrás
                 </p>
                 {o.cancel_reason && (
-                  <p className="mt-2 text-xs text-destructive">
-                    Motivo: {o.cancel_reason}
-                  </p>
+                  <p className="mt-2 text-xs text-destructive">Motivo: {o.cancel_reason}</p>
                 )}
               </div>
             ))}
           </div>
         </section>
       )}
-
     </AdminShell>
   );
 }
@@ -244,7 +253,8 @@ function OrderCard({
             <span className="text-foreground">{i.quantity}×</span> {i.product_name_snapshot}
             {i.addons.length > 0 && (
               <span className="text-muted-foreground">
-                {" "}+ {i.addons.map((a) => a.addon_name_snapshot).join(", ")}
+                {" "}
+                + {i.addons.map((a) => a.addon_name_snapshot).join(", ")}
               </span>
             )}
           </li>
@@ -272,14 +282,19 @@ function OrderCard({
           </select>
         </div>
       )}
-      <div className="mt-3 flex gap-2">
+      <div className="mt-3 flex flex-wrap gap-2">
         {nextStatus && (
           <button
             disabled={busy}
             onClick={() => onAdvance(nextStatus)}
-            className="flex-1 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-60"
+            className="min-w-24 flex-1 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-60"
           >
-            → {nextStatus === "em_producao" ? "Aceitar" : nextStatus === "pronto" ? "A caminho" : "Finalizar"}
+            →{" "}
+            {nextStatus === "em_producao"
+              ? "Aceitar"
+              : nextStatus === "pronto"
+                ? "A caminho"
+                : "Finalizar"}
           </button>
         )}
         {order.status !== "entregue" && order.status !== "cancelado" && (
@@ -293,9 +308,16 @@ function OrderCard({
             <Pencil className="h-3.5 w-3.5" />
           </Link>
         )}
+        {order.status !== "cancelado" && order.total > 0 && order.items.length > 0 && (
+          <OrderPrintButton orderId={order.id} />
+        )}
         {order.status !== "recebido" && order.status !== "cancelado" && (
           <a
-            href={buildWhatsAppLink(order, whatsappTemplateFor(order.status, order.delivery_mode), templates)}
+            href={buildWhatsAppLink(
+              order,
+              whatsappTemplateFor(order.status, order.delivery_mode),
+              templates,
+            )}
             target="_blank"
             rel="noopener noreferrer"
             className="rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-400 hover:bg-emerald-500/20"

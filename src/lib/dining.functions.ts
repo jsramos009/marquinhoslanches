@@ -41,6 +41,7 @@ type ProductRow = {
   category_id: string;
   name: string;
   price: number | string;
+  image_url: string | null;
   accepts_addons: boolean;
 };
 type AddonRow = { id: string; name: string; price: number | string };
@@ -187,7 +188,7 @@ export const getDiningCatalog = createServerFn({ method: "GET" })
         .order("sort_order"),
       db
         .from("products")
-        .select("id, category_id, name, price, accepts_addons")
+        .select("id, category_id, name, price, image_url, accepts_addons")
         .eq("is_active", true)
         .order("sort_order"),
       db.from("addons").select("id, name, price").eq("is_active", true).order("sort_order"),

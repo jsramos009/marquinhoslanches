@@ -66,6 +66,48 @@ function mapJob(row: PrintJobRow): PrintJob {
   };
 }
 
+function buildOnlineOrderPayload(raw: OnlineOrderRow): ThermalPayload | null {
+  const items = (raw.order_items ?? []).map((item) => ({
+    id: item.id,
+    name: item.product_name_snapshot,
+    quantity: Number(item.quantity),
+    unit_price: Number(item.unit_price_snapshot),
+    line_total: Number(item.line_total),
+    addons: (item.order_item_addons ?? []).map((addon) => ({
+      name: addon.addon_name_snapshot,
+      quantity: Number(addon.quantity),
+      unit_price: Number(addon.unit_price_snapshot),
+    })),
+  }));
+  const complete = isCompleteOnlineOrder({
+    subtotal: Number(raw.subtotal),
+    discount: Number(raw.discount),
+    delivery_fee: Number(raw.delivery_fee ?? 0),
+    total: Number(raw.total),
+    items,
+  });
+  if (!complete || Number(raw.total) <= 0) return null;
+  return {
+    source: "online_order",
+    order_id: raw.id,
+    customer_name: raw.customer_name,
+    created_at: raw.created_at,
+    delivery_mode: raw.delivery_mode,
+    delivery_address: raw.delivery_address,
+    delivery_neighborhood: raw.delivery_neighborhood,
+    notes: raw.notes,
+    subtotal: Number(raw.subtotal),
+    discount: Number(raw.discount),
+    delivery_fee: Number(raw.delivery_fee ?? 0),
+    total: Number(raw.total),
+    payment_method: raw.payment_method ?? "nao_informado",
+    secondary_payment_method: raw.secondary_payment_method,
+    cash_amount: raw.cash_amount == null ? null : Number(raw.cash_amount),
+    change_for: raw.change_for == null ? null : Number(raw.change_for),
+    items,
+  };
+}
+
 export const reconcileOnlinePrintJobs = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
@@ -108,26 +150,8 @@ export const reconcileOnlinePrintJobs = createServerFn({ method: "POST" })
     const jobs = [];
     let incomplete = 0;
     for (const raw of orders) {
-      const items = (raw.order_items ?? []).map((item) => ({
-        id: item.id,
-        name: item.product_name_snapshot,
-        quantity: Number(item.quantity),
-        unit_price: Number(item.unit_price_snapshot),
-        line_total: Number(item.line_total),
-        addons: (item.order_item_addons ?? []).map((addon) => ({
-          name: addon.addon_name_snapshot,
-          quantity: Number(addon.quantity),
-          unit_price: Number(addon.unit_price_snapshot),
-        })),
-      }));
-      const complete = isCompleteOnlineOrder({
-        subtotal: Number(raw.subtotal),
-        discount: Number(raw.discount),
-        delivery_fee: Number(raw.delivery_fee ?? 0),
-        total: Number(raw.total),
-        items,
-      });
-      if (!complete) {
+      const payload = buildOnlineOrderPayload(raw);
+      if (!payload) {
         incomplete += 1;
         continue;
       }
@@ -137,25 +161,7 @@ export const reconcileOnlinePrintJobs = createServerFn({ method: "POST" })
         source_id: raw.id,
         document_type: "kitchen_ticket",
         auto_print: true,
-        payload: {
-          source: "online_order",
-          order_id: raw.id,
-          customer_name: raw.customer_name,
-          created_at: raw.created_at,
-          delivery_mode: raw.delivery_mode,
-          delivery_address: raw.delivery_address,
-          delivery_neighborhood: raw.delivery_neighborhood,
-          notes: raw.notes,
-          subtotal: Number(raw.subtotal),
-          discount: Number(raw.discount),
-          delivery_fee: Number(raw.delivery_fee ?? 0),
-          total: Number(raw.total),
-          payment_method: raw.payment_method ?? "nao_informado",
-          secondary_payment_method: raw.secondary_payment_method,
-          cash_amount: raw.cash_amount == null ? null : Number(raw.cash_amount),
-          change_for: raw.change_for == null ? null : Number(raw.change_for),
-          items,
-        } satisfies ThermalPayload,
+        payload,
       });
     }
 
@@ -174,6 +180,47 @@ export const reconcileOnlinePrintJobs = createServerFn({ method: "POST" })
       .eq("singleton", true);
     if (updateError) throw new Error(updateError.message);
     return { scanned: (orders ?? []).length, eligible: jobs.length, incomplete };
+  });
+
+export const enqueueOrderPrintJob = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: { orderId: string; requestKey: string }) => {
+    if (!data?.orderId || !/^[a-zA-Z0-9-]{8,80}$/.test(data.requestKey ?? "")) {
+      throw new Error("Pedido ou chave de impressão inválida.");
+    }
+    return data;
+  })
+  .handler(async ({ data, context }): Promise<PrintJob> => {
+    const db = await staffDatabase(context.userId);
+    const { data: order, error: orderError } = await db
+      .from("orders")
+      .select(
+        "id, customer_name, channel, status, subtotal, discount, total, notes, payment_method, change_for, cash_amount, secondary_payment_method, delivery_mode, delivery_fee, delivery_address, delivery_neighborhood, created_at, order_items(id, product_name_snapshot, quantity, unit_price_snapshot, line_total, order_item_addons(addon_name_snapshot, quantity, unit_price_snapshot))",
+      )
+      .eq("id", data.orderId)
+      .neq("status", "cancelado")
+      .maybeSingle();
+    if (orderError) throw new Error(orderError.message);
+    if (!order) throw new Error("Pedido não encontrado ou cancelado.");
+
+    const payload = buildOnlineOrderPayload(order as unknown as OnlineOrderRow);
+    if (!payload) {
+      throw new Error("O pedido precisa ter itens e totais completos antes da impressão.");
+    }
+    const { data: job, error: insertError } = await db
+      .from("print_jobs")
+      .insert({
+        job_key: `manual-order:${data.orderId}:${data.requestKey}`,
+        source_kind: "online_order",
+        source_id: data.orderId,
+        document_type: "kitchen_ticket",
+        payload,
+        auto_print: false,
+      })
+      .select("*")
+      .single();
+    if (insertError) throw new Error(insertError.message);
+    return mapJob(job as PrintJobRow);
   });
 
 export const listPrintJobs = createServerFn({ method: "GET" })

@@ -50,6 +50,7 @@ export type DiningCatalog = {
     category_id: string;
     name: string;
     price: number;
+    image_url: string | null;
     accepts_addons: boolean;
     addon_ids: string[];
   }[];

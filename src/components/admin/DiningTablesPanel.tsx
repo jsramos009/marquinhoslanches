@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { AlertTriangle, Minus, Plus, ReceiptText, Send, UsersRound } from "lucide-react";
+import { AlertTriangle, ImageOff, Minus, Plus, ReceiptText, Send, UsersRound } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
@@ -497,23 +497,63 @@ function DiningSessionDialog({
                   Abrindo a comanda da mesa… Os produtos serão liberados em instantes.
                 </p>
               )}
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                {(catalog?.products ?? []).map((product) => (
-                  <button
-                    key={product.id}
-                    type="button"
-                    disabled={!cashOpen || pendingSession}
-                    onClick={() => addProduct(product.id)}
-                    className="rounded-xl border border-border bg-background/60 p-3 text-left transition hover:border-primary/60 disabled:cursor-not-allowed disabled:opacity-45"
-                  >
-                    <span className="block text-sm font-semibold text-foreground">
-                      {product.name}
-                    </span>
-                    <span className="mt-1 block text-xs text-primary">
-                      {formatBRL(product.price)}
-                    </span>
-                  </button>
-                ))}
+              <div className="space-y-5">
+                {(catalog?.categories ?? []).map((category) => {
+                  const products = (catalog?.products ?? []).filter(
+                    (product) => product.category_id === category.id,
+                  );
+                  if (products.length === 0) return null;
+                  return (
+                    <section key={category.id} aria-labelledby={`dining-category-${category.id}`}>
+                      <div className="mb-2 flex items-center gap-2">
+                        <h3
+                          id={`dining-category-${category.id}`}
+                          className="font-display text-lg text-primary"
+                        >
+                          {category.name}
+                        </h3>
+                        <span className="rounded-full bg-secondary px-2 py-0.5 text-[10px] text-muted-foreground">
+                          {products.length}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                        {products.map((product) => (
+                          <button
+                            key={product.id}
+                            type="button"
+                            disabled={!cashOpen || pendingSession}
+                            onClick={() => addProduct(product.id)}
+                            className="group overflow-hidden rounded-xl border border-border bg-background/60 text-left transition hover:border-primary/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-45"
+                          >
+                            <span className="relative block aspect-[4/3] overflow-hidden bg-secondary/60">
+                              {product.image_url ? (
+                                <img
+                                  src={product.image_url}
+                                  alt={product.name}
+                                  loading="lazy"
+                                  className="h-full w-full object-cover transition duration-200 group-hover:scale-[1.03]"
+                                />
+                              ) : (
+                                <span className="grid h-full place-items-center text-muted-foreground">
+                                  <ImageOff className="h-6 w-6" aria-hidden="true" />
+                                  <span className="sr-only">Produto sem foto</span>
+                                </span>
+                              )}
+                            </span>
+                            <span className="block p-2.5">
+                              <span className="line-clamp-2 block text-sm font-semibold text-foreground">
+                                {product.name}
+                              </span>
+                              <span className="mt-1 block text-xs font-semibold text-primary">
+                                {formatBRL(product.price)}
+                              </span>
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    </section>
+                  );
+                })}
               </div>
             </div>
 
