@@ -223,23 +223,28 @@ export function DiningTablesPanel() {
       )}
       {!tablesQuery.isLoading && !tablesQuery.error && (
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-5 xl:grid-cols-10">
-          {tables.map((table) => (
-            <TableButton
-              key={table.id}
-              table={table}
-              busy={openMutation.isPending && openMutation.variables === table.id}
-              blocked={!cashOpen && !table.session}
-              onClick={() => selectTable(table)}
-            />
-          ))}
+          {tables
+            .filter((table) => table.session)
+            .map((table) => (
+              <TableButton
+                key={table.id}
+                table={table}
+                busy={openMutation.isPending && openMutation.variables === table.id}
+                blocked={!cashOpen && !table.session}
+                onClick={() => selectTable(table)}
+              />
+            ))}
+        </div>
+      )}
+      {!tablesQuery.isLoading && !tablesQuery.error && !tables.some((table) => table.session) && (
+        <div className="rounded-xl border border-dashed border-border bg-muted/20 px-4 py-8 text-center text-sm text-muted-foreground">
+          Nenhuma mesa ocupada no momento.
         </div>
       )}
 
       <div className="mt-4 flex flex-wrap gap-4 text-[11px] text-muted-foreground">
-        <Legend color="bg-emerald-500" label="Livre" />
         <Legend color="bg-amber-400" label="Ocupada" />
         <Legend color="bg-destructive" label="Falha de impressão" />
-        <Legend color="bg-muted-foreground/30" label="Inativa" />
       </div>
 
       <DiningSessionDialog
