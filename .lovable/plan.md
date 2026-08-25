@@ -1,34 +1,32 @@
-## Objetivo
-Usar a sessão de caixa — da abertura ao fechamento — como período oficial de trabalho, sem dividir pedidos à meia-noite.
+# Restaurar lançamento de pedido em mesa nova
 
-## Diagnóstico confirmado
-- A tela **Pedidos** filtra os cards pelo dia do calendário (`00:00`), por isso pedidos ainda abertos somem do quadro quando vira o dia, embora a atualização para “entregue” não tenha bloqueio no backend.
-- O relatório atual é organizado principalmente por `created_at` e data do calendário, não pela sessão do caixa.
-- A sessão atualmente aberta já atravessou mais de um dia e possui pedidos corretamente vinculados a ela; portanto, o vínculo existente pode ser usado como fonte confiável.
-- O Dashboard também possui um cálculo de “Hoje” baseado no fuso do servidor, diferente do horário de São Paulo.
+## Problema
+No painel "Controle de mesas" atualmente só são exibidas mesas **ocupadas**, conforme solicitado anteriormente. Com isso, não há mais como iniciar uma nova comanda/mesa, pois as mesas livres ficam invisíveis e não há outro caminho para abrir uma sessão.
 
-## Implementação
-1. **Manter pedidos ativos após 00:00**
-   - Alterar a tela de Pedidos para carregar os pedidos da sessão de caixa aberta, independentemente da data de criação.
-   - Pedidos em produção ou prontos continuarão visíveis e poderão ser finalizados normalmente depois da meia-noite.
-   - Quando não houver caixa aberto, manter uma recuperação segura dos pedidos recentes ainda não concluídos para que nenhum pedido fique inacessível.
+## Solução
+Adicionar um controle explícito para ocupar uma nova mesa sem voltar a exibir mesas livres no grid principal.
 
-2. **Relatório oficial por sessão de caixa**
-   - Transformar a área de Relatórios para listar cada caixa com horário brasileiro de abertura e fechamento.
-   - Ao abrir uma sessão, mostrar todos os pedidos vinculados, totais, entregas, retiradas, cancelamentos, fretes, pagamentos e produtos vendidos.
-   - Sessão aberta será identificada como “Caixa em andamento” e usará o horário atual apenas para visualização; ao fechar, o período fica definitivamente delimitado por `opened_at` e `closed_at`.
-   - Manter o filtro por dia somente como consulta complementar, sem usá-lo como fechamento oficial.
+## O que será feito
 
-3. **Unificar fuso horário**
-   - Centralizar os limites de data no fuso `America/Sao_Paulo`.
-   - Corrigir o cálculo “Hoje” do Dashboard e reutilizar a mesma regra nos relatórios por data e de entregadores, eliminando a diferença de três horas.
-   - Exibir todas as datas e horários no padrão brasileiro.
+1. **Botão "+ Ocupar mesa" no topo do `DiningTablesPanel`**
+   - Visível apenas quando o caixa estiver aberto.
+   - Abre um Dialog/Popover listando as mesas ativas e livres (número e estado).
 
-4. **Atualização após fechar o caixa**
-   - Ao confirmar o fechamento, atualizar imediatamente relatório, pedidos e métricas do Dashboard.
-   - O próximo caixa aberto iniciará um novo relatório; pedidos novos serão vinculados apenas a essa nova sessão.
+2. **Dialog de seleção de mesa livre**
+   - Grid compacto com as mesas disponíveis.
+   - Ao clicar, chama `openDiningSession` e já abre a comanda da mesa escolhida.
 
-## Validação
-- Simular pedido criado antes de 00:00 e finalizado depois de 00:00, confirmando que ele permanece no quadro.
-- Confirmar que o pedido pertence ao mesmo caixa e aparece uma única vez no relatório dessa sessão.
-- Conferir abertura, fechamento, valores, fretes, status e horários em `pt-BR`/São Paulo.
+3. **Manter o grid principal mostrando só mesas ocupadas**
+   - Preserva o comportamento solicitado anteriormente.
+
+4. **Mensagem de estado vazio ajustada**
+   - Quando não houver mesas ocupadas, exibir algo como:
+     "Nenhuma mesa ocupada. Clique em '+ Ocupar mesa' para iniciar uma comanda."
+
+## Arquivos envolvidos
+- `src/components/admin/DiningTablesPanel.tsx`
+- `src/lib/dining.functions.ts` (reutiliza `openDiningSession` existente)
+
+## Critério de pronto
+- Conseguir abrir uma nova mesa sem que ela apareça no grid principal antes de ser ocupada.
+- Fluxo continuar funcionando: adicionar produtos, fechar comanda e liberar mesa.
