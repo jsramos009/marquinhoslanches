@@ -31,6 +31,70 @@ export type PublicOrderInput = {
 };
 
 /**
+ * Busca o perfil salvo do cliente pelo telefone (nome, endereço e bairro do
+ * último pedido de entrega), para preencher o checkout automaticamente em
+ * qualquer aparelho — sem depender do localStorage.
+ */
+export const getPublicCustomerProfile = createServerFn({ method: "POST" })
+  .inputValidator((d: { phone: string }) => d ?? { phone: "" })
+  .handler(async ({ data }) => {
+    const digits = (data.phone || "").replace(/\D+/g, "");
+    if (digits.length < 10) return null;
+    const tail = digits.slice(-8);
+    const { supabaseAdmin } = await import(
+      "@/integrations/supabase/client.server"
+    );
+
+    const { data: rows } = await supabaseAdmin
+      .from("orders")
+      .select(
+        "customer_name, customer_phone, delivery_address, delivery_neighborhood, delivery_mode, notes, created_at",
+      )
+      .ilike("customer_phone", `%${tail}%`)
+      .order("created_at", { ascending: false })
+      .limit(30);
+
+    const list = (rows ?? []).filter((r: any) =>
+      (r.customer_phone || "").replace(/\D+/g, "").endsWith(tail),
+    );
+
+    const addressFromNotes = (notes: string | null | undefined) => {
+      const m = /(?:Entrega|Endere[cç]o)\s*:\s*(.+)/i.exec(notes || "");
+      return m ? m[1].trim() : null;
+    };
+
+    let name: string | null = null;
+    let address: string | null = null;
+    let neighborhood: string | null = null;
+    for (const r of list as any[]) {
+      if (!name && r.customer_name?.trim()) name = r.customer_name.trim();
+      if (!address) {
+        address = r.delivery_address?.trim() || addressFromNotes(r.notes);
+      }
+      if (!neighborhood && r.delivery_neighborhood?.trim()) {
+        neighborhood = r.delivery_neighborhood.trim();
+      }
+    }
+
+    if (!name || !address || !neighborhood) {
+      const { data: cust } = await supabaseAdmin
+        .from("customers")
+        .select("name, last_address, last_neighborhood, phone")
+        .ilike("phone", `%${tail}%`)
+        .limit(1)
+        .maybeSingle();
+      if (cust) {
+        name = name || (cust as any).name || null;
+        address = address || (cust as any).last_address || null;
+        neighborhood = neighborhood || (cust as any).last_neighborhood || null;
+      }
+    }
+
+    if (!name && !address && !neighborhood) return null;
+    return { name, address, neighborhood };
+  });
+
+/**
  * Cria um pedido a partir do cardápio público (cliente final), sem
  * exigir autenticação. Toda a validação de preços/produtos é feita
  * no servidor — o cliente envia apenas IDs e quantidades.
