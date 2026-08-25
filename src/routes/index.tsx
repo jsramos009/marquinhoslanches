@@ -6,7 +6,7 @@ import logoAsset from "@/assets/logo.png.asset.json";
 import { menuQueryOptions, formatBRL, isHamburgerCategory, type Product, type Addon } from "@/lib/menu";
 import { decodeRepeatToken } from "@/lib/order-flow";
 import { buildPixPayload } from "@/lib/pix";
-import { submitPublicOrder } from "@/lib/orders-public.functions";
+import { submitPublicOrder, getPublicCustomerProfile } from "@/lib/orders-public.functions";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
