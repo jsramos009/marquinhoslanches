@@ -54,6 +54,7 @@ export function DiningTablesPanel() {
   const countFn = useServerFn(setDiningTableCount);
   const currentCashSessionFn = useServerFn(getCurrentCashSession);
   const [selectedTableId, setSelectedTableId] = useState<string | null>(null);
+  const [tablePickerOpen, setTablePickerOpen] = useState(false);
 
   const tablesQuery = useQuery({
     queryKey: ["dining-tables"],
@@ -70,6 +71,8 @@ export function DiningTablesPanel() {
   const tables = useMemo(() => tablesQuery.data ?? [], [tablesQuery.data]);
   const cashOpen = Boolean(cashSessionQuery.data?.id);
   const activeCount = tables.filter((table) => table.is_active).length;
+  const occupiedTables = tables.filter((table) => table.is_active && table.session);
+  const freeTables = tables.filter((table) => table.is_active && !table.session);
   const selectedTable = tables.find((table) => table.id === selectedTableId) ?? null;
 
   useEffect(() => {
@@ -159,6 +162,11 @@ export function DiningTablesPanel() {
     else openMutation.mutate(table.id);
   }
 
+  function occupyTable(tableId: string) {
+    setTablePickerOpen(false);
+    openMutation.mutate(tableId);
+  }
+
   const canReduce = activeCount > 1 && canReduceActiveTables(tables, activeCount - 1);
 
   return (
@@ -176,29 +184,43 @@ export function DiningTablesPanel() {
             Consumo presencial isolado dos pedidos e métricas atuais.
           </p>
         </div>
-        <div className="flex items-center gap-2 rounded-xl border border-border bg-background/60 p-1.5">
-          <button
-            type="button"
-            aria-label="Diminuir quantidade de mesas"
-            title={canReduce ? "Desativar a última mesa livre" : "A última mesa está ocupada"}
-            disabled={!canReduce || countMutation.isPending}
-            onClick={() => countMutation.mutate(activeCount - 1)}
-            className="grid h-8 w-8 place-items-center rounded-lg text-muted-foreground hover:bg-secondary hover:text-foreground disabled:cursor-not-allowed disabled:opacity-30"
-          >
-            <Minus className="h-4 w-4" />
-          </button>
-          <span className="min-w-20 text-center text-sm font-semibold tabular-nums">
-            {activeCount}/30
-          </span>
-          <button
-            type="button"
-            aria-label="Aumentar quantidade de mesas"
-            disabled={activeCount >= 30 || countMutation.isPending}
-            onClick={() => countMutation.mutate(activeCount + 1)}
-            className="grid h-8 w-8 place-items-center rounded-lg text-muted-foreground hover:bg-secondary hover:text-foreground disabled:cursor-not-allowed disabled:opacity-30"
-          >
-            <Plus className="h-4 w-4" />
-          </button>
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          {cashOpen && (
+            <button
+              type="button"
+              disabled={freeTables.length === 0 || openMutation.isPending}
+              title={freeTables.length === 0 ? "Não há mesas livres disponíveis" : undefined}
+              onClick={() => setTablePickerOpen(true)}
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground transition hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-card disabled:cursor-not-allowed disabled:opacity-45"
+            >
+              <Plus className="h-4 w-4" aria-hidden="true" />
+              Ocupar mesa
+            </button>
+          )}
+          <div className="flex items-center gap-2 rounded-xl border border-border bg-background/60 p-1.5">
+            <button
+              type="button"
+              aria-label="Diminuir quantidade de mesas"
+              title={canReduce ? "Desativar a última mesa livre" : "A última mesa está ocupada"}
+              disabled={!canReduce || countMutation.isPending}
+              onClick={() => countMutation.mutate(activeCount - 1)}
+              className="grid h-8 w-8 place-items-center rounded-lg text-muted-foreground hover:bg-secondary hover:text-foreground disabled:cursor-not-allowed disabled:opacity-30"
+            >
+              <Minus className="h-4 w-4" />
+            </button>
+            <span className="min-w-20 text-center text-sm font-semibold tabular-nums">
+              {activeCount}/30
+            </span>
+            <button
+              type="button"
+              aria-label="Aumentar quantidade de mesas"
+              disabled={activeCount >= 30 || countMutation.isPending}
+              onClick={() => countMutation.mutate(activeCount + 1)}
+              className="grid h-8 w-8 place-items-center rounded-lg text-muted-foreground hover:bg-secondary hover:text-foreground disabled:cursor-not-allowed disabled:opacity-30"
+            >
+              <Plus className="h-4 w-4" />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -211,7 +233,7 @@ export function DiningTablesPanel() {
 
       {tablesQuery.isLoading && (
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-5 xl:grid-cols-10">
-          {Array.from({ length: 30 }, (_, index) => (
+          {Array.from({ length: 5 }, (_, index) => (
             <div key={index} className="h-24 animate-pulse rounded-xl bg-secondary/60" />
           ))}
         </div>
@@ -222,30 +244,43 @@ export function DiningTablesPanel() {
         </p>
       )}
       {!tablesQuery.isLoading && !tablesQuery.error && (
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-5 xl:grid-cols-10">
-          {tables
-            .filter((table) => table.session)
-            .map((table) => (
-              <TableButton
-                key={table.id}
-                table={table}
-                busy={openMutation.isPending && openMutation.variables === table.id}
-                blocked={!cashOpen && !table.session}
-                onClick={() => selectTable(table)}
-              />
-            ))}
-        </div>
-      )}
-      {!tablesQuery.isLoading && !tablesQuery.error && !tables.some((table) => table.session) && (
-        <div className="rounded-xl border border-dashed border-border bg-muted/20 px-4 py-8 text-center text-sm text-muted-foreground">
-          Nenhuma mesa ocupada no momento.
-        </div>
+        <>
+          {occupiedTables.length > 0 ? (
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-5 xl:grid-cols-10">
+              {occupiedTables.map((table) => (
+                <TableButton
+                  key={table.id}
+                  table={table}
+                  busy={openMutation.isPending && openMutation.variables === table.id}
+                  blocked={false}
+                  onClick={() => selectTable(table)}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="rounded-xl border border-dashed border-border bg-background/35 px-4 py-8 text-center">
+              <p className="text-sm text-muted-foreground">
+                {cashOpen
+                  ? "Nenhuma mesa ocupada. Clique em “+ Ocupar mesa” para iniciar uma comanda."
+                  : "Nenhuma mesa ocupada. Abra o caixa para iniciar uma nova comanda."}
+              </p>
+            </div>
+          )}
+        </>
       )}
 
       <div className="mt-4 flex flex-wrap gap-4 text-[11px] text-muted-foreground">
         <Legend color="bg-amber-400" label="Ocupada" />
         <Legend color="bg-destructive" label="Falha de impressão" />
       </div>
+
+      <FreeTablePickerDialog
+        open={tablePickerOpen}
+        tables={freeTables}
+        busyTableId={openMutation.isPending ? openMutation.variables : undefined}
+        onOpenChange={setTablePickerOpen}
+        onSelect={occupyTable}
+      />
 
       <DiningSessionDialog
         table={selectedTable}
@@ -254,6 +289,61 @@ export function DiningTablesPanel() {
         onOpenChange={(open) => !open && setSelectedTableId(null)}
       />
     </section>
+  );
+}
+
+function FreeTablePickerDialog({
+  open,
+  tables,
+  busyTableId,
+  onOpenChange,
+  onSelect,
+}: {
+  open: boolean;
+  tables: DiningTableView[];
+  busyTableId?: string;
+  onOpenChange: (open: boolean) => void;
+  onSelect: (tableId: string) => void;
+}) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle className="font-display text-2xl">Ocupar uma mesa</DialogTitle>
+        </DialogHeader>
+        <p className="text-sm text-muted-foreground">
+          Escolha uma mesa livre para abrir uma nova comanda.
+        </p>
+        {tables.length > 0 ? (
+          <div className="grid max-h-[55vh] grid-cols-3 gap-2 overflow-y-auto pr-1 sm:grid-cols-5">
+            {tables.map((table) => {
+              const busy = busyTableId === table.id;
+              return (
+                <button
+                  key={table.id}
+                  type="button"
+                  disabled={Boolean(busyTableId)}
+                  aria-label={`Ocupar mesa ${table.table_number}`}
+                  onClick={() => onSelect(table.id)}
+                  className="flex min-h-16 flex-col items-center justify-center rounded-xl border border-emerald-500/40 bg-emerald-500/10 text-emerald-300 transition hover:border-emerald-400 hover:bg-emerald-500/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-wait disabled:opacity-45"
+                >
+                  <span className="font-display text-lg tabular-nums">
+                    {String(table.table_number).padStart(2, "0")}
+                  </span>
+                  <span className="text-[10px] font-semibold uppercase tracking-wide">
+                    {busy ? "Abrindo…" : "Livre"}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="rounded-xl border border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground">
+            Nenhuma mesa livre disponível.
+          </p>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }
 
