@@ -740,37 +740,80 @@ function CartDialog({
   const deliveryFeesQuery = useQuery(deliveryFeesQueryOptions());
   const deliveryFees = deliveryFeesQuery.data ?? [];
 
-  // Perfil salvo por número de telefone (localStorage)
+  // Perfil salvo por número de telefone (localStorage + servidor)
   const profileKey = (digits: string) => `marquinhos:profile:${digits}`;
+  const fetchProfile = useServerFn(getPublicCustomerProfile);
+  const lookedUpRef = useRef<string>("");
   const onPhoneChange = (v: string) => {
     setPhone(v);
     if (typeof window === "undefined") return;
     const digits = v.replace(/\D+/g, "");
     if (digits.length < 10) return;
+    let filled = false;
     try {
       const raw = window.localStorage.getItem(profileKey(digits));
-      if (!raw) return;
-      const p = JSON.parse(raw) as {
-        name?: string;
-        address?: string;
-        neighborhoodId?: string;
-        mode?: "delivery" | "pickup";
-        payment?: PayMethod;
-      };
-      let filled = false;
-      if (p.name && !name.trim()) { setName(p.name); filled = true; }
-      if (p.address && !address.trim()) { setAddress(p.address); filled = true; }
-      if (p.neighborhoodId && !neighborhoodId) {
-        setNeighborhoodId(p.neighborhoodId);
-        filled = true;
-      }
-      if (p.mode) { setMode(p.mode); filled = true; }
-      if (p.payment && !payment) { setPayment(p.payment); filled = true; }
-      if (filled) {
-        setPrefillNotice("Preenchemos com os dados do seu último pedido ✨");
-        setTimeout(() => setPrefillNotice(null), 3500);
+      if (raw) {
+        const p = JSON.parse(raw) as {
+          name?: string;
+          address?: string;
+          neighborhoodId?: string;
+          mode?: "delivery" | "pickup";
+          payment?: PayMethod;
+        };
+        if (p.name && !name.trim()) { setName(p.name); filled = true; }
+        if (p.address && !address.trim()) { setAddress(p.address); filled = true; }
+        if (p.neighborhoodId && !neighborhoodId) {
+          setNeighborhoodId(p.neighborhoodId);
+          filled = true;
+        }
+        if (p.mode) { setMode(p.mode); filled = true; }
+        if (p.payment && !payment) { setPayment(p.payment); filled = true; }
       }
     } catch { /* ignore */ }
+    if (filled) {
+      setPrefillNotice("Preenchemos com os dados do seu último pedido ✨");
+      setTimeout(() => setPrefillNotice(null), 3500);
+    }
+    // Busca no servidor (funciona em qualquer aparelho)
+    if (lookedUpRef.current === digits) return;
+    lookedUpRef.current = digits;
+    void (async () => {
+      try {
+        const p = (await fetchProfile({ data: { phone: digits } })) as
+          | { name: string | null; address: string | null; neighborhood: string | null }
+          | null;
+        if (!p) return;
+        let serverFilled = false;
+        setName((prev) => {
+          if (!prev.trim() && p.name) { serverFilled = true; return p.name; }
+          return prev;
+        });
+        setAddress((prev) => {
+          if (!prev.trim() && p.address) { serverFilled = true; return p.address; }
+          return prev;
+        });
+        if (p.neighborhood) {
+          const match = deliveryFees.find(
+            (f) =>
+              f.neighborhood.trim().toLowerCase() ===
+              p.neighborhood!.trim().toLowerCase(),
+          );
+          if (match) {
+            setNeighborhoodId((prev) => {
+              if (!prev && !neighborhoodManualRef.current) {
+                serverFilled = true;
+                return match.id;
+              }
+              return prev;
+            });
+          }
+        }
+        if (serverFilled) {
+          setPrefillNotice("Preenchemos com os dados do seu último pedido ✨");
+          setTimeout(() => setPrefillNotice(null), 3500);
+        }
+      } catch { /* ignore */ }
+    })();
   };
   const persistProfile = () => {
     if (!saveProfile || typeof window === "undefined") return;
