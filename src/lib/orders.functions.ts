@@ -943,7 +943,7 @@ export const getCustomerByPhone = createServerFn({ method: "POST" })
     const { data: rows, error } = await context.supabase
       .from("orders")
       .select(
-        "customer_name, customer_phone, delivery_address, delivery_neighborhood, delivery_mode, created_at",
+        "customer_name, customer_phone, delivery_address, delivery_neighborhood, delivery_mode, notes, created_at",
       )
       .ilike("customer_phone", `%${tail}%`)
       .order("created_at", { ascending: false })
@@ -952,15 +952,38 @@ export const getCustomerByPhone = createServerFn({ method: "POST" })
     const list = (rows ?? []).filter((r) =>
       (r.customer_phone || "").replace(/\D+/g, "").endsWith(tail),
     );
-    if (list.length === 0) return null;
-    const latestName = list.find((r) => r.customer_name && r.customer_name.trim());
-    const lastDelivery = list.find(
-      (r) => r.delivery_mode === "delivery" && r.delivery_address,
-    );
+    const addressFromNotes = (notes: string | null | undefined) => {
+      const m = /(?:Entrega|Endere[cç]o)\s*:\s*(.+)/i.exec(notes || "");
+      return m ? m[1].trim() : null;
+    };
+    let name: string | null = null;
+    let address: string | null = null;
+    let neighborhood: string | null = null;
+    for (const r of list as any[]) {
+      if (!name && r.customer_name?.trim()) name = r.customer_name.trim();
+      if (!address) address = r.delivery_address?.trim() || addressFromNotes(r.notes);
+      if (!neighborhood && r.delivery_neighborhood?.trim()) {
+        neighborhood = r.delivery_neighborhood.trim();
+      }
+    }
+    if (!name || !address || !neighborhood) {
+      const { data: cust } = await context.supabase
+        .from("customers")
+        .select("name, last_address, last_neighborhood")
+        .ilike("phone", `%${tail}%`)
+        .limit(1)
+        .maybeSingle();
+      if (cust) {
+        name = name || (cust as any).name || null;
+        address = address || (cust as any).last_address || null;
+        neighborhood = neighborhood || (cust as any).last_neighborhood || null;
+      }
+    }
+    if (!name && !address && !neighborhood) return null;
     return {
-      customer_name: latestName?.customer_name ?? list[0].customer_name ?? null,
-      customer_phone: list[0].customer_phone ?? null,
-      delivery_address: lastDelivery?.delivery_address ?? null,
-      delivery_neighborhood: lastDelivery?.delivery_neighborhood ?? null,
+      customer_name: name,
+      customer_phone: list[0]?.customer_phone ?? null,
+      delivery_address: address,
+      delivery_neighborhood: neighborhood,
     };
   });
