@@ -7,6 +7,7 @@ import { menuQueryOptions, formatBRL, isHamburgerCategory, type Product, type Ad
 import { decodeRepeatToken } from "@/lib/order-flow";
 import { buildPixPayload } from "@/lib/pix";
 import { submitPublicOrder, getPublicCustomerProfile } from "@/lib/orders-public.functions";
+import { calculateCashChange } from "@/lib/payment";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -835,6 +836,10 @@ function CartDialog({
   const selectedFee = deliveryFees.find((f) => f.id === neighborhoodId) ?? null;
   const freightCost = mode === "delivery" && selectedFee ? selectedFee.fee : 0;
   const grandTotal = totalPrice + freightCost;
+  const changeForValue = Number(changeFor.replace(",", "."));
+  const requestedChange = calculateCashChange(changeForValue, grandTotal);
+  const changeForIsValid =
+    changeFor.trim() === "" || changeForValue === 0 || requestedChange !== null;
   const appSettingsQuery = useQuery(appSettingsQueryOptions());
   const pixSettings = appSettingsQuery.data ?? {
     pix_key: PIX_KEY_FALLBACK,
@@ -991,9 +996,10 @@ function CartDialog({
           `*Dividido:* ${formatBRL(cash)} em dinheiro + ${formatBRL(grandTotal - cash)} em ${label[splitOther]}`,
         );
       } else if (payment === "dinheiro") {
-        const v = Number(changeFor.replace(",", "."));
-        if (v > 0 && v >= totalPrice) {
-          lines.push(`*Troco para:* ${formatBRL(v)} (troco ${formatBRL(v - totalPrice)})`);
+        if (changeForValue > 0 && requestedChange !== null) {
+          lines.push(
+            `*Troco para:* ${formatBRL(changeForValue)} (troco ${formatBRL(requestedChange)})`,
+          );
         } else {
           lines.push(`*Troco:* Não precisa`);
         }
@@ -1011,6 +1017,7 @@ function CartDialog({
     name.trim().length > 0 &&
     phone.trim().length > 0 &&
     payment !== null &&
+    (payment !== "dinheiro" || splitPay || changeForIsValid) &&
     !blockOrders &&
     (minOrderValue <= 0 || totalPrice >= minOrderValue) &&
     (mode === "pickup" ||
@@ -1434,13 +1441,24 @@ function CartDialog({
                       </p>
                     </div>
                   ) : (
-                  <input
-                    className="cart-input"
-                    value={changeFor}
-                    onChange={(e) => setChangeFor(e.target.value)}
-                    placeholder="Precisa de troco pra quanto? (deixe vazio se não precisar)"
-                    inputMode="decimal"
-                  />
+                    <>
+                      <input
+                        className="cart-input"
+                        value={changeFor}
+                        onChange={(e) => setChangeFor(e.target.value)}
+                        placeholder="Precisa de troco pra quanto? (deixe vazio se não precisar)"
+                        inputMode="decimal"
+                      />
+                      {changeFor.trim() !== "" && changeForValue !== 0 && (
+                        <p
+                          className={`mt-1 text-xs ${changeForIsValid ? "text-muted-foreground" : "text-destructive"}`}
+                        >
+                          {requestedChange !== null
+                            ? `Troco: ${formatBRL(requestedChange)}`
+                            : `O valor entregue precisa ser pelo menos ${formatBRL(grandTotal)}, incluindo o frete.`}
+                        </p>
+                      )}
+                    </>
                   )}
                 </div>
               )}

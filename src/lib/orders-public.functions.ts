@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { isHamburgerCategory } from "@/lib/menu-utils";
+import { calculateCashChange } from "@/lib/payment";
 
 export type PublicOrderInput = {
   customer_name: string;
@@ -233,6 +234,15 @@ export const submitPublicOrder = createServerFn({ method: "POST" })
     const deliveryMode = data.delivery_mode === "delivery" ? "delivery" : "pickup";
     const deliveryFee = deliveryMode === "delivery" ? Math.max(0, Number(data.delivery_fee) || 0) : 0;
     const total = subtotal + deliveryFee;
+    const changeFor =
+      data.payment_method === "dinheiro" && Number(data.change_for) > 0
+        ? Number(data.change_for)
+        : null;
+    if (changeFor !== null && calculateCashChange(changeFor, total) === null) {
+      throw new Error(
+        `O valor entregue em dinheiro precisa ser pelo menos R$ ${total.toFixed(2)}, incluindo o frete.`,
+      );
+    }
     const notesParts: string[] = [];
     if (data.delivery_mode === "delivery" && data.delivery_address?.trim()) {
       notesParts.push(`Entrega: ${data.delivery_address.trim()}`);
@@ -260,12 +270,7 @@ export const submitPublicOrder = createServerFn({ method: "POST" })
         discount: 0,
         total,
         payment_method: data.payment_method ?? "nao_informado",
-        change_for:
-          data.payment_method === "dinheiro" &&
-          data.change_for &&
-          data.change_for > 0
-            ? data.change_for
-            : null,
+        change_for: changeFor,
         cash_amount:
           data.secondary_payment_method && data.cash_amount && data.cash_amount > 0
             ? data.cash_amount
