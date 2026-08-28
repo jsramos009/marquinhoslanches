@@ -38,6 +38,13 @@ function freeTableInCache(queryClient: QueryClient, tableId: string) {
   );
 }
 
+type OpenTableInput = {
+  tableId: string;
+  customerName?: string;
+  customerPhone?: string;
+  customerAddress?: string;
+};
+
 const PAYMENT_LABELS: Record<DiningPaymentMethod, string> = {
   pix: "PIX",
   cartao_credito: "Crédito",
@@ -117,8 +124,16 @@ export function DiningTablesPanel() {
     },
   });
   const openMutation = useMutation({
-    mutationFn: (tableId: string) => openFn({ data: { tableId } }),
-    onMutate: async (tableId: string) => {
+    mutationFn: (input: OpenTableInput) =>
+      openFn({
+        data: {
+          tableId: input.tableId,
+          customerName: input.customerName,
+          customerPhone: input.customerPhone,
+          customerAddress: input.customerAddress,
+        },
+      }),
+    onMutate: async ({ tableId, customerName }: OpenTableInput) => {
       await queryClient.cancelQueries({ queryKey: ["dining-tables"] });
       const previous = queryClient.getQueryData<DiningTableView[]>(["dining-tables"]);
       if (previous) {
@@ -131,7 +146,7 @@ export function DiningTablesPanel() {
                   state: "occupied",
                   session: {
                     id: `optimistic-${tableId}`,
-                    customer_name: null,
+                    customer_name: customerName ?? null,
                     notes: null,
                     opened_at: new Date().toISOString(),
                     subtotal: 0,
@@ -145,7 +160,7 @@ export function DiningTablesPanel() {
       setSelectedTableId(tableId);
       return { previous };
     },
-    onError: (error, _tableId, context) => {
+    onError: (error, _input, context) => {
       if (context?.previous) queryClient.setQueryData(["dining-tables"], context.previous);
       setSelectedTableId(null);
       toast.error((error as Error).message);
@@ -159,12 +174,12 @@ export function DiningTablesPanel() {
     if (!table.is_active) return;
     if (table.session) setSelectedTableId(table.id);
     else if (!cashOpen) toast.error("Abra o caixa antes de iniciar o consumo de uma mesa.");
-    else openMutation.mutate(table.id);
+    else setTablePickerOpen(true);
   }
 
-  function occupyTable(tableId: string) {
+  function occupyTable(input: OpenTableInput) {
     setTablePickerOpen(false);
-    openMutation.mutate(tableId);
+    openMutation.mutate(input);
   }
 
   const canReduce = activeCount > 1 && canReduceActiveTables(tables, activeCount - 1);
@@ -251,7 +266,7 @@ export function DiningTablesPanel() {
                 <TableButton
                   key={table.id}
                   table={table}
-                  busy={openMutation.isPending && openMutation.variables === table.id}
+                  busy={openMutation.isPending && openMutation.variables?.tableId === table.id}
                   blocked={false}
                   onClick={() => selectTable(table)}
                 />
@@ -277,7 +292,7 @@ export function DiningTablesPanel() {
       <FreeTablePickerDialog
         open={tablePickerOpen}
         tables={freeTables}
-        busyTableId={openMutation.isPending ? openMutation.variables : undefined}
+        busyTableId={openMutation.isPending ? openMutation.variables?.tableId : undefined}
         onOpenChange={setTablePickerOpen}
         onSelect={occupyTable}
       />
