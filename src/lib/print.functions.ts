@@ -100,6 +100,7 @@ function buildOnlineOrderPayload(raw: OnlineOrderRow): ThermalPayload | null {
     quantity: Number(item.quantity),
     unit_price: Number(item.unit_price_snapshot),
     line_total: Number(item.line_total),
+    notes: item.notes ?? null,
     addons: (item.order_item_addons ?? []).map((addon) => ({
       name: addon.addon_name_snapshot,
       quantity: Number(addon.quantity),
@@ -118,6 +119,7 @@ function buildOnlineOrderPayload(raw: OnlineOrderRow): ThermalPayload | null {
     source: "online_order",
     order_id: raw.id,
     customer_name: raw.customer_name,
+    customer_phone: raw.customer_phone ?? null,
     created_at: raw.created_at,
     delivery_mode: raw.delivery_mode,
     delivery_address: raw.delivery_address,
