@@ -25,6 +25,8 @@ export type ThermalPayload = {
   table_number?: number;
   batch_number?: number;
   customer_name?: string | null;
+  customer_phone?: string | null;
+  customer_address?: string | null;
   created_at?: string;
   opened_at?: string;
   closed_at?: string;
