@@ -247,6 +247,7 @@ function NovoPedidoPage() {
         key: crypto.randomUUID(),
         product_id: it.product_id as string,
         quantity: it.quantity,
+        notes: it.notes ?? "",
         addons: it.addons
           .filter((a) => a.addon_id)
           .map((a) => ({ addon_id: a.addon_id as string, quantity: a.quantity })),
@@ -503,22 +504,17 @@ function NovoPedidoPage() {
     e.preventDefault();
     if (items.length === 0) return;
     if (mode === "delivery" && deliveryFees.length > 0 && !neighborhoodId) return;
-    const addressNote =
-      mode === "delivery" && address.trim()
-        ? `Endereço: ${address.trim()}`
-        : null;
-    const combinedNotes = [notes.trim() || null, addressNote]
-      .filter(Boolean)
-      .join("\n") || null;
+    const generalNotes = notes.trim() || null;
     mut.mutate({
       data: {
         customer_name: customer.trim() || null,
         customer_phone: phone.trim() || null,
         channel,
-        notes: combinedNotes,
+        notes: generalNotes,
         discount,
         delivery_mode: mode,
         delivery_fee: fee,
+        delivery_address: mode === "delivery" ? address.trim() || null : null,
         delivery_neighborhood:
           mode === "delivery" && selectedFee ? selectedFee.neighborhood : null,
         payment_method: payment,
@@ -533,6 +529,7 @@ function NovoPedidoPage() {
         items: items.map((it) => ({
           product_id: it.product_id,
           quantity: it.quantity,
+          notes: it.notes?.trim() || null,
           addons: productAcceptsAddons(it.product_id) ? it.addons : [],
         })),
       },
