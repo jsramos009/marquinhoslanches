@@ -351,7 +351,9 @@ export type Database = {
           change_for: number | null
           closed_at: string | null
           closed_by: string | null
+          customer_address: string | null
           customer_name: string | null
+          customer_phone: string | null
           dining_table_id: string
           id: string
           notes: string | null
@@ -371,7 +373,9 @@ export type Database = {
           change_for?: number | null
           closed_at?: string | null
           closed_by?: string | null
+          customer_address?: string | null
           customer_name?: string | null
+          customer_phone?: string | null
           dining_table_id: string
           id?: string
           notes?: string | null
@@ -391,7 +395,9 @@ export type Database = {
           change_for?: number | null
           closed_at?: string | null
           closed_by?: string | null
+          customer_address?: string | null
           customer_name?: string | null
+          customer_phone?: string | null
           dining_table_id?: string
           id?: string
           notes?: string | null
@@ -487,6 +493,7 @@ export type Database = {
           created_at: string
           id: string
           line_total: number
+          notes: string | null
           order_id: string
           product_id: string | null
           product_name_snapshot: string
@@ -497,6 +504,7 @@ export type Database = {
           created_at?: string
           id?: string
           line_total: number
+          notes?: string | null
           order_id: string
           product_id?: string | null
           product_name_snapshot: string
@@ -507,6 +515,7 @@ export type Database = {
           created_at?: string
           id?: string
           line_total?: number
+          notes?: string | null
           order_id?: string
           product_id?: string | null
           product_name_snapshot?: string
@@ -875,14 +884,25 @@ export type Database = {
         }
         Returns: string
       }
-      dining_open_session: {
-        Args: {
-          p_customer_name?: string
-          p_opened_by: string
-          p_table_id: string
-        }
-        Returns: string
-      }
+      dining_open_session:
+        | {
+            Args: {
+              p_customer_name?: string
+              p_opened_by: string
+              p_table_id: string
+            }
+            Returns: string
+          }
+        | {
+            Args: {
+              p_customer_address?: string
+              p_customer_name?: string
+              p_customer_phone?: string
+              p_opened_by: string
+              p_table_id: string
+            }
+            Returns: string
+          }
       dining_set_active_count: {
         Args: { p_active_count: number }
         Returns: undefined
@@ -965,6 +985,7 @@ export type Database = {
         }
         Returns: undefined
       }
+      print_reopen_job: { Args: { p_job_id: string }; Returns: undefined }
       print_retry_job: { Args: { p_job_id: string }; Returns: undefined }
     }
     Enums: {
