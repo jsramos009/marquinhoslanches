@@ -313,14 +313,15 @@ function PrintStationPage() {
                       <p className="mt-1 text-xs text-destructive">{job.last_error}</p>
                     )}
                   </div>
-                  {job.status === "failed" && (
+                  {(job.status === "failed" || job.status === "printed") && (
                     <button
                       type="button"
                       disabled={retryMutation.isPending}
                       onClick={() => retryMutation.mutate(job.id)}
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-destructive/40 px-3 py-2 text-xs font-semibold text-destructive"
+                      className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-semibold ${job.status === "failed" ? "border-destructive/40 text-destructive" : "border-border text-foreground"}`}
                     >
-                      <RotateCcw className="h-3.5 w-3.5" /> Tentar novamente
+                      <RotateCcw className="h-3.5 w-3.5" />{" "}
+                      {job.status === "failed" ? "Tentar novamente" : "Reimprimir"}
                     </button>
                   )}
                   {job.status === "pending" && !job.auto_print && (

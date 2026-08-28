@@ -15,6 +15,7 @@ import {
   setDiningTableCount,
 } from "@/lib/dining.functions";
 import { getCurrentCashSession } from "@/lib/cash-sessions.functions";
+import { findCustomer } from "@/lib/customers.functions";
 import {
   calculateServiceCharge,
   canReduceActiveTables,
@@ -37,6 +38,13 @@ function freeTableInCache(queryClient: QueryClient, tableId: string) {
     ),
   );
 }
+
+type OpenTableInput = {
+  tableId: string;
+  customerName?: string;
+  customerPhone?: string;
+  customerAddress?: string;
+};
 
 const PAYMENT_LABELS: Record<DiningPaymentMethod, string> = {
   pix: "PIX",
@@ -117,8 +125,16 @@ export function DiningTablesPanel() {
     },
   });
   const openMutation = useMutation({
-    mutationFn: (tableId: string) => openFn({ data: { tableId } }),
-    onMutate: async (tableId: string) => {
+    mutationFn: (input: OpenTableInput) =>
+      openFn({
+        data: {
+          tableId: input.tableId,
+          customerName: input.customerName,
+          customerPhone: input.customerPhone,
+          customerAddress: input.customerAddress,
+        },
+      }),
+    onMutate: async ({ tableId, customerName }: OpenTableInput) => {
       await queryClient.cancelQueries({ queryKey: ["dining-tables"] });
       const previous = queryClient.getQueryData<DiningTableView[]>(["dining-tables"]);
       if (previous) {
@@ -131,7 +147,7 @@ export function DiningTablesPanel() {
                   state: "occupied",
                   session: {
                     id: `optimistic-${tableId}`,
-                    customer_name: null,
+                    customer_name: customerName ?? null,
                     notes: null,
                     opened_at: new Date().toISOString(),
                     subtotal: 0,
@@ -145,7 +161,7 @@ export function DiningTablesPanel() {
       setSelectedTableId(tableId);
       return { previous };
     },
-    onError: (error, _tableId, context) => {
+    onError: (error, _input, context) => {
       if (context?.previous) queryClient.setQueryData(["dining-tables"], context.previous);
       setSelectedTableId(null);
       toast.error((error as Error).message);
@@ -159,12 +175,12 @@ export function DiningTablesPanel() {
     if (!table.is_active) return;
     if (table.session) setSelectedTableId(table.id);
     else if (!cashOpen) toast.error("Abra o caixa antes de iniciar o consumo de uma mesa.");
-    else openMutation.mutate(table.id);
+    else setTablePickerOpen(true);
   }
 
-  function occupyTable(tableId: string) {
+  function occupyTable(input: OpenTableInput) {
     setTablePickerOpen(false);
-    openMutation.mutate(tableId);
+    openMutation.mutate(input);
   }
 
   const canReduce = activeCount > 1 && canReduceActiveTables(tables, activeCount - 1);
@@ -251,7 +267,7 @@ export function DiningTablesPanel() {
                 <TableButton
                   key={table.id}
                   table={table}
-                  busy={openMutation.isPending && openMutation.variables === table.id}
+                  busy={openMutation.isPending && openMutation.variables?.tableId === table.id}
                   blocked={false}
                   onClick={() => selectTable(table)}
                 />
@@ -277,7 +293,7 @@ export function DiningTablesPanel() {
       <FreeTablePickerDialog
         open={tablePickerOpen}
         tables={freeTables}
-        busyTableId={openMutation.isPending ? openMutation.variables : undefined}
+        busyTableId={openMutation.isPending ? openMutation.variables?.tableId : undefined}
         onOpenChange={setTablePickerOpen}
         onSelect={occupyTable}
       />
@@ -303,35 +319,74 @@ function FreeTablePickerDialog({
   tables: DiningTableView[];
   busyTableId?: string;
   onOpenChange: (open: boolean) => void;
-  onSelect: (tableId: string) => void;
+  onSelect: (input: OpenTableInput) => void;
 }) {
+  const lookupFn = useServerFn(findCustomer);
+  const [tableId, setTableId] = useState<string | null>(null);
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [address, setAddress] = useState("");
+
+  useEffect(() => {
+    if (!open) {
+      setTableId(null);
+      setName("");
+      setPhone("");
+      setAddress("");
+    }
+  }, [open]);
+
+  useEffect(() => {
+    const digits = phone.replace(/\D/g, "");
+    if (digits.length < 10) return;
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      void lookupFn({ data: { phone: digits } })
+        .then((found) => {
+          if (cancelled || !found) return;
+          setName((current) => current || (found.name ?? ""));
+          setAddress((current) => current || (found.last_address ?? ""));
+        })
+        .catch(() => undefined);
+    }, 400);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [phone, lookupFn]);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-h-[92vh] max-w-md overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="font-display text-2xl">Ocupar uma mesa</DialogTitle>
         </DialogHeader>
         <p className="text-sm text-muted-foreground">
-          Escolha uma mesa livre para abrir uma nova comanda.
+          Escolha uma mesa livre e, se quiser, registre os dados do cliente.
         </p>
         {tables.length > 0 ? (
-          <div className="grid max-h-[55vh] grid-cols-3 gap-2 overflow-y-auto pr-1 sm:grid-cols-5">
+          <div className="grid max-h-[32vh] grid-cols-4 gap-2 overflow-y-auto pr-1 sm:grid-cols-6">
             {tables.map((table) => {
               const busy = busyTableId === table.id;
+              const selected = tableId === table.id;
               return (
                 <button
                   key={table.id}
                   type="button"
                   disabled={Boolean(busyTableId)}
-                  aria-label={`Ocupar mesa ${table.table_number}`}
-                  onClick={() => onSelect(table.id)}
-                  className="flex min-h-16 flex-col items-center justify-center rounded-xl border border-emerald-500/40 bg-emerald-500/10 text-emerald-300 transition hover:border-emerald-400 hover:bg-emerald-500/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-wait disabled:opacity-45"
+                  aria-label={`Selecionar mesa ${table.table_number}`}
+                  onClick={() => setTableId(table.id)}
+                  className={`flex min-h-14 flex-col items-center justify-center rounded-xl border transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-wait disabled:opacity-45 ${
+                    selected
+                      ? "border-primary bg-primary/15 text-primary"
+                      : "border-emerald-500/40 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20"
+                  }`}
                 >
-                  <span className="font-display text-lg tabular-nums">
+                  <span className="font-display text-base tabular-nums">
                     {String(table.table_number).padStart(2, "0")}
                   </span>
                   <span className="text-[10px] font-semibold uppercase tracking-wide">
-                    {busy ? "Abrindo…" : "Livre"}
+                    {busy ? "Abrindo…" : selected ? "Escolhida" : "Livre"}
                   </span>
                 </button>
               );
@@ -342,6 +397,52 @@ function FreeTablePickerDialog({
             Nenhuma mesa livre disponível.
           </p>
         )}
+
+        <div className="mt-2 space-y-2">
+          <label className="block text-xs text-muted-foreground">
+            Telefone do cliente (opcional)
+            <input
+              value={phone}
+              inputMode="tel"
+              onChange={(event) => setPhone(event.target.value)}
+              placeholder="(00) 00000-0000"
+              className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-foreground"
+            />
+          </label>
+          <label className="block text-xs text-muted-foreground">
+            Nome (opcional)
+            <input
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-foreground"
+            />
+          </label>
+          <label className="block text-xs text-muted-foreground">
+            Endereço (opcional — usado em pedidos de entrega futuros)
+            <input
+              value={address}
+              onChange={(event) => setAddress(event.target.value)}
+              className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-foreground"
+            />
+          </label>
+        </div>
+
+        <button
+          type="button"
+          disabled={!tableId || Boolean(busyTableId)}
+          onClick={() =>
+            tableId &&
+            onSelect({
+              tableId,
+              customerName: name.trim() || undefined,
+              customerPhone: phone.trim() || undefined,
+              customerAddress: address.trim() || undefined,
+            })
+          }
+          className="mt-3 w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-45"
+        >
+          Abrir comanda
+        </button>
       </DialogContent>
     </Dialog>
   );
@@ -555,6 +656,14 @@ function DiningSessionDialog({
     );
   }
 
+  function setItemNotes(index: number, value: string) {
+    setCart((current) =>
+      current.map((item, itemIndex) =>
+        itemIndex === index ? { ...item, notes: value || null } : item,
+      ),
+    );
+  }
+
   function toggleAddon(index: number, addonId: string) {
     setCart((current) =>
       current.map((item, itemIndex) => {
@@ -627,40 +736,50 @@ function DiningSessionDialog({
                           {products.length}
                         </span>
                       </div>
-                      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                        {products.map((product) => (
-                          <button
-                            key={product.id}
-                            type="button"
-                            disabled={!cashOpen || pendingSession}
-                            onClick={() => addProduct(product.id)}
-                            className="group overflow-hidden rounded-xl border border-border bg-background/60 text-left transition hover:border-primary/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-45"
-                          >
-                            <span className="relative block aspect-[4/3] overflow-hidden bg-secondary/60">
-                              {product.image_url ? (
-                                <img
-                                  src={product.image_url}
-                                  alt={product.name}
-                                  loading="lazy"
-                                  className="h-full w-full object-cover transition duration-200 group-hover:scale-[1.03]"
-                                />
-                              ) : (
-                                <span className="grid h-full place-items-center text-muted-foreground">
-                                  <ImageOff className="h-6 w-6" aria-hidden="true" />
-                                  <span className="sr-only">Produto sem foto</span>
+                      <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-4 xl:grid-cols-5">
+                        {products.map((product) => {
+                          const inCart = cart
+                            .filter((item) => item.product_id === product.id)
+                            .reduce((sum, item) => sum + item.quantity, 0);
+                          return (
+                            <button
+                              key={product.id}
+                              type="button"
+                              disabled={!cashOpen || pendingSession}
+                              onClick={() => addProduct(product.id)}
+                              className={`group relative overflow-hidden rounded-lg border bg-background/60 text-left transition hover:border-primary/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-45 ${inCart > 0 ? "border-primary" : "border-border"}`}
+                            >
+                              {inCart > 0 && (
+                                <span className="absolute right-1 top-1 z-10 grid h-5 min-w-5 place-items-center rounded-full bg-primary px-1 text-[11px] font-bold text-primary-foreground tabular-nums">
+                                  {inCart}
                                 </span>
                               )}
-                            </span>
-                            <span className="block p-2.5">
-                              <span className="line-clamp-2 block text-sm font-semibold text-foreground">
-                                {product.name}
+                              <span className="relative block aspect-square overflow-hidden bg-secondary/60">
+                                {product.image_url ? (
+                                  <img
+                                    src={product.image_url}
+                                    alt={product.name}
+                                    loading="lazy"
+                                    className="h-full w-full object-cover transition duration-200 group-hover:scale-[1.03]"
+                                  />
+                                ) : (
+                                  <span className="grid h-full place-items-center text-muted-foreground">
+                                    <ImageOff className="h-5 w-5" aria-hidden="true" />
+                                    <span className="sr-only">Produto sem foto</span>
+                                  </span>
+                                )}
                               </span>
-                              <span className="mt-1 block text-xs font-semibold text-primary">
-                                {formatBRL(product.price)}
+                              <span className="block px-1.5 py-1">
+                                <span className="line-clamp-2 block text-[11px] font-semibold leading-tight text-foreground">
+                                  {product.name}
+                                </span>
+                                <span className="mt-0.5 block text-[11px] font-semibold text-primary">
+                                  {formatBRL(product.price)}
+                                </span>
                               </span>
-                            </span>
-                          </button>
-                        ))}
+                            </button>
+                          );
+                        })}
                       </div>
                     </section>
                   );
@@ -707,6 +826,12 @@ function DiningSessionDialog({
                             </button>
                           </div>
                         </div>
+                        <input
+                          value={item.notes ?? ""}
+                          onChange={(event) => setItemNotes(index, event.target.value)}
+                          placeholder="Observação deste item (ex.: sem cebola)"
+                          className="mt-2 w-full rounded-lg border border-border bg-background px-2.5 py-1.5 text-xs text-foreground"
+                        />
                         {availableAddons.length > 0 && (
                           <div className="mt-2 flex flex-wrap gap-1.5">
                             {availableAddons.map((addon) => {
@@ -787,6 +912,9 @@ function DiningSessionDialog({
                         <p className="text-xs text-muted-foreground">
                           + {item.addons.map((addon) => addon.addon_name_snapshot).join(", ")}
                         </p>
+                      )}
+                      {item.notes && (
+                        <p className="text-xs font-semibold text-amber-400">OBS: {item.notes}</p>
                       )}
                     </li>
                   ))}

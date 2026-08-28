@@ -49,6 +49,7 @@ export type OrderRow = {
     quantity: number;
     unit_price_snapshot: number;
     line_total: number;
+    notes: string | null;
     addons: {
       id: string;
       addon_id: string | null;
@@ -93,6 +94,7 @@ type CreateOrderInput = {
   items: {
     product_id: string;
     quantity: number;
+    notes?: string | null;
     addons?: { addon_id: string; quantity?: number }[];
   }[];
 };
@@ -146,6 +148,7 @@ export const createOrder = createServerFn({ method: "POST" })
       unit_price_snapshot: number;
       quantity: number;
       line_total: number;
+      notes: string | null;
       addons: {
         addon_id: string;
         addon_name_snapshot: string;
@@ -187,6 +190,7 @@ export const createOrder = createServerFn({ method: "POST" })
         unit_price_snapshot: unit,
         quantity: qty,
         line_total,
+        notes: (it.notes ?? "").toString().trim() || null,
         addons,
       });
     }
@@ -247,7 +251,8 @@ export const createOrder = createServerFn({ method: "POST" })
           unit_price_snapshot: it.unit_price_snapshot,
           quantity: it.quantity,
           line_total: it.line_total,
-        })
+          notes: it.notes,
+        } as any)
         .select("id")
         .single();
       if (iErr || !itemRow) throw new Error(iErr?.message || "Falha ao inserir item");
@@ -319,6 +324,7 @@ export const updateOrder = createServerFn({ method: "POST" })
       unit_price_snapshot: number;
       quantity: number;
       line_total: number;
+      notes: string | null;
       addons: {
         addon_id: string;
         addon_name_snapshot: string;
@@ -359,6 +365,7 @@ export const updateOrder = createServerFn({ method: "POST" })
         unit_price_snapshot: unit,
         quantity: qty,
         line_total,
+        notes: (it.notes ?? "").toString().trim() || null,
         addons,
       });
     }
@@ -429,7 +436,8 @@ export const updateOrder = createServerFn({ method: "POST" })
           unit_price_snapshot: it.unit_price_snapshot,
           quantity: it.quantity,
           line_total: it.line_total,
-        })
+          notes: it.notes,
+        } as any)
         .select("id")
         .single();
       if (iErr || !itemRow) throw new Error(iErr?.message || "Falha ao inserir item");
@@ -460,7 +468,7 @@ export const getOrderById = createServerFn({ method: "GET" })
     const { data: row, error } = await context.supabase
       .from("orders")
       .select(
-        "id, customer_name, customer_phone, channel, status, subtotal, discount, total, notes, cancel_reason, payment_method, change_for, cash_amount, secondary_payment_method, delivery_mode, delivery_fee, delivery_address, delivery_neighborhood, courier_id, created_at, ready_at, delivered_at, order_items(id, product_id, product_name_snapshot, quantity, unit_price_snapshot, line_total, order_item_addons(id, addon_id, addon_name_snapshot, quantity, unit_price_snapshot))",
+        "id, customer_name, customer_phone, channel, status, subtotal, discount, total, notes, cancel_reason, payment_method, change_for, cash_amount, secondary_payment_method, delivery_mode, delivery_fee, delivery_address, delivery_neighborhood, courier_id, created_at, ready_at, delivered_at, order_items(id, product_id, product_name_snapshot, quantity, unit_price_snapshot, line_total, notes, order_item_addons(id, addon_id, addon_name_snapshot, quantity, unit_price_snapshot))",
       )
       .eq("id", data.id)
       .maybeSingle();
@@ -497,6 +505,7 @@ export const getOrderById = createServerFn({ method: "GET" })
         quantity: i.quantity,
         unit_price_snapshot: Number(i.unit_price_snapshot),
         line_total: Number(i.line_total),
+        notes: (i as any).notes ?? null,
         addons: (i.order_item_addons ?? []).map((a: any) => ({
           id: a.id,
           addon_id: a.addon_id ?? null,
@@ -539,7 +548,7 @@ export const listRecentOrders = createServerFn({ method: "GET" })
     let query = context.supabase
       .from("orders")
       .select(
-        "id, customer_name, customer_phone, channel, status, subtotal, discount, total, notes, cancel_reason, payment_method, change_for, cash_amount, secondary_payment_method, delivery_mode, delivery_fee, delivery_address, delivery_neighborhood, courier_id, created_at, ready_at, delivered_at, order_items(id, product_id, product_name_snapshot, quantity, unit_price_snapshot, line_total, order_item_addons(id, addon_id, addon_name_snapshot, quantity, unit_price_snapshot))",
+        "id, customer_name, customer_phone, channel, status, subtotal, discount, total, notes, cancel_reason, payment_method, change_for, cash_amount, secondary_payment_method, delivery_mode, delivery_fee, delivery_address, delivery_neighborhood, courier_id, created_at, ready_at, delivered_at, order_items(id, product_id, product_name_snapshot, quantity, unit_price_snapshot, line_total, notes, order_item_addons(id, addon_id, addon_name_snapshot, quantity, unit_price_snapshot))",
       );
     query = currentSession
       ? query.eq("cash_session_id", currentSession.id)
@@ -616,6 +625,7 @@ export const listRecentOrders = createServerFn({ method: "GET" })
           quantity: i.quantity,
           unit_price_snapshot: Number(i.unit_price_snapshot),
           line_total: Number(i.line_total),
+          notes: (i as any).notes ?? null,
           addons: (i.order_item_addons ?? []).map((a) => ({
             id: a.id,
             addon_id: a.addon_id ?? null,
@@ -641,7 +651,7 @@ export const listArchivedOrders = createServerFn({ method: "GET" })
     const { data: rows, error } = await context.supabase
       .from("orders")
       .select(
-        "id, customer_name, customer_phone, channel, status, subtotal, discount, total, notes, cancel_reason, payment_method, change_for, cash_amount, secondary_payment_method, delivery_mode, delivery_fee, delivery_address, delivery_neighborhood, courier_id, created_at, ready_at, delivered_at, order_items(id, product_id, product_name_snapshot, quantity, unit_price_snapshot, line_total, order_item_addons(id, addon_id, addon_name_snapshot, quantity, unit_price_snapshot))",
+        "id, customer_name, customer_phone, channel, status, subtotal, discount, total, notes, cancel_reason, payment_method, change_for, cash_amount, secondary_payment_method, delivery_mode, delivery_fee, delivery_address, delivery_neighborhood, courier_id, created_at, ready_at, delivered_at, order_items(id, product_id, product_name_snapshot, quantity, unit_price_snapshot, line_total, notes, order_item_addons(id, addon_id, addon_name_snapshot, quantity, unit_price_snapshot))",
       )
       .gte("created_at", since.toISOString())
       .lt("created_at", startOfToday.toISOString())
@@ -717,6 +727,7 @@ export const listArchivedOrders = createServerFn({ method: "GET" })
           quantity: i.quantity,
           unit_price_snapshot: Number(i.unit_price_snapshot),
           line_total: Number(i.line_total),
+          notes: (i as any).notes ?? null,
           addons: (i.order_item_addons ?? []).map((a) => ({
             id: a.id,
             addon_id: a.addon_id ?? null,
@@ -746,7 +757,7 @@ export const listOrdersByDay = createServerFn({ method: "GET" })
     const { data: rows, error } = await context.supabase
       .from("orders")
       .select(
-        "id, customer_name, customer_phone, channel, status, subtotal, discount, total, notes, cancel_reason, payment_method, change_for, cash_amount, secondary_payment_method, delivery_mode, delivery_fee, delivery_address, delivery_neighborhood, courier_id, created_at, ready_at, delivered_at, order_items(id, product_id, product_name_snapshot, quantity, unit_price_snapshot, line_total, order_item_addons(id, addon_id, addon_name_snapshot, quantity, unit_price_snapshot))",
+        "id, customer_name, customer_phone, channel, status, subtotal, discount, total, notes, cancel_reason, payment_method, change_for, cash_amount, secondary_payment_method, delivery_mode, delivery_fee, delivery_address, delivery_neighborhood, courier_id, created_at, ready_at, delivered_at, order_items(id, product_id, product_name_snapshot, quantity, unit_price_snapshot, line_total, notes, order_item_addons(id, addon_id, addon_name_snapshot, quantity, unit_price_snapshot))",
       )
       .gte("created_at", start.toISOString())
       .lt("created_at", end.toISOString())
@@ -786,6 +797,7 @@ export const listOrdersByDay = createServerFn({ method: "GET" })
           quantity: i.quantity,
           unit_price_snapshot: Number(i.unit_price_snapshot),
           line_total: Number(i.line_total),
+          notes: (i as any).notes ?? null,
           addons: (i.order_item_addons ?? []).map((a: any) => ({
             id: a.id,
             addon_id: a.addon_id ?? null,
