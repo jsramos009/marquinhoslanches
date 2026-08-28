@@ -16,6 +16,7 @@ type OnlineOrderItemRow = {
   quantity: number;
   unit_price_snapshot: number | string;
   line_total: number | string;
+  notes?: string | null;
   order_item_addons?: {
     addon_name_snapshot: string;
     quantity: number;
@@ -25,6 +26,7 @@ type OnlineOrderItemRow = {
 type OnlineOrderRow = {
   id: string;
   customer_name: string | null;
+  customer_phone?: string | null;
   subtotal: number | string;
   discount: number | string;
   total: number | string;
@@ -57,6 +59,8 @@ type DiningSessionRow = {
   id: string;
   dining_table_id: string;
   customer_name: string | null;
+  customer_phone?: string | null;
+  customer_address?: string | null;
   notes: string | null;
   opened_at: string;
 };
