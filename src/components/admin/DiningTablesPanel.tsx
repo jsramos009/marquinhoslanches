@@ -15,6 +15,7 @@ import {
   setDiningTableCount,
 } from "@/lib/dining.functions";
 import { getCurrentCashSession } from "@/lib/cash-sessions.functions";
+import { findCustomer } from "@/lib/customers.functions";
 import {
   calculateServiceCharge,
   canReduceActiveTables,
@@ -320,7 +321,7 @@ function FreeTablePickerDialog({
   onOpenChange: (open: boolean) => void;
   onSelect: (input: OpenTableInput) => void;
 }) {
-  const lookupFn = useServerFn(lookupCustomer);
+  const lookupFn = useServerFn(findCustomer);
   const [tableId, setTableId] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
