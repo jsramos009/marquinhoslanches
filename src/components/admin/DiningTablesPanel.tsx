@@ -318,35 +318,74 @@ function FreeTablePickerDialog({
   tables: DiningTableView[];
   busyTableId?: string;
   onOpenChange: (open: boolean) => void;
-  onSelect: (tableId: string) => void;
+  onSelect: (input: OpenTableInput) => void;
 }) {
+  const lookupFn = useServerFn(lookupCustomer);
+  const [tableId, setTableId] = useState<string | null>(null);
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [address, setAddress] = useState("");
+
+  useEffect(() => {
+    if (!open) {
+      setTableId(null);
+      setName("");
+      setPhone("");
+      setAddress("");
+    }
+  }, [open]);
+
+  useEffect(() => {
+    const digits = phone.replace(/\D/g, "");
+    if (digits.length < 10) return;
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      void lookupFn({ data: { phone: digits } })
+        .then((found) => {
+          if (cancelled || !found) return;
+          setName((current) => current || (found.name ?? ""));
+          setAddress((current) => current || (found.last_address ?? ""));
+        })
+        .catch(() => undefined);
+    }, 400);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [phone, lookupFn]);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-h-[92vh] max-w-md overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="font-display text-2xl">Ocupar uma mesa</DialogTitle>
         </DialogHeader>
         <p className="text-sm text-muted-foreground">
-          Escolha uma mesa livre para abrir uma nova comanda.
+          Escolha uma mesa livre e, se quiser, registre os dados do cliente.
         </p>
         {tables.length > 0 ? (
-          <div className="grid max-h-[55vh] grid-cols-3 gap-2 overflow-y-auto pr-1 sm:grid-cols-5">
+          <div className="grid max-h-[32vh] grid-cols-4 gap-2 overflow-y-auto pr-1 sm:grid-cols-6">
             {tables.map((table) => {
               const busy = busyTableId === table.id;
+              const selected = tableId === table.id;
               return (
                 <button
                   key={table.id}
                   type="button"
                   disabled={Boolean(busyTableId)}
-                  aria-label={`Ocupar mesa ${table.table_number}`}
-                  onClick={() => onSelect(table.id)}
-                  className="flex min-h-16 flex-col items-center justify-center rounded-xl border border-emerald-500/40 bg-emerald-500/10 text-emerald-300 transition hover:border-emerald-400 hover:bg-emerald-500/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-wait disabled:opacity-45"
+                  aria-label={`Selecionar mesa ${table.table_number}`}
+                  onClick={() => setTableId(table.id)}
+                  className={`flex min-h-14 flex-col items-center justify-center rounded-xl border transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-wait disabled:opacity-45 ${
+                    selected
+                      ? "border-primary bg-primary/15 text-primary"
+                      : "border-emerald-500/40 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20"
+                  }`}
                 >
-                  <span className="font-display text-lg tabular-nums">
+                  <span className="font-display text-base tabular-nums">
                     {String(table.table_number).padStart(2, "0")}
                   </span>
                   <span className="text-[10px] font-semibold uppercase tracking-wide">
-                    {busy ? "Abrindo…" : "Livre"}
+                    {busy ? "Abrindo…" : selected ? "Escolhida" : "Livre"}
                   </span>
                 </button>
               );
@@ -357,6 +396,52 @@ function FreeTablePickerDialog({
             Nenhuma mesa livre disponível.
           </p>
         )}
+
+        <div className="mt-2 space-y-2">
+          <label className="block text-xs text-muted-foreground">
+            Telefone do cliente (opcional)
+            <input
+              value={phone}
+              inputMode="tel"
+              onChange={(event) => setPhone(event.target.value)}
+              placeholder="(00) 00000-0000"
+              className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-foreground"
+            />
+          </label>
+          <label className="block text-xs text-muted-foreground">
+            Nome (opcional)
+            <input
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-foreground"
+            />
+          </label>
+          <label className="block text-xs text-muted-foreground">
+            Endereço (opcional — usado em pedidos de entrega futuros)
+            <input
+              value={address}
+              onChange={(event) => setAddress(event.target.value)}
+              className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-foreground"
+            />
+          </label>
+        </div>
+
+        <button
+          type="button"
+          disabled={!tableId || Boolean(busyTableId)}
+          onClick={() =>
+            tableId &&
+            onSelect({
+              tableId,
+              customerName: name.trim() || undefined,
+              customerPhone: phone.trim() || undefined,
+              customerAddress: address.trim() || undefined,
+            })
+          }
+          className="mt-3 w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-45"
+        >
+          Abrir comanda
+        </button>
       </DialogContent>
     </Dialog>
   );
