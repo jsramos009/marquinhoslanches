@@ -49,6 +49,7 @@ export type OrderRow = {
     quantity: number;
     unit_price_snapshot: number;
     line_total: number;
+    notes: string | null;
     addons: {
       id: string;
       addon_id: string | null;
@@ -93,6 +94,7 @@ type CreateOrderInput = {
   items: {
     product_id: string;
     quantity: number;
+    notes?: string | null;
     addons?: { addon_id: string; quantity?: number }[];
   }[];
 };
@@ -146,6 +148,7 @@ export const createOrder = createServerFn({ method: "POST" })
       unit_price_snapshot: number;
       quantity: number;
       line_total: number;
+      notes: string | null;
       addons: {
         addon_id: string;
         addon_name_snapshot: string;
@@ -187,6 +190,7 @@ export const createOrder = createServerFn({ method: "POST" })
         unit_price_snapshot: unit,
         quantity: qty,
         line_total,
+        notes: (it.notes ?? "").toString().trim() || null,
         addons,
       });
     }
@@ -247,7 +251,8 @@ export const createOrder = createServerFn({ method: "POST" })
           unit_price_snapshot: it.unit_price_snapshot,
           quantity: it.quantity,
           line_total: it.line_total,
-        })
+          notes: it.notes,
+        } as any)
         .select("id")
         .single();
       if (iErr || !itemRow) throw new Error(iErr?.message || "Falha ao inserir item");
@@ -319,6 +324,7 @@ export const updateOrder = createServerFn({ method: "POST" })
       unit_price_snapshot: number;
       quantity: number;
       line_total: number;
+      notes: string | null;
       addons: {
         addon_id: string;
         addon_name_snapshot: string;
@@ -359,6 +365,7 @@ export const updateOrder = createServerFn({ method: "POST" })
         unit_price_snapshot: unit,
         quantity: qty,
         line_total,
+        notes: (it.notes ?? "").toString().trim() || null,
         addons,
       });
     }
@@ -429,7 +436,8 @@ export const updateOrder = createServerFn({ method: "POST" })
           unit_price_snapshot: it.unit_price_snapshot,
           quantity: it.quantity,
           line_total: it.line_total,
-        })
+          notes: it.notes,
+        } as any)
         .select("id")
         .single();
       if (iErr || !itemRow) throw new Error(iErr?.message || "Falha ao inserir item");
