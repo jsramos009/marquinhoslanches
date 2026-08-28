@@ -295,7 +295,7 @@ function NovoPedidoPage() {
   const quantityByProduct = useMemo(() => {
     const map = new Map<string, number>();
     for (const it of items) {
-      if (it.addons.length === 0) map.set(it.product_id, (map.get(it.product_id) ?? 0) + it.quantity);
+      map.set(it.product_id, (map.get(it.product_id) ?? 0) + it.quantity);
     }
     return map;
   }, [items]);
@@ -687,7 +687,7 @@ function NovoPedidoPage() {
                     {g.items.length}
                   </span>
                 </h3>
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+                <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6">
                   {g.items.map((p) => {
                     const qty = quantityByProduct.get(p.id) ?? 0;
                     return (
@@ -695,29 +695,29 @@ function NovoPedidoPage() {
                         key={p.id}
                         type="button"
                         onClick={() => addProduct(p.id)}
-                        className="group relative flex flex-col items-center rounded-xl border border-border bg-card p-3 text-center transition hover:border-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                        className={`group relative flex flex-col items-center rounded-lg border bg-card p-1.5 text-center transition hover:border-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary ${qty > 0 ? "border-primary" : "border-border"}`}
                       >
-                        <div className="mb-2 grid h-16 w-16 place-items-center rounded-lg bg-secondary text-primary">
+                        <div className="mb-1 grid h-12 w-12 place-items-center rounded-lg bg-secondary text-primary">
                           {p.image_url ? (
                             <img
                               src={p.image_url}
                               alt={p.name}
                               loading="lazy"
                               decoding="async"
-                              width={64}
-                              height={64}
-                              className="h-16 w-16 rounded-lg object-cover"
+                              width={48}
+                              height={48}
+                              className="h-12 w-12 rounded-lg object-cover"
                             />
                           ) : (
-                            <ImageIcon size={24} />
+                            <ImageIcon size={20} />
                           )}
                         </div>
-                        <p className="line-clamp-2 text-xs font-semibold leading-tight text-foreground">
+                        <p className="line-clamp-2 text-[11px] font-semibold leading-tight text-foreground">
                           {p.name}
                         </p>
-                        <p className="mt-1 text-xs text-muted-foreground">{formatBRL(p.price)}</p>
+                        <p className="mt-0.5 text-[11px] text-muted-foreground">{formatBRL(p.price)}</p>
                         {qty > 0 && (
-                          <span className="absolute right-2 top-2 flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-[10px] font-semibold text-primary-foreground">
+                          <span className="absolute right-1 top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-[10px] font-semibold text-primary-foreground">
                             {qty}
                           </span>
                         )}
