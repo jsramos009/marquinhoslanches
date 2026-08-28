@@ -272,7 +272,7 @@ export const enqueueDiningPrintJob = createServerFn({ method: "POST" })
     const db = await staffDatabase(context.userId);
     const { data: session, error: sessionError } = await db
       .from("dining_sessions")
-      .select("id, dining_table_id, customer_name, notes, opened_at")
+      .select("id, dining_table_id, customer_name, customer_phone, customer_address, notes, opened_at")
       .eq("id", data.sessionId)
       .eq("status", "open")
       .maybeSingle();
@@ -320,6 +320,8 @@ export const enqueueDiningPrintJob = createServerFn({ method: "POST" })
       session_id: diningSession.id,
       table_number: Number(diningTable.table_number),
       customer_name: diningSession.customer_name,
+      customer_phone: diningSession.customer_phone ?? null,
+      customer_address: diningSession.customer_address ?? null,
       opened_at: diningSession.opened_at,
       notes: diningSession.notes,
       subtotal,
@@ -340,7 +342,7 @@ export const enqueueDiningPrintJob = createServerFn({ method: "POST" })
         payload,
         auto_print: false,
       },
-      { onConflict: "job_key", ignoreDuplicates: true },
+      { onConflict: "job_key" },
     );
     if (insertError) throw new Error(insertError.message);
     const { data: job, error: jobError } = await db
@@ -349,7 +351,13 @@ export const enqueueDiningPrintJob = createServerFn({ method: "POST" })
       .eq("job_key", jobKey)
       .single();
     if (jobError) throw new Error(jobError.message);
-    return mapJob(job as PrintJobRow);
+    const current = mapJob(job as PrintJobRow);
+    if (current.status !== "pending") {
+      const { error: reopenError } = await db.rpc("print_reopen_job", { p_job_id: current.id });
+      if (reopenError) throw new Error(reopenError.message);
+      return { ...current, status: "pending", attempts: 0, last_error: null, printed_at: null };
+    }
+    return current;
   });
 
 export const listPrintJobs = createServerFn({ method: "GET" })
