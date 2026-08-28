@@ -1,32 +1,45 @@
-# Restaurar lançamento de pedido em mesa nova
+# Comandas, impressão e lançamento manual
 
-## Problema
-No painel "Controle de mesas" atualmente só são exibidas mesas **ocupadas**, conforme solicitado anteriormente. Com isso, não há mais como iniciar uma nova comanda/mesa, pois as mesas livres ficam invisíveis e não há outro caminho para abrir uma sessão.
+## O que está errado hoje (verificado no código)
 
-## Solução
-Adicionar um controle explícito para ocupar uma nova mesa sem voltar a exibir mesas livres no grid principal.
+- No lançamento manual, a observação de cada lanche **não é salva no banco**: ao enviar o pedido só vão `product_id`, `quantidade` e adicionais. A observação de item é jogada fora e o endereço é grudado no campo geral de observações do pedido (`Observações + "Endereço: ..."` no mesmo texto). Por isso a impressão sai tudo misturado.
+- A tabela de itens do pedido não tem campo de observação (as mesas têm; os pedidos não).
+- No lançamento manual os adicionais só aparecem para produtos de categoria "hambúrguer" e apenas num diálogo no momento de adicionar — não dá para editar depois, diferente do cardápio do cliente.
+- Reimpressão: o job de impressão é criado com chave única e, se já estiver como "impresso" ou "falhou", o botão recusa com mensagem de erro em vez de reimprimir.
 
 ## O que será feito
 
-1. **Botão "+ Ocupar mesa" no topo do `DiningTablesPanel`**
-   - Visível apenas quando o caixa estiver aberto.
-   - Abre um Dialog/Popover listando as mesas ativas e livres (número e estado).
+### 1. Separar observações do endereço (banco + telas)
+- Nova coluna de observação em cada item do pedido.
+- O lançamento manual passa a salvar a observação de cada lanche no item, e o endereço deixa de ser colado nas observações gerais (já existem campos próprios de endereço/bairro).
+- Migração para separar dados antigos: extrair a linha "Endereço: ..." das observações gerais para o campo de endereço quando este estiver vazio.
+- Edição de pedido volta a carregar a observação de cada item.
 
-2. **Dialog de seleção de mesa livre**
-   - Grid compacto com as mesas disponíveis.
-   - Ao clicar, chama `openDiningSession` e já abre a comanda da mesa escolhida.
+### 2. Comanda térmica redetalhada
+Novo layout do documento impresso, em blocos claramente separados e com mais negrito/tamanho para impressora térmica:
+1. Cabeçalho: Marquinhos Lanches, tipo (COZINHA / COMANDA / RECIBO), referência (pedido ou mesa), data/hora.
+2. Bloco CLIENTE / ENTREGA: nome, telefone, bairro, endereço e observação de entrega.
+3. Bloco ITENS: cada lanche em negrito, adicionais indentados e "OBS:" do lanche logo abaixo, em negrito.
+4. Bloco OBSERVAÇÕES GERAIS do pedido (separado dos itens).
+5. Bloco TOTAIS e pagamento (troco / pagamento dividido).
+Mesmo layout na versão HTML enviada à impressora e na versão de fallback do navegador.
 
-3. **Manter o grid principal mostrando só mesas ocupadas**
-   - Preserva o comportamento solicitado anteriormente.
+### 3. Impressão e reimpressão sempre disponíveis
+- Botão de impressão passa a permitir **reimprimir**: se o job já estiver impresso ou com falha, ele é reaberto (nova tentativa) em vez de dar erro.
+- Correção dos bugs atuais: job travado em "imprimindo" com claim expirado é liberado; falha de QZ não deixa mais o pedido preso; mensagens de erro claras; fallback de impressão pelo navegador continua funcionando.
+- Botão "Imprimir/Reimprimir" também nas mesas e na lista de pedidos.
 
-4. **Mensagem de estado vazio ajustada**
-   - Quando não houver mesas ocupadas, exibir algo como:
-     "Nenhuma mesa ocupada. Clique em '+ Ocupar mesa' para iniciar uma comanda."
+### 4. Lançamento manual e mesas: cards menores + adicionais iguais ao cardápio
+- Grade de produtos com cards compactos (mais colunas por linha, imagem menor) no novo pedido e nas mesas.
+- Cada produto marcado mostra a quantidade selecionada no próprio card (badge), com + / − direto no card.
+- Adicionais disponíveis para **qualquer produto que aceite adicionais** (não só hambúrguer), editáveis depois de adicionado, como no cardápio do cliente — tanto no novo pedido quanto nas mesas.
+- Campo de observação por item ao lado dos adicionais, em ambos os fluxos.
 
-## Arquivos envolvidos
-- `src/components/admin/DiningTablesPanel.tsx`
-- `src/lib/dining.functions.ts` (reutiliza `openDiningSession` existente)
+## Detalhes técnicos
 
-## Critério de pronto
-- Conseguir abrir uma nova mesa sem que ela apareça no grid principal antes de ser ocupada.
-- Fluxo continuar funcionando: adicionar produtos, fechar comanda e liberar mesa.
+- Migração: `ALTER TABLE public.order_items ADD COLUMN notes text;` + backfill/limpeza do `orders.notes` para `orders.delivery_address`.
+- `src/lib/orders.functions.ts`: aceitar e retornar `notes` por item em criar/editar/listar.
+- `src/lib/print.functions.ts`: incluir `notes` do item e campos de cliente/telefone no payload; nova ação de reimpressão (reset do job para `pending` e limpeza de claim vencido).
+- `src/lib/print-domain.ts`: reescrita de `thermalHtml` com os blocos acima; `PrintLineItem.notes` já existe.
+- `src/components/admin/KitchenTicket.tsx`, `DiningReceipt.tsx`, `ThermalReceipt.tsx`: mesmo agrupamento de blocos.
+- `src/routes/_authenticated/admin.novo-pedido.tsx` e `src/components/admin/DiningTablesPanel.tsx`: grade compacta, badge de quantidade, painel de adicionais/observação por item.
