@@ -656,6 +656,14 @@ function DiningSessionDialog({
     );
   }
 
+  function setItemNotes(index: number, value: string) {
+    setCart((current) =>
+      current.map((item, itemIndex) =>
+        itemIndex === index ? { ...item, notes: value || null } : item,
+      ),
+    );
+  }
+
   function toggleAddon(index: number, addonId: string) {
     setCart((current) =>
       current.map((item, itemIndex) => {
@@ -728,40 +736,50 @@ function DiningSessionDialog({
                           {products.length}
                         </span>
                       </div>
-                      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                        {products.map((product) => (
-                          <button
-                            key={product.id}
-                            type="button"
-                            disabled={!cashOpen || pendingSession}
-                            onClick={() => addProduct(product.id)}
-                            className="group overflow-hidden rounded-xl border border-border bg-background/60 text-left transition hover:border-primary/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-45"
-                          >
-                            <span className="relative block aspect-[4/3] overflow-hidden bg-secondary/60">
-                              {product.image_url ? (
-                                <img
-                                  src={product.image_url}
-                                  alt={product.name}
-                                  loading="lazy"
-                                  className="h-full w-full object-cover transition duration-200 group-hover:scale-[1.03]"
-                                />
-                              ) : (
-                                <span className="grid h-full place-items-center text-muted-foreground">
-                                  <ImageOff className="h-6 w-6" aria-hidden="true" />
-                                  <span className="sr-only">Produto sem foto</span>
+                      <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-4 xl:grid-cols-5">
+                        {products.map((product) => {
+                          const inCart = cart
+                            .filter((item) => item.product_id === product.id)
+                            .reduce((sum, item) => sum + item.quantity, 0);
+                          return (
+                            <button
+                              key={product.id}
+                              type="button"
+                              disabled={!cashOpen || pendingSession}
+                              onClick={() => addProduct(product.id)}
+                              className={`group relative overflow-hidden rounded-lg border bg-background/60 text-left transition hover:border-primary/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-45 ${inCart > 0 ? "border-primary" : "border-border"}`}
+                            >
+                              {inCart > 0 && (
+                                <span className="absolute right-1 top-1 z-10 grid h-5 min-w-5 place-items-center rounded-full bg-primary px-1 text-[11px] font-bold text-primary-foreground tabular-nums">
+                                  {inCart}
                                 </span>
                               )}
-                            </span>
-                            <span className="block p-2.5">
-                              <span className="line-clamp-2 block text-sm font-semibold text-foreground">
-                                {product.name}
+                              <span className="relative block aspect-square overflow-hidden bg-secondary/60">
+                                {product.image_url ? (
+                                  <img
+                                    src={product.image_url}
+                                    alt={product.name}
+                                    loading="lazy"
+                                    className="h-full w-full object-cover transition duration-200 group-hover:scale-[1.03]"
+                                  />
+                                ) : (
+                                  <span className="grid h-full place-items-center text-muted-foreground">
+                                    <ImageOff className="h-5 w-5" aria-hidden="true" />
+                                    <span className="sr-only">Produto sem foto</span>
+                                  </span>
+                                )}
                               </span>
-                              <span className="mt-1 block text-xs font-semibold text-primary">
-                                {formatBRL(product.price)}
+                              <span className="block px-1.5 py-1">
+                                <span className="line-clamp-2 block text-[11px] font-semibold leading-tight text-foreground">
+                                  {product.name}
+                                </span>
+                                <span className="mt-0.5 block text-[11px] font-semibold text-primary">
+                                  {formatBRL(product.price)}
+                                </span>
                               </span>
-                            </span>
-                          </button>
-                        ))}
+                            </button>
+                          );
+                        })}
                       </div>
                     </section>
                   );
@@ -808,6 +826,12 @@ function DiningSessionDialog({
                             </button>
                           </div>
                         </div>
+                        <input
+                          value={item.notes ?? ""}
+                          onChange={(event) => setItemNotes(index, event.target.value)}
+                          placeholder="Observação deste item (ex.: sem cebola)"
+                          className="mt-2 w-full rounded-lg border border-border bg-background px-2.5 py-1.5 text-xs text-foreground"
+                        />
                         {availableAddons.length > 0 && (
                           <div className="mt-2 flex flex-wrap gap-1.5">
                             {availableAddons.map((addon) => {
@@ -888,6 +912,9 @@ function DiningSessionDialog({
                         <p className="text-xs text-muted-foreground">
                           + {item.addons.map((addon) => addon.addon_name_snapshot).join(", ")}
                         </p>
+                      )}
+                      {item.notes && (
+                        <p className="text-xs font-semibold text-amber-400">OBS: {item.notes}</p>
                       )}
                     </li>
                   ))}
