@@ -35,10 +35,6 @@ export function OrderPrintButton({ orderId }: { orderId: string }) {
   const printMutation = useMutation({
     mutationFn: async () => {
       const queued = await enqueueFn({ data: { orderId } });
-      if (queued.status === "printed") throw new Error("Este pedido já foi impresso.");
-      if (queued.status === "failed") {
-        throw new Error("Esta impressão falhou. Use “Tentar novamente” na estação de impressão.");
-      }
       const claimed = await claimFn({ data: { jobId: queued.id, stationId } });
       if (!claimed) throw new Error("Este pedido já está sendo impresso por outra estação.");
 
