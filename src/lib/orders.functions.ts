@@ -505,6 +505,7 @@ export const getOrderById = createServerFn({ method: "GET" })
         quantity: i.quantity,
         unit_price_snapshot: Number(i.unit_price_snapshot),
         line_total: Number(i.line_total),
+        notes: (i as any).notes ?? null,
         addons: (i.order_item_addons ?? []).map((a: any) => ({
           id: a.id,
           addon_id: a.addon_id ?? null,
@@ -624,6 +625,7 @@ export const listRecentOrders = createServerFn({ method: "GET" })
           quantity: i.quantity,
           unit_price_snapshot: Number(i.unit_price_snapshot),
           line_total: Number(i.line_total),
+          notes: (i as any).notes ?? null,
           addons: (i.order_item_addons ?? []).map((a) => ({
             id: a.id,
             addon_id: a.addon_id ?? null,
@@ -725,6 +727,7 @@ export const listArchivedOrders = createServerFn({ method: "GET" })
           quantity: i.quantity,
           unit_price_snapshot: Number(i.unit_price_snapshot),
           line_total: Number(i.line_total),
+          notes: (i as any).notes ?? null,
           addons: (i.order_item_addons ?? []).map((a) => ({
             id: a.id,
             addon_id: a.addon_id ?? null,
@@ -794,6 +797,7 @@ export const listOrdersByDay = createServerFn({ method: "GET" })
           quantity: i.quantity,
           unit_price_snapshot: Number(i.unit_price_snapshot),
           line_total: Number(i.line_total),
+          notes: (i as any).notes ?? null,
           addons: (i.order_item_addons ?? []).map((a: any) => ({
             id: a.id,
             addon_id: a.addon_id ?? null,
