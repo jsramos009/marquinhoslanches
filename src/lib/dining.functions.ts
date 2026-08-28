@@ -219,10 +219,17 @@ export const getDiningCatalog = createServerFn({ method: "GET" })
 
 export const openDiningSession = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: { tableId: string; customerName?: string }) => {
-    if (!data?.tableId) throw new Error("Mesa inválida.");
-    return data;
-  })
+  .inputValidator(
+    (data: {
+      tableId: string;
+      customerName?: string;
+      customerPhone?: string;
+      customerAddress?: string;
+    }) => {
+      if (!data?.tableId) throw new Error("Mesa inválida.");
+      return data;
+    },
+  )
   .handler(async ({ data, context }) => {
     const db = await staffDatabase(context.userId);
     await requireOpenCashSession(db);
@@ -230,6 +237,8 @@ export const openDiningSession = createServerFn({ method: "POST" })
       p_table_id: data.tableId,
       p_opened_by: context.userId,
       p_customer_name: data.customerName?.trim() || null,
+      p_customer_phone: data.customerPhone?.replace(/\D/g, "") || null,
+      p_customer_address: data.customerAddress?.trim() || null,
     });
     if (error) throw new Error(error.message);
     return { sessionId: sessionId as string };
