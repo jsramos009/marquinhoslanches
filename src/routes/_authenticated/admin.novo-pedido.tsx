@@ -3,7 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { AdminShell, formatBRL } from "@/components/admin/AdminShell";
-import { isHamburgerCategory, menuQueryOptions } from "@/lib/menu";
+import { menuQueryOptions } from "@/lib/menu";
 import {
   createOrder,
   updateOrder,
@@ -266,14 +266,6 @@ function NovoPedidoPage() {
     deliveryFees.find((f) => f.id === neighborhoodId) ?? null;
   const fee = mode === "delivery" && selectedFee ? selectedFee.fee : 0;
   const extra = mode === "delivery" ? Math.max(0, extraFee) : 0;
-  const hamburgerCategoryIds = useMemo(() => {
-    if (!menu.data) return new Set<string>();
-    return new Set(
-      menu.data.categories
-        .filter((c) => isHamburgerCategory(c.slug, c.name))
-        .map((c) => c.id),
-    );
-  }, [menu.data]);
   const productMap = useMemo(() => new Map(products.map((p) => [p.id, p])), [products]);
   const addonMap = useMemo(() => new Map(addons.map((a) => [a.id, a])), [addons]);
   const norm = (s: string) =>
