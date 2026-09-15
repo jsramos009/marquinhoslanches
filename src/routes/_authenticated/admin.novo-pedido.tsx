@@ -145,6 +145,7 @@ function NovoPedidoPage() {
   const [mode, setMode] = useState<"pickup" | "delivery">("pickup");
   const [neighborhoodId, setNeighborhoodId] = useState<string>("");
   const [address, setAddress] = useState("");
+  const [extraFee, setExtraFee] = useState(0);
   const [payment, setPayment] = useState<OrderPaymentMethod>("nao_informado");
   const [changeFor, setChangeFor] = useState<number>(0);
   const [splitPay, setSplitPay] = useState(false);
@@ -227,6 +228,7 @@ function NovoPedidoPage() {
     setDiscount(Number(o.discount) || 0);
     setMode(o.delivery_mode);
     setAddress(o.delivery_address ?? "");
+    setExtraFee(Number((o as any).delivery_extra_fee) || 0);
     setPayment(o.payment_method);
     setChangeFor(o.change_for != null ? Number(o.change_for) : 0);
     if (o.cash_amount != null && o.secondary_payment_method) {
@@ -263,6 +265,7 @@ function NovoPedidoPage() {
   const selectedFee =
     deliveryFees.find((f) => f.id === neighborhoodId) ?? null;
   const fee = mode === "delivery" && selectedFee ? selectedFee.fee : 0;
+  const extra = mode === "delivery" ? Math.max(0, extraFee) : 0;
   const hamburgerCategoryIds = useMemo(() => {
     if (!menu.data) return new Set<string>();
     return new Set(
@@ -301,7 +304,13 @@ function NovoPedidoPage() {
   }, [items]);
   const productAcceptsAddons = (productId: string) => {
     const p = productMap.get(productId);
-    return Boolean(p?.accepts_addons && hamburgerCategoryIds.has(p.category_id));
+    return Boolean(p?.accepts_addons);
+  };
+  const addonsForProduct = (productId: string) => {
+    const p = productMap.get(productId);
+    if (!p?.accepts_addons) return [] as typeof addons;
+    const linked = addons.filter((a) => p.addon_ids.includes(a.id));
+    return linked.length > 0 ? linked : addons;
   };
 
   const subtotal = items.reduce((sum, it) => {
@@ -313,7 +322,7 @@ function NovoPedidoPage() {
     }, 0) : 0;
     return sum + (p.price + addonsTotal) * it.quantity;
   }, 0);
-  const total = Math.max(0, subtotal - discount + fee);
+  const total = Math.max(0, subtotal - discount + fee + extra);
 
   const pixSettings = pixSettingsQuery.data ?? {
     pix_key: PIX_KEY_FALLBACK,
@@ -423,6 +432,7 @@ function NovoPedidoPage() {
     lines.push(`*Subtotal:* ${formatBRL(subtotal)}`);
     if (discount > 0) lines.push(`*Desconto:* -${formatBRL(discount)}`);
     if (mode === "delivery") lines.push(`*Frete:* ${formatBRL(fee)}`);
+    if (extra > 0) lines.push(`*Taxa adicional:* ${formatBRL(extra)}`);
     lines.push(`*Total:* ${formatBRL(total)}`);
     lines.push("");
     lines.push(`*Forma de pagamento:* ${payLabel[payment]}`);
@@ -514,6 +524,7 @@ function NovoPedidoPage() {
         discount,
         delivery_mode: mode,
         delivery_fee: fee,
+        delivery_extra_fee: extra,
         delivery_address: mode === "delivery" ? address.trim() || null : null,
         delivery_neighborhood:
           mode === "delivery" && selectedFee ? selectedFee.neighborhood : null,
@@ -648,6 +659,17 @@ function NovoPedidoPage() {
                   onChange={(e) => setAddress(e.target.value)}
                   rows={2}
                   placeholder="Rua, número, ponto de referência"
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                />
+              </Field>
+              <Field label="Taxa adicional (fora de rota)">
+                <input
+                  type="number"
+                  min={0}
+                  step={0.5}
+                  value={extraFee}
+                  onChange={(e) => setExtraFee(Math.max(0, Number(e.target.value) || 0))}
+                  placeholder="0,00"
                   className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
                 />
               </Field>
@@ -804,17 +826,44 @@ function NovoPedidoPage() {
                       </button>
                     </div>
                     <span className="text-xs font-semibold">
-                      {formatBRL(p.price * it.quantity)}
+                      {formatBRL(
+                        (p.price +
+                          (productAcceptsAddons(p.id)
+                            ? it.addons.reduce(
+                                (s, a) => s + (addonMap.get(a.addon_id)?.price ?? 0) * a.quantity,
+                                0,
+                              )
+                            : 0)) *
+                          it.quantity,
+                      )}
                     </span>
                   </div>
-                  {productAcceptsAddons(p.id) && it.addons.length > 0 && (
-                    <p className="mt-2 text-[11px] text-muted-foreground">
-                      +{" "}
-                      {it.addons
-                        .map((x) => addonMap.get(x.addon_id)?.name)
-                        .filter(Boolean)
-                        .join(", ")}
-                    </p>
+                  {productAcceptsAddons(p.id) && addonsForProduct(p.id).length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-1">
+                      {addonsForProduct(p.id).map((a) => {
+                        const selected = it.addons.some((x) => x.addon_id === a.id);
+                        return (
+                          <button
+                            key={a.id}
+                            type="button"
+                            onClick={() =>
+                              updateItem(it.key, {
+                                addons: selected
+                                  ? it.addons.filter((x) => x.addon_id !== a.id)
+                                  : [...it.addons, { addon_id: a.id, quantity: 1 }],
+                              })
+                            }
+                            className={`rounded-full border px-2 py-0.5 text-[10px] transition ${
+                              selected
+                                ? "border-primary bg-primary/15 text-foreground"
+                                : "border-border text-muted-foreground hover:border-primary/50"
+                            }`}
+                          >
+                            + {a.name} · {formatBRL(a.price)}
+                          </button>
+                        );
+                      })}
+                    </div>
                   )}
                   <textarea
                     value={it.notes ?? ""}
@@ -832,6 +881,7 @@ function NovoPedidoPage() {
           {mode === "delivery" && fee > 0 && (
             <Row label={`Frete${selectedFee ? ` (${selectedFee.neighborhood})` : ""}`} value={formatBRL(fee)} />
           )}
+          {extra > 0 && <Row label="Taxa adicional (fora de rota)" value={formatBRL(extra)} />}
           <div>
             <label className="text-xs text-muted-foreground">Desconto (R$)</label>
             <input
