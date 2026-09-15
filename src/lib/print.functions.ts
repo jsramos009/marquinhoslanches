@@ -37,6 +37,7 @@ type OnlineOrderRow = {
   secondary_payment_method: string | null;
   delivery_mode: string;
   delivery_fee: number | string | null;
+  delivery_extra_fee?: number | string | null;
   delivery_address: string | null;
   delivery_neighborhood: string | null;
   created_at: string;
@@ -111,6 +112,7 @@ function buildOnlineOrderPayload(raw: OnlineOrderRow): ThermalPayload | null {
     subtotal: Number(raw.subtotal),
     discount: Number(raw.discount),
     delivery_fee: Number(raw.delivery_fee ?? 0),
+    delivery_extra_fee: Number((raw as any).delivery_extra_fee ?? 0),
     total: Number(raw.total),
     items,
   });
@@ -128,6 +130,7 @@ function buildOnlineOrderPayload(raw: OnlineOrderRow): ThermalPayload | null {
     subtotal: Number(raw.subtotal),
     discount: Number(raw.discount),
     delivery_fee: Number(raw.delivery_fee ?? 0),
+    delivery_extra_fee: Number((raw as any).delivery_extra_fee ?? 0),
     total: Number(raw.total),
     payment_method: raw.payment_method ?? "nao_informado",
     secondary_payment_method: raw.secondary_payment_method,
@@ -161,7 +164,7 @@ export const reconcileOnlinePrintJobs = createServerFn({ method: "POST" })
       const { data: page, error: orderError } = await db
         .from("orders")
         .select(
-          "id, customer_name, channel, status, subtotal, discount, total, notes, payment_method, change_for, cash_amount, secondary_payment_method, delivery_mode, delivery_fee, delivery_address, delivery_neighborhood, created_at, order_items(id, product_name_snapshot, quantity, unit_price_snapshot, line_total, order_item_addons(addon_name_snapshot, quantity, unit_price_snapshot))",
+          "id, customer_name, channel, status, subtotal, discount, total, notes, payment_method, change_for, cash_amount, secondary_payment_method, delivery_mode, delivery_fee, delivery_extra_fee, delivery_address, delivery_neighborhood, created_at, order_items(id, product_name_snapshot, quantity, unit_price_snapshot, line_total, order_item_addons(addon_name_snapshot, quantity, unit_price_snapshot))",
         )
         .eq("channel", "whatsapp")
         .neq("status", "cancelado")
@@ -222,7 +225,7 @@ export const enqueueOrderPrintJob = createServerFn({ method: "POST" })
     const { data: order, error: orderError } = await db
       .from("orders")
       .select(
-        "id, customer_name, customer_phone, channel, status, subtotal, discount, total, notes, payment_method, change_for, cash_amount, secondary_payment_method, delivery_mode, delivery_fee, delivery_address, delivery_neighborhood, created_at, order_items(id, product_name_snapshot, quantity, unit_price_snapshot, line_total, notes, order_item_addons(addon_name_snapshot, quantity, unit_price_snapshot))",
+        "id, customer_name, customer_phone, channel, status, subtotal, discount, total, notes, payment_method, change_for, cash_amount, secondary_payment_method, delivery_mode, delivery_fee, delivery_extra_fee, delivery_address, delivery_neighborhood, created_at, order_items(id, product_name_snapshot, quantity, unit_price_snapshot, line_total, notes, order_item_addons(addon_name_snapshot, quantity, unit_price_snapshot))",
       )
       .eq("id", data.orderId)
       .neq("status", "cancelado")
