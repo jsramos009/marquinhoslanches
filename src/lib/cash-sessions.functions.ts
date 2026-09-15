@@ -142,7 +142,7 @@ export const listOrdersByCashSession = createServerFn({ method: "GET" })
     const { data: rows, error } = await context.supabase
       .from("orders")
       .select(
-        "id, customer_name, customer_phone, channel, status, subtotal, discount, total, notes, cancel_reason, payment_method, change_for, cash_amount, secondary_payment_method, delivery_mode, delivery_fee, delivery_address, delivery_neighborhood, courier_id, created_at, ready_at, delivered_at, order_items(id, product_id, product_name_snapshot, quantity, unit_price_snapshot, line_total, order_item_addons(id, addon_id, addon_name_snapshot, quantity, unit_price_snapshot))",
+        "id, customer_name, customer_phone, channel, status, subtotal, discount, total, notes, cancel_reason, payment_method, change_for, cash_amount, secondary_payment_method, delivery_mode, delivery_fee, delivery_extra_fee, delivery_address, delivery_neighborhood, courier_id, created_at, ready_at, delivered_at, order_items(id, product_id, product_name_snapshot, quantity, unit_price_snapshot, line_total, order_item_addons(id, addon_id, addon_name_snapshot, quantity, unit_price_snapshot))",
       )
       .eq("cash_session_id", data.sessionId)
       .order("created_at", { ascending: false });
@@ -164,6 +164,7 @@ export const listOrdersByCashSession = createServerFn({ method: "GET" })
       secondary_payment_method: r.secondary_payment_method ?? null,
       delivery_mode: (r.delivery_mode === "delivery" ? "delivery" : "pickup") as "delivery" | "pickup",
       delivery_fee: Number(r.delivery_fee ?? 0),
+      delivery_extra_fee: Number(r.delivery_extra_fee ?? 0),
       delivery_address: r.delivery_address ?? null,
       delivery_neighborhood: r.delivery_neighborhood ?? null,
       courier_id: r.courier_id ?? null,

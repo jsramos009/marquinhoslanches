@@ -796,9 +796,15 @@ function DiningSessionDialog({
                 <div className="space-y-3">
                   {cart.map((item, index) => {
                     const product = catalog?.products.find((entry) => entry.id === item.product_id);
-                    const availableAddons = (catalog?.addons ?? []).filter((addon) =>
+                    const allAddons = catalog?.addons ?? [];
+                    const linkedAddons = allAddons.filter((addon) =>
                       product?.addon_ids.includes(addon.id),
                     );
+                    const availableAddons = !product?.accepts_addons
+                      ? []
+                      : linkedAddons.length > 0
+                        ? linkedAddons
+                        : allAddons;
                     return (
                       <div
                         key={`${item.product_id}-${index}`}

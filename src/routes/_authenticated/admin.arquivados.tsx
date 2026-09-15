@@ -515,7 +515,7 @@ function DayDetail({
     0,
   );
   const deliveryFees = deliveredOrders.reduce(
-    (s, o) => s + Number(o.delivery_fee || 0),
+    (s, o) => s + Number(o.delivery_fee || 0) + Number(o.delivery_extra_fee || 0),
     0,
   );
   const netRevenue = m.revenue - deliveryFees; // faturamento sem os fretes concluídos
@@ -611,7 +611,7 @@ function DayDetail({
       for (const o of deliveries) {
         const time = formatBRTime(o.created_at);
         lines.push(
-          `• ${time} — ${o.customer_name || "Sem cliente"} — ${formatBRL(o.total)} (frete ${formatBRL(o.delivery_fee || 0)}) — ${FLOW_STATUS_LABEL[o.status]}`,
+          `• ${time} — ${o.customer_name || "Sem cliente"} — ${formatBRL(o.total)} (frete ${formatBRL(Number(o.delivery_fee || 0) + Number(o.delivery_extra_fee || 0))}) — ${FLOW_STATUS_LABEL[o.status]}`,
         );
         if (o.delivery_neighborhood)
           lines.push(`   Bairro: ${o.delivery_neighborhood}`);

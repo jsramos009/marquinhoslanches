@@ -37,6 +37,7 @@ export type ThermalPayload = {
   subtotal?: number;
   discount?: number;
   delivery_fee?: number;
+  delivery_extra_fee?: number;
   service_charge_percent?: number;
   service_charge_amount?: number;
   total?: number;
@@ -131,12 +132,13 @@ export function isCompleteOnlineOrder(order: {
   subtotal: number;
   discount: number;
   delivery_fee: number;
+  delivery_extra_fee?: number;
   total: number;
   items: { line_total: number }[];
 }) {
   if (!order.items.length) return false;
   const itemSubtotal = order.items.reduce((sum, item) => sum + Number(item.line_total), 0);
-  const expectedTotal = itemSubtotal - Number(order.discount) + Number(order.delivery_fee);
+  const expectedTotal = itemSubtotal - Number(order.discount) + Number(order.delivery_fee) + Number(order.delivery_extra_fee ?? 0);
   return (
     Math.abs(itemSubtotal - Number(order.subtotal)) <= 0.01 &&
     Math.abs(expectedTotal - Number(order.total)) <= 0.01
@@ -226,6 +228,7 @@ export function thermalHtml(payload: ThermalPayload, documentType: PrintDocument
        <div class="row"><span>Subtotal</span><span>${money(payload.subtotal)}</span></div>
        ${Number(payload.discount) > 0 ? `<div class="row"><span>Desconto</span><span>- ${money(payload.discount)}</span></div>` : ""}
        ${Number(payload.delivery_fee) > 0 ? `<div class="row"><span>Entrega</span><span>${money(payload.delivery_fee)}</span></div>` : ""}
+       ${Number(payload.delivery_extra_fee) > 0 ? `<div class="row"><span>Taxa adicional</span><span>${money(payload.delivery_extra_fee)}</span></div>` : ""}
        ${Number(payload.service_charge_amount) > 0 ? `<div class="row"><span>Taxa (${Number(payload.service_charge_percent)}%)</span><span>${money(payload.service_charge_amount)}</span></div>` : ""}
        <div class="row total"><span>TOTAL</span><span>${money(payload.total)}</span></div>
        <div class="row"><span>Forma</span><strong>${escapeHtml(PRINT_PAYMENT_LABEL[payload.payment_method ?? ""] ?? payload.payment_method ?? "Não informado")}</strong></div>
